@@ -23,6 +23,8 @@ const schema = z.object({
   S3_ACCESS_KEY: z.string().optional(),
   S3_SECRET_KEY: z.string().optional(),
   MAX_UPLOAD_MB: z.coerce.number().default(100),
+  // Where attachments live when S3 is not configured.
+  UPLOAD_DIR: z.string().default("./uploads"),
 
   // Calls and screen sharing.
   LIVEKIT_URL: z.string().optional(),
@@ -40,7 +42,7 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 
-export const storageEnabled = Boolean(
+export const s3Configured = Boolean(
   env.S3_ENDPOINT && env.S3_ACCESS_KEY && env.S3_SECRET_KEY
 );
 

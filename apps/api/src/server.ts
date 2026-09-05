@@ -1,9 +1,9 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
-import { env, callsEnabled, storageEnabled } from "./env.js";
+import { env, callsEnabled } from "./env.js";
 import { prisma } from "./lib/prisma.js";
-import { ensureBucket } from "./lib/storage.js";
+import { driver, initStorage } from "./lib/storage.js";
 import { redisEnabled } from "./lib/redis.js";
 import { authRoutes } from "./routes/auth.js";
 import { userRoutes } from "./routes/users.js";
@@ -36,7 +36,7 @@ async function main() {
 
   app.get("/health", async () => ({
     ok: true,
-    storage: storageEnabled,
+    storage: driver,
     calls: callsEnabled,
     realtimeScaling: redisEnabled
   }));
@@ -61,19 +61,16 @@ async function main() {
     });
   });
 
-  // Storage being unreachable must not stop the app from serving messages.
-  // Attachments will fail with a clear 503 until it comes back.
-  if (storageEnabled) {
-    await ensureBucket().catch((err) =>
-      app.log.warn(`storage unreachable at boot: ${err?.message ?? err}`)
-    );
-  }
+  // Storage failing to initialise must not stop the app from serving messages.
+  await initStorage().catch((err) =>
+    app.log.warn(`storage not ready at boot: ${err?.message ?? err}`)
+  );
 
   await app.listen({ port: env.PORT, host: env.HOST });
   await attachSocketServer(app.server);
 
   app.log.info(
-    `WhatsCord API on :${env.PORT} · storage=${storageEnabled} · calls=${callsEnabled} · redis=${redisEnabled}`
+    `WhatsCord API on :${env.PORT} · storage=${driver} · calls=${callsEnabled} · redis=${redisEnabled}`
   );
 }
 

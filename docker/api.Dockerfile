@@ -46,6 +46,11 @@ COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
 COPY apps/api/package.json ./package.json
 COPY apps/api/prisma ./prisma
 
+# Attachments land here. Mount a persistent volume on this path in production,
+# or the files go away with the container.
+RUN mkdir -p /data/uploads && chown -R app:app /data
+ENV UPLOAD_DIR=/data/uploads
+
 USER app
 EXPOSE 3001
 

@@ -1,12 +1,13 @@
 import type { FastifyInstance } from "fastify";
-import { env, storageEnabled } from "../env.js";
+import { env } from "../env.js";
 import { authGuard } from "../plugins/auth.js";
 import { getObjectStream, newObjectKey, putObject } from "../lib/storage.js";
 
 /**
- * Uploads go straight into MinIO; downloads are proxied back through here.
+ * Uploads go to whichever storage driver is configured; downloads are proxied
+ * back through here rather than handed out as direct links.
  *
- * Proxying costs a little bandwidth but buys a lot: the bucket never has to be
+ * Proxying costs a little bandwidth but buys a lot: storage never has to be
  * reachable from the internet, there are no signed URLs to expire while the
  * desktop app sits open overnight, and every asset shares the API's origin —
  * which matters inside the Tauri webview, where a plain-http URL would be
@@ -14,10 +15,6 @@ import { getObjectStream, newObjectKey, putObject } from "../lib/storage.js";
  */
 export async function fileRoutes(app: FastifyInstance) {
   app.post("/files", { preHandler: authGuard }, async (request, reply) => {
-    if (!storageEnabled) {
-      return reply.code(503).send({ error: "File storage is not set up on this server." });
-    }
-
     const uploaded = await request.file({
       limits: { fileSize: env.MAX_UPLOAD_MB * 1024 * 1024 }
     });
@@ -50,8 +47,6 @@ export async function fileRoutes(app: FastifyInstance) {
    * random UUIDs, so the URL is the capability.
    */
   app.get("/files/*", async (request, reply) => {
-    if (!storageEnabled) return reply.code(503).send({ error: "File storage is not set up." });
-
     const key = decodeURIComponent((request.params as Record<string, string>)["*"] ?? "");
     if (!key || key.includes("..")) return reply.code(400).send({ error: "Bad file reference." });
 
