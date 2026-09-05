@@ -49,9 +49,12 @@ COPY apps/api/prisma ./prisma
 USER app
 EXPOSE 3001
 
-# No HEALTHCHECK here on purpose. Coolify honours the image's own probe when it
-# finds one and then ignores its configured settings, which hides the real path
-# (/health) and the grace period the boot migration needs.
+# This probe has to live in the image: for a Dockerfile build Coolify reads
+# `.State.Health.Status` off the container and never injects one of its own, so
+# without a HEALTHCHECK here the deploy fails on an empty health state.
+# The start period covers the migration that runs before the server listens.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=8 \
+  CMD curl -fsS http://127.0.0.1:3001/health || exit 1
 
 ENTRYPOINT ["/sbin/tini", "--"]
 # Migrations run at boot: the database is only reachable from inside the
