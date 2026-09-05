@@ -6,7 +6,7 @@ import { signalTyping, stopTyping } from "../lib/socket";
 import {
   IconAttach, IconEmoji, IconSend, IconMic, IconSearch, IconMenu, IconPhone,
   IconVideo, IconChecks, IconCheck, IconClock, IconReply, IconClose, IconFile,
-  IconVoiceRoom
+  IconVoiceRoom, IconBack
 } from "./icons";
 
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
@@ -25,6 +25,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
   const send = useStore((s) => s.send);
   const loadOlder = useStore((s) => s.loadOlder);
   const setReplyTo = useStore((s) => s.setReplyTo);
+  const closeRoom = useStore((s) => s.closeRoom);
 
   const room = rooms.find((r) => r.id === activeRoomId);
   const scroller = useRef<HTMLDivElement>(null);
@@ -109,6 +110,10 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
   return (
     <section className="chat">
       <header className="chat-header">
+        {/* Only rendered on a narrow screen, where the list is off-screen. */}
+        <button className="icon-btn back-btn" onClick={closeRoom} title="Back to conversations">
+          <IconBack />
+        </button>
         <div className={`avatar${isVoiceRoom ? " voice" : ""}`}>
           {isVoiceRoom ? <IconVoiceRoom size={20} /> : room.iconUrl ? (
             <img src={fileUrl(room.iconUrl)} alt="" />

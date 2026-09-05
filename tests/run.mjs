@@ -700,11 +700,28 @@ async function secPaginacao() {
   });
 
   await t("cursor inválido", async () => {
-    const r = await GET(`/rooms/${room}/messages?before=nao-e-data`, { token: A.token });
+    for (const [desc, value] of [
+      ["texto solto", "nao-e-data"],
+      ["só timestamp (formato antigo)", new Date().toISOString()],
+      ["separador sem id", `${new Date().toISOString()}|`],
+      ["data inválida com id", "2026-13-45T99:99:99.000Z|clabc"]
+    ]) {
+      const r = await GET(`/rooms/${room}/messages?before=${encodeURIComponent(value)}`, {
+        token: A.token
+      });
+      check(`cursor malformado (${desc}) devolve 400`, r.status === 400, "400", short(r));
+    }
+  });
+
+  await t("cursor bem formado com id inexistente", async () => {
+    const r = await GET(
+      `/rooms/${room}/messages?before=${encodeURIComponent(`${new Date().toISOString()}|cl00000000000000000000000`)}`,
+      { token: A.token }
+    );
     check(
-      "before com valor não-data não devolve 500",
-      r.status < 500,
-      "4xx (ou 200 vazio)",
+      "cursor válido apontando para id inexistente não quebra",
+      r.status === 200,
+      "200",
       short(r)
     );
   });
@@ -757,12 +774,7 @@ async function secAutorizacao() {
 
   await t("sair de sala alheia", async () => {
     const r = await DEL(`/rooms/${room}/members/me`, { token: C.token });
-    if (r.status === 200) {
-      note(
-        "DELETE /rooms/:id/members/me devolve 200 mesmo para quem não é membro (idempotente, sem checagem) — informativo"
-      );
-    }
-    check("sair de sala alheia não quebra o servidor", r.status < 500, "<500", short(r));
+    check("C não consegue sair de uma sala em que nunca esteve (404)", r.status === 404, "404", short(r));
   });
 
   await t("verificar que C não alterou nada", async () => {
@@ -1009,6 +1021,53 @@ async function secNaoLidas() {
     check("mensagem apagada não fica contando como não lida", n === 0, "0", String(n));
   });
 
+  await t("marcar lida com messageId", async () => {
+    const g3 = await POST("/rooms/group", {
+      token: A.token,
+      body: { name: "read-com-id", memberIds: [B.id] }
+    });
+    const r3 = g3.json.room.id;
+    const ids = [];
+    for (let i = 0; i < 3; i++) {
+      const m = await POST(`/rooms/${r3}/messages`, { token: A.token, body: { content: `m${i}` } });
+      ids.push(m.json.message.id);
+    }
+    check("3 mensagens não lidas antes de marcar", (await unreadOf(B.token, r3)) === 3, "3", String(await unreadOf(B.token, r3)));
+
+    const r = await POST(`/rooms/${r3}/read`, { token: B.token, body: { messageId: ids[2] } });
+    check("POST /rooms/:id/read com messageId responde 200", r.status === 200, "200", short(r));
+    check(
+      "após marcar lida com messageId, unread=0",
+      (await unreadOf(B.token, r3)) === 0,
+      "0",
+      String(await unreadOf(B.token, r3))
+    );
+
+    // Marcar pela PRIMEIRA mensagem: o contrato documentado é "tudo até agora",
+    // então isso zera mesmo. Registro para o caso de quererem leitura parcial.
+    await POST(`/rooms/${r3}/messages`, { token: A.token, body: { content: "m3" } });
+    await POST(`/rooms/${r3}/messages`, { token: A.token, body: { content: "m4" } });
+    await POST(`/rooms/${r3}/read`, { token: B.token, body: { messageId: ids[0] } });
+    const partial = await unreadOf(B.token, r3);
+    note(
+      `marcar lida citando a 1ª mensagem zerou o contador mesmo assim (unread=${partial}): messageId é só um marcador, não faz leitura parcial`
+    );
+
+    const foreign = await POST(`/rooms/${r3}/read`, {
+      token: B.token,
+      body: { messageId: state.msg1 }
+    });
+    if (foreign.status === 200) {
+      note(
+        "POST /rooms/:id/read aceita um messageId de OUTRA sala sem validar (grava como lastReadMessageId) — informativo"
+      );
+    }
+    check("read com messageId de outra sala não quebra", foreign.status < 500, "<500", short(foreign));
+
+    const bad = await POST(`/rooms/${r3}/read`, { token: B.token, body: { messageId: 12345 } });
+    check("read com messageId não-string é rejeitado ou ignorado, sem 500", bad.status < 500, "<500", short(bad));
+  });
+
   await t("silenciar", async () => {
     const r = await PATCH(`/rooms/${room}/mute`, { token: B.token, body: { muted: true } });
     check("silenciar a própria sala responde 200", r.status === 200, "200", short(r));
@@ -1032,6 +1091,8 @@ async function secRealtime() {
   const sockB = await connectSocket(B.token, "B");
   const sockC = await connectSocket(C.token, "C");
   state.sockets = [sockA, sockB, sockC];
+  // Guardados para a seção de idempotência, que roda depois desta.
+  Object.assign(state, { sockA, sockB, sockC });
   pass("3 sockets autenticados conectaram");
 
   await t("socket sem token", async () => {
@@ -1248,22 +1309,22 @@ async function secRealtime() {
     state.sockets.push(sockD);
     await sleep(1500);
 
-    // Atenção ao ler este PASS: hoje o evento é broadcast global, então A o
-    // recebe por ser socket conectado, não por compartilhar sala com D. O
-    // teste abaixo só garante que a presença é publicada.
+    // A tem DM com D (aberta na seção anterior); C não compartilha sala nenhuma
+    // com D. A presença tem que chegar só para A.
     const dPresence = sockA.of("presence:online").filter((e) => e.payload?.userId === D.id);
     check(
-      "conexão de D publica presence:online (A recebe)",
+      "presence:online de D chega para A, que compartilha sala com D",
       dPresence.length >= 1,
       ">=1 presence:online",
       String(dPresence.length)
     );
 
     const cSaw = sockC.of("presence:online").filter((e) => e.payload?.userId === D.id);
-    note(
-      cSaw.length > 0
-        ? "presence:online é transmitido em broadcast global: C recebe presença de D sem ter nenhuma sala em comum — vaza quem está online no servidor inteiro (decisão de produto, não asserto como falha)"
-        : "presence:online parece direcionado: C, sem sala em comum com D, não recebeu o evento"
+    check(
+      "presence:online de D NÃO chega para C, que não compartilha sala nenhuma",
+      cSaw.length === 0,
+      "0 eventos",
+      `${cSaw.length} eventos — presença ainda vaza em broadcast global`
     );
 
     const presence = await POST("/users/presence", { token: A.token, body: { userIds: [D.id, B.id] } });
@@ -1275,13 +1336,224 @@ async function secRealtime() {
     );
 
     sockA.clear();
+    sockC.clear();
     sockD.socket.disconnect();
     await sleep(1800);
     check(
-      "desconexão dispara presence:offline",
+      "desconexão dispara presence:offline para quem compartilha sala",
       sockA.of("presence:offline").some((e) => e.payload?.userId === D.id),
       ">=1 presence:offline de D",
       String(sockA.countOf("presence:offline"))
+    );
+    check(
+      "presence:offline de D NÃO chega para C",
+      sockC.of("presence:offline").filter((e) => e.payload?.userId === D.id).length === 0,
+      "0 eventos",
+      String(sockC.of("presence:offline").filter((e) => e.payload?.userId === D.id).length)
+    );
+  });
+}
+
+/* ================================================================== */
+/* 8b. Idempotência de envio (clientMsgId)                             */
+/* ================================================================== */
+
+async function secIdempotencia() {
+  console.log("\n=== 8b. Idempotência (clientMsgId) ===");
+  const { A, B } = state;
+  const room = state.dmAB;
+  const sockA = state.sockA;
+  const sockB = state.sockB;
+  const cid = () => `cmid-${Math.random().toString(36).slice(2, 12)}-${Date.now()}`;
+
+  await t("envios simultâneos com o mesmo clientMsgId", async () => {
+    const clientMsgId = cid();
+    const [r1, r2] = await Promise.all([
+      POST(`/rooms/${room}/messages`, {
+        token: A.token,
+        body: { content: "retry simultâneo", clientMsgId }
+      }),
+      POST(`/rooms/${room}/messages`, {
+        token: A.token,
+        body: { content: "retry simultâneo", clientMsgId }
+      })
+    ]);
+
+    check(
+      "nenhum dos dois envios simultâneos devolve 5xx",
+      r1.status < 500 && r2.status < 500,
+      "nenhuma 5xx",
+      `${short(r1)} || ${short(r2)}`
+    );
+
+    const codes = [r1.status, r2.status].sort();
+    check(
+      "os dois envios simultâneos devolvem um 201 e um 200",
+      codes[0] === 200 && codes[1] === 201,
+      "200 e 201",
+      codes.join(" e ")
+    );
+
+    const ids = [r1.json?.message?.id, r2.json?.message?.id];
+    check(
+      "os dois envios simultâneos apontam para a MESMA mensagem",
+      ids[0] && ids[0] === ids[1],
+      "mesmo message.id",
+      ids.join(" != ")
+    );
+
+    const list = await GET(`/rooms/${room}/messages?limit=100`, { token: A.token });
+    const copies = list.json.messages.filter((m) => m.content === "retry simultâneo");
+    check(
+      "só UMA mensagem foi criada no envio simultâneo",
+      copies.length === 1,
+      "1 mensagem",
+      `${copies.length} mensagens`
+    );
+    state.dedupeId = ids[0];
+  });
+
+  await t("reenvio posterior do mesmo clientMsgId", async () => {
+    const clientMsgId = cid();
+    const first = await POST(`/rooms/${room}/messages`, {
+      token: A.token,
+      body: { content: "envio único", clientMsgId }
+    });
+    check("primeiro envio devolve 201", first.status === 201, "201", short(first));
+
+    const again = await POST(`/rooms/${room}/messages`, {
+      token: A.token,
+      body: { content: "envio único", clientMsgId }
+    });
+    check("reenvio do mesmo clientMsgId devolve 200", again.status === 200, "200", short(again));
+    check(
+      "reenvio devolve a MESMA mensagem",
+      again.json?.message?.id === first.json?.message?.id,
+      `message.id === ${first.json?.message?.id}`,
+      String(again.json?.message?.id)
+    );
+
+    // Um reenvio com conteúdo diferente não pode sobrescrever o original.
+    const tampered = await POST(`/rooms/${room}/messages`, {
+      token: A.token,
+      body: { content: "conteúdo trocado no retry", clientMsgId }
+    });
+    check(
+      "reenvio com conteúdo diferente devolve a mensagem original, sem alterá-la",
+      tampered.json?.message?.content === "envio único",
+      '"envio único"',
+      String(tampered.json?.message?.content)
+    );
+
+    const list = await GET(`/rooms/${room}/messages?limit=100`, { token: A.token });
+    const copies = list.json.messages.filter((m) => m.content === "envio único");
+    check("o reenvio não criou uma segunda mensagem", copies.length === 1, "1", String(copies.length));
+  });
+
+  await t("mesmo clientMsgId em outra sala", async () => {
+    const clientMsgId = cid();
+    const first = await POST(`/rooms/${room}/messages`, {
+      token: A.token,
+      body: { content: "primeira sala", clientMsgId }
+    });
+    check("envio na primeira sala devolve 201", first.status === 201, "201", short(first));
+
+    const other = await POST(`/rooms/${state.groupPag}/messages`, {
+      token: A.token,
+      body: { content: "outra sala", clientMsgId }
+    });
+    check(
+      "o mesmo clientMsgId em OUTRA sala devolve 409",
+      other.status === 409,
+      "409",
+      short(other)
+    );
+
+    const list = await GET(`/rooms/${state.groupPag}/messages?limit=100`, { token: A.token });
+    check(
+      "o 409 não deixou mensagem órfã na outra sala",
+      !list.json.messages.some((m) => m.content === "outra sala"),
+      "nenhuma mensagem criada",
+      "a mensagem foi criada mesmo com 409"
+    );
+  });
+
+  await t("clientMsgId é escopado por autor", async () => {
+    const clientMsgId = cid();
+    const fromA = await POST(`/rooms/${room}/messages`, {
+      token: A.token,
+      body: { content: "de A", clientMsgId }
+    });
+    const fromB = await POST(`/rooms/${room}/messages`, {
+      token: B.token,
+      body: { content: "de B", clientMsgId }
+    });
+    check("A envia com o clientMsgId (201)", fromA.status === 201, "201", short(fromA));
+    check(
+      "B consegue enviar com o MESMO clientMsgId (escopo é por autor)",
+      fromB.status === 201,
+      "201",
+      short(fromB)
+    );
+    check(
+      "as duas mensagens são distintas",
+      fromA.json?.message?.id !== fromB.json?.message?.id,
+      "ids diferentes",
+      `ambos ${fromA.json?.message?.id}`
+    );
+  });
+
+  await t("socket no caminho de dedupe", async () => {
+    sockB.clear();
+    sockA.clear();
+    const clientMsgId = cid();
+    const body = { content: "dedupe no socket", clientMsgId };
+
+    const first = await POST(`/rooms/${room}/messages`, { token: A.token, body });
+    await sleep(1500);
+    const id = first.json?.message?.id;
+    const afterFirst = sockB.of("message:new").filter((e) => e.payload?.id === id).length;
+    check(
+      "o primeiro envio emite message:new uma vez",
+      afterFirst === 1,
+      "1 evento",
+      `${afterFirst} eventos`
+    );
+
+    await POST(`/rooms/${room}/messages`, { token: A.token, body });
+    await POST(`/rooms/${room}/messages`, { token: A.token, body });
+    await sleep(1800);
+    const total = sockB.of("message:new").filter((e) => e.payload?.id === id).length;
+    check(
+      "os reenvios deduplicados NÃO emitem message:new de novo",
+      total === 1,
+      "1 evento no total",
+      `${total} eventos — o retry reemite a mensagem e o outro lado a vê duplicada`
+    );
+  });
+
+  await t("validação do clientMsgId", async () => {
+    const curto = await POST(`/rooms/${room}/messages`, {
+      token: A.token,
+      body: { content: "id curto", clientMsgId: "abc" }
+    });
+    check("clientMsgId com menos de 8 caracteres é rejeitado", curto.status === 400, "400", short(curto));
+
+    const longo = await POST(`/rooms/${room}/messages`, {
+      token: A.token,
+      body: { content: "id longo", clientMsgId: "x".repeat(65) }
+    });
+    check("clientMsgId com mais de 64 caracteres é rejeitado", longo.status === 400, "400", short(longo));
+
+    const sem = await POST(`/rooms/${room}/messages`, {
+      token: A.token,
+      body: { content: "sem clientMsgId" }
+    });
+    check(
+      "enviar sem clientMsgId continua funcionando (campo opcional)",
+      sem.status === 201,
+      "201",
+      short(sem)
     );
   });
 }
@@ -1331,10 +1603,17 @@ async function secArquivos() {
 
   await t("upload de arquivo vazio", async () => {
     const r = await upload(A.token, Buffer.alloc(0), "vazio.txt", "text/plain");
-    if (r.status === 201) {
-      note("upload de arquivo de 0 byte é aceito (201) — sem validação de tamanho mínimo");
-    }
-    check("upload de arquivo vazio não quebra o servidor", r.status < 500, "<500", short(r));
+    check("upload de arquivo de 0 byte é rejeitado com 400", r.status === 400, "400", short(r));
+  });
+
+  await t("key carrega o dono", async () => {
+    const parts = String(state.fileA.key).split("/");
+    check(
+      "a key do upload tem o formato aaaa/mm/<userId>/<uuid>.<ext>",
+      parts.length === 4 && parts[2] === A.id,
+      `4 segmentos com ${A.id} na 3ª posição`,
+      state.fileA.key
+    );
   });
 
   await t("anexar key de outro usuário", async () => {
@@ -1352,33 +1631,94 @@ async function secArquivos() {
         ]
       }
     });
-    if (r.status === 201) {
-      note(
-        "B conseguiu anexar a key de um arquivo enviado por A: a API não guarda dono nem existência da key ao criar o anexo"
-      );
-    }
+    check("B não consegue anexar a key de um arquivo de A (400)", r.status === 400, "400", short(r));
+  });
+
+  await t("anexar a própria key", async () => {
+    const r = await POST(`/rooms/${state.dmAB}/messages`, {
+      token: A.token,
+      body: {
+        content: "anexo legítimo",
+        attachments: [
+          { key: state.fileA.key, name: "meu.txt", mime: "text/plain", size: state.fileA.size }
+        ]
+      }
+    });
     check(
-      "anexar key de outro usuário não quebra o servidor",
-      r.status < 500,
-      "<500",
+      "o dono continua conseguindo anexar o próprio arquivo (sem regressão)",
+      r.status === 201 && r.json?.message?.attachments?.length === 1,
+      "201 com 1 anexo",
       short(r)
     );
   });
 
   await t("anexar key inexistente", async () => {
+    // Key com o prefixo de dono correto, mas que não existe no armazenamento:
+    // isola a checagem de existência da checagem de dono.
     const r = await POST(`/rooms/${state.dmAB}/messages`, {
       token: A.token,
       body: {
         content: "anexo fantasma",
         attachments: [
-          { key: "2020/01/nao-existe.txt", name: "fantasma.txt", mime: "text/plain", size: 10 }
+          {
+            key: `2020/01/${A.id}/nao-existe.txt`,
+            name: "fantasma.txt",
+            mime: "text/plain",
+            size: 10
+          }
         ]
       }
     });
-    if (r.status === 201) {
-      note("a API aceita anexos com key inexistente — a mensagem fica com um anexo quebrado");
-    }
-    check("anexo com key inexistente não quebra o servidor", r.status < 500, "<500", short(r));
+    check("anexo com key inexistente é rejeitado com 400", r.status === 400, "400", short(r));
+  });
+
+  await t("allowlist de MIME", async () => {
+    const html = "<html><body><script>alert(1)</script></body></html>";
+    const up = await upload(A.token, Buffer.from(html), "pagina.html", "text/html");
+    check("upload de HTML é aceito", up.status === 201, "201", short(up));
+    if (up.status !== 201) return;
+    check(
+      "o MIME de HTML é neutralizado para application/octet-stream",
+      up.json.mime === "application/octet-stream",
+      "application/octet-stream",
+      String(up.json.mime)
+    );
+
+    const dl = await fetch(`${BASE}${up.json.url}`);
+    check(
+      "o download de HTML não vem com Content-Type text/html",
+      !String(dl.headers.get("content-type") ?? "").includes("text/html"),
+      "sem text/html",
+      String(dl.headers.get("content-type"))
+    );
+    check(
+      "o download traz X-Content-Type-Options: nosniff",
+      String(dl.headers.get("x-content-type-options") ?? "").toLowerCase() === "nosniff",
+      "nosniff",
+      String(dl.headers.get("x-content-type-options"))
+    );
+    check(
+      "o download de tipo não-inline traz Content-Disposition: attachment",
+      String(dl.headers.get("content-disposition") ?? "").includes("attachment"),
+      "attachment",
+      String(dl.headers.get("content-disposition"))
+    );
+
+    const svg = await upload(A.token, Buffer.from("<svg xmlns='http://www.w3.org/2000/svg'/>"), "x.svg", "image/svg+xml");
+    check(
+      "SVG também é neutralizado (não fica image/svg+xml)",
+      svg.status === 201 && svg.json.mime === "application/octet-stream",
+      "201 com application/octet-stream",
+      short(svg)
+    );
+
+    const png = await upload(A.token, Buffer.from([0x89, 0x50, 0x4e, 0x47]), "x.png", "image/png");
+    check(
+      "tipos da allowlist passam intactos (image/png)",
+      png.status === 201 && png.json.mime === "image/png",
+      "201 com image/png",
+      short(png)
+    );
   });
 
   await t("11 anexos", async () => {
@@ -1443,15 +1783,10 @@ async function secArquivos() {
   await t("sidecar .type do arquivo real", async () => {
     const r = await fetch(`${BASE}/files/${encodeURIComponent(`${state.fileA.key}.type`)}`);
     const body = await r.text();
-    if (r.status === 200) {
-      note(
-        `o arquivo interno "<key>.type" do driver local é servido por GET /files/* (devolveu "${body.trim()}") — expõe metadado interno de armazenamento`
-      );
-    }
     check(
-      "o sidecar .type não vaza o conteúdo de outro arquivo",
-      !body.includes("conteúdo do arquivo de teste"),
-      "não devolve o conteúdo do anexo",
+      "o sidecar interno <key>.type não é mais servido (400)",
+      r.status === 400,
+      "400",
       `${r.status} ${body.slice(0, 80)}`
     );
   });
@@ -1700,9 +2035,57 @@ async function secChamadas() {
         "200 com token",
         short(r)
       );
+      check(
+        "o token vem com a sala LiveKit e a URL",
+        r.json?.room === `room_${state.dmAB}` && Boolean(r.json?.url),
+        `room_${state.dmAB} e url preenchida`,
+        `${r.json?.room} / ${r.json?.url}`
+      );
     } else {
       check("com LiveKit desligado o token é 503", r.status === 503, "503", short(r));
     }
+  });
+
+  await t("token num canal de voz", async () => {
+    const spaces = await GET("/spaces", { token: A.token });
+    const space = spaces.json?.spaces?.find((s) => s.id === state.space?.id);
+    const voice = space?.channels?.find((c) => c.kind === "VOICE");
+    check("o espaço tem um canal de voz", Boolean(voice), "canal VOICE na lista", JSON.stringify(space?.channels?.map((c) => c.kind)));
+    if (!voice) return;
+
+    const r = await POST(`/rooms/${voice.id}/call/token`, { token: A.token });
+    if (state.callsEnabled) {
+      check(
+        "membro do espaço recebe token para o canal de voz",
+        r.status === 200 && r.json?.token,
+        "200 com token",
+        short(r)
+      );
+      check(
+        "o token do canal de voz aponta para a sala LiveKit certa",
+        r.json?.room === `room_${voice.id}`,
+        `room_${voice.id}`,
+        String(r.json?.room)
+      );
+    } else {
+      check("canal de voz com LiveKit desligado é 503", r.status === 503, "503", short(r));
+    }
+
+    const outsider = await POST(`/rooms/${voice.id}/call/token`, { token: state.C.token });
+    check(
+      "quem não é do espaço não pega token do canal de voz",
+      outsider.status === 404 || outsider.status === 403,
+      "404 ou 403",
+      short(outsider)
+    );
+
+    const list = await GET(`/rooms/${voice.id}/messages`, { token: A.token });
+    check(
+      "o canal de voz responde à listagem de mensagens sem quebrar",
+      list.status === 200,
+      "200",
+      short(list)
+    );
   });
 }
 
@@ -1746,9 +2129,10 @@ async function main() {
     ["espacos", secEspacos, ["A", "B", "C"]],
     ["naolidas", secNaoLidas, ["A", "B", "generalId"]],
     ["realtime", secRealtime, ["dmAB", "D"]],
+    ["idempotencia", secIdempotencia, ["dmAB", "groupPag", "sockA", "sockB"]],
     ["arquivos", secArquivos, ["dmAB"]],
     ["edge", secEdge, ["dmAB", "msg1", "groupPag"]],
-    ["chamadas", secChamadas, ["dmAB"]]
+    ["chamadas", secChamadas, ["dmAB", "space", "C"]]
   ];
 
   for (const [name, section, needs] of sections) {

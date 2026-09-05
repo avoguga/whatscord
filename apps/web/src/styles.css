@@ -59,6 +59,11 @@ html, body, #root {
   margin: 0;
 }
 
+/* Mobile browser chrome resizes the viewport as you scroll; dvh follows it. */
+@supports (height: 100dvh) {
+  html, body, #root { height: 100dvh; }
+}
+
 body {
   background: var(--chat-bg);
   color: var(--text);
@@ -533,4 +538,121 @@ input, textarea { font: inherit; color: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
+}
+
+
+/* ============================ responsive ============================
+
+   Three layouts, one markup.
+
+   Wide: the three panes side by side, as designed.
+   Medium: the same, with the conversation list narrowed — the chat is what
+     needs the room, and a 400px list on a 1000px screen leaves too little.
+   Narrow: one pane at a time, like WhatsApp on a phone. `data-room-open` on
+     .app decides which one is on screen, and the chat header grows a back
+     button. Below 560px the places rail moves to the bottom, where a thumb
+     can reach it.
+   =================================================================== */
+
+@media (max-width: 1200px) {
+  :root { --list-w: 340px; }
+}
+
+@media (max-width: 1000px) {
+  :root { --list-w: 300px; }
+  .messages { padding: var(--gap-4) 3%; }
+  .msg { max-width: 78%; }
+}
+
+@media (max-width: 860px) {
+  :root { --rail-w: 56px; }
+
+  /* One pane at a time. */
+  .list-panel {
+    width: auto;
+    flex: 1 1 auto;
+    border-right: 0;
+  }
+  .chat, .empty { flex: 1 1 auto; min-width: 0; }
+
+  .app[data-room-open="false"] .chat,
+  .app[data-room-open="false"] .empty { display: none; }
+  .app[data-room-open="true"] .list-panel { display: none; }
+
+  .back-btn { display: grid; }
+
+  .chat-header, .composer { border-left: 0; }
+  .messages { padding: var(--gap-3) 12px; }
+  .msg { max-width: 86%; }
+  .attach-image, .attach-video { max-width: 100%; }
+
+  .list-header { padding: 0 var(--gap-3) 0 var(--gap-4); }
+  .list-header h1 { font-size: 19px; }
+
+  /* Touch targets: nothing important below 40px. */
+  .icon-btn { width: 42px; height: 42px; }
+  .row { height: 68px; }
+
+  .call-stage { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .call-btn { width: 44px; height: 44px; }
+  .call-btn.hangup { width: 54px; }
+}
+
+@media (max-width: 560px) {
+  /* The rail becomes a bottom bar; the panes stack above it. */
+  .app { flex-direction: column; }
+
+  .rail {
+    order: 2;
+    width: 100%;
+    flex: 0 0 60px;
+    height: 60px;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--gap-2);
+    padding: 0 var(--gap-3);
+    border-right: 0;
+    border-top: 1px solid var(--divider);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .rail::-webkit-scrollbar { height: 0; }
+  .rail-spacer { flex: 0 0 auto; width: var(--gap-2); }
+  .rail-sep { width: 1px; height: 26px; margin: 0 var(--gap-1); flex: 0 0 1px; }
+  .rail-btn, .space-chip { flex: 0 0 auto; }
+  /* The active marker sits under the icon instead of beside it. */
+  .rail-btn[aria-pressed="true"]::before {
+    left: 50%; top: auto; bottom: -10px;
+    transform: translateX(-50%);
+    width: 22px; height: 3px; border-radius: 3px 3px 0 0;
+  }
+
+  .list-panel, .chat, .empty { order: 1; min-height: 0; }
+
+  .list-header { height: 54px; flex: 0 0 54px; }
+  .chat-header { height: 54px; flex: 0 0 54px; padding: 0 var(--gap-2); gap: var(--gap-2); }
+  .chat-header .avatar { width: 36px; height: 36px; flex-basis: 36px; }
+  .chat-title strong { font-size: 15px; }
+  /* Four header actions do not fit next to a name on a phone. */
+  .chat-header .header-actions .icon-btn:nth-child(3),
+  .chat-header .header-actions .icon-btn:nth-child(4) { display: none; }
+
+  .msg { max-width: 92%; }
+  .composer { padding: var(--gap-2) var(--gap-2); gap: var(--gap-2); }
+  .composer-input { font-size: 16px; } /* 16px stops iOS zooming the page on focus */
+
+  .modal { width: 100%; max-width: none; border-radius: 12px 12px 0 0; margin-top: auto; }
+  .modal-scrim { align-items: flex-end; }
+  .modal .modal-body { max-height: 62vh; }
+
+  .auth-card { width: calc(100vw - 32px); }
+
+  .call-sheet { inset: 0; }
+  .call-stage { padding: var(--gap-2); gap: var(--gap-1); }
+}
+
+/* Coarse pointers get no hover-only affordances: the reply/react buttons that
+   appear on mouseover are unreachable, so the bubble keeps its full width. */
+@media (hover: none) {
+  .msg { max-width: 88%; }
 }

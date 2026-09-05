@@ -43,7 +43,10 @@ export default function App() {
   if (!me) return <Auth />;
 
   return (
-    <div className="app">
+    // On a narrow screen only one pane is on screen at a time, and this is what
+    // says which: the list until a conversation is opened, the conversation
+    // after that. On a wide screen it has no effect.
+    <div className="app" data-room-open={activeRoomId ? "true" : "false"}>
       <Sidebar />
       <Chat onStartCall={(video) => activeRoomId && setCall({ roomId: activeRoomId, video })} />
       {call && (

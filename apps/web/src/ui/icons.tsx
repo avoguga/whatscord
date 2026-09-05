@@ -95,3 +95,6 @@ export const IconHash = ({ size }: P) => (
 export const IconGroup = ({ size }: P) => (
   <svg {...base(size ?? 20)}><circle cx="12" cy="8" r="3.2" /><path d="M5.5 20a6.5 6.5 0 0 1 13 0" /><circle cx="19" cy="9" r="2.4" /><circle cx="5" cy="9" r="2.4" /></svg>
 );
+export const IconBack = ({ size }: P) => (
+  <svg {...base(size ?? 22)}><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+);

@@ -145,6 +145,7 @@ type State = {
   refreshRooms: () => Promise<void>;
   refreshSpaces: () => Promise<void>;
   openRoom: (roomId: string) => Promise<void>;
+  closeRoom: () => void;
   loadOlder: (roomId: string) => Promise<void>;
   send: (roomId: string, content: string, attachments: unknown[]) => Promise<void>;
   react: (messageId: string, emoji: string) => Promise<void>;
@@ -271,6 +272,11 @@ export const useStore = create<State>((set, get) => ({
     } finally {
       set({ loadingRoom: false });
     }
+  },
+
+  /** Used by the narrow layout's back button to return to the list. */
+  closeRoom() {
+    set({ activeRoomId: null, replyTo: null });
   },
 
   async loadOlder(roomId) {
