@@ -1,0 +1,41 @@
+# Roteamento HTTPS do LiveKit no Traefik do Coolify.
+#
+# Vai em /data/coolify/proxy/dynamic/whatscord-livekit.yml na VPS.
+# O Traefik do Coolify sobe com --providers.file.directory=/traefik/dynamic/
+# e --providers.file.watch=true, entao ele recarrega sozinho ao salvar.
+#
+# Por que arquivo e nao label: o LiveKit roda com network_mode: host (exigencia
+# da doc oficial para WebRTC em Docker -- ver docs/livekit-coolify.md), e sem
+# rede o provider Docker do Traefik nao consegue descobrir o container.
+#
+# ATENCAO: este arquivo vive fora do Coolify e fora do deploy. Se o proxy for
+# recriado, ele se perde e o wss:// para de responder. Esta e a copia canonica.
+#
+# 172.17.0.1 e a gateway do docker0: o Traefik roda em container e alcanca por
+# ali o que escuta no host.
+
+http:
+  routers:
+    whatscord-livekit:
+      rule: "Host(`livekit.167.88.39.225.sslip.io`)"
+      service: whatscord-livekit
+      entryPoints:
+        - https
+      tls:
+        certResolver: letsencrypt
+    whatscord-livekit-http:
+      rule: "Host(`livekit.167.88.39.225.sslip.io`)"
+      service: whatscord-livekit
+      entryPoints:
+        - http
+      middlewares:
+        - redirect-to-https
+  services:
+    whatscord-livekit:
+      loadBalancer:
+        servers:
+          - url: "http://172.17.0.1:7880"
+  middlewares:
+    redirect-to-https:
+      redirectScheme:
+        scheme: https

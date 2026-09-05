@@ -19,7 +19,8 @@ Endereços:
 
 - API: `https://api.whatscord.167.88.39.225.sslip.io` — `/health` responde o estado real
   (`{"ok":true,"storage":"local","calls":true,"realtimeScaling":true}`)
-- LiveKit: `wss://livekit.167.88.39.225.sslip.io` (signaling), TCP 7881 e UDP 7882-7885 direto no host
+- LiveKit: `wss://livekit.167.88.39.225.sslip.io` (signaling, via Traefik), TCP 7881 e UDP 7882-7885
+  direto no host — o container roda em `network_mode: host` (ver armadilha 7)
 
 Segredos gerados ficam em `.secrets/generated.env`, que está no `.gitignore`.
 As mesmas chaves estão nas variáveis de ambiente do Coolify.
@@ -61,6 +62,21 @@ logger**, então o container reinicia para sempre sem escrever uma linha de log.
 **6. A tag `v1.9.13` do LiveKit não existe.** Esse número vem da imagem própria do
 Stoat (`ghcr.io/stoatchat/livekit-server`). No Docker Hub oficial a última é `v1.13.6`.
 
+**7. O Coolify anexa todo Service a DUAS redes, e isso quebra o LiveKit.** Além da
+rede do projeto (nomeada com o UUID), ele anexa a rede `coolify` *por fora do
+compose* — declarar uma rede só no arquivo não adianta. Como o LiveKit abre um
+socket por interface em vez de escutar em `0.0.0.0`, o pacote do cliente entrava
+por uma interface e a resposta ICE saía pela outra: **nenhuma chamada externa
+conectava**, embora o teste feito de dentro da VPS passasse. A saída é
+`network_mode: host`, que faz o Coolify parar de injetar `networks:` (PR #6235).
+Diagnóstico completo em `docs/livekit-coolify.md`.
+
+**8. Com o LiveKit em host networking, o Traefik roteia por arquivo, não por label.**
+O arquivo é `/data/coolify/proxy/dynamic/whatscord-livekit.yml` (cópia canônica em
+`infra/traefik-livekit.yml`). Ele **não faz parte do deploy**: se o proxy do Coolify
+for recriado, o arquivo some e o `wss://` para de responder, sem nada aparecer no
+log de deploy. Repor o arquivo é suficiente — o Traefik recarrega sozinho.
+
 ## MinIO: por que está parado
 
 O plano era MinIO para anexos. Ele entrou em loop de crash sem escrever log mesmo
@@ -78,24 +94,22 @@ troca sozinho e nenhum outro arquivo muda — os downloads continuam sendo proxy
 nos dois casos. R2 é a opção com melhor custo (egress zero) e não compete por disco
 com os outros 105 containers.
 
-## Ajuste de host pendente
+## Ajuste de host já aplicado
 
-O LiveKit loga no boot:
+O LiveKit reclamava no boot que o buffer de recepção UDP era pequeno demais
+(425984, sugerido 5000000). Já está corrigido e persistido em
+`/etc/sysctl.d/99-livekit.conf`:
 
 ```
-UDP receive buffer is too small for a production set-up  current=425984 suggested=5000000
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+net.core.rmem_default = 1048576
+net.core.wmem_default = 1048576
 ```
 
-Corrigir exige root no servidor (não dá pela API do Coolify):
-
-```bash
-sysctl -w net.core.rmem_max=7500000
-sysctl -w net.core.wmem_max=7500000
-# para persistir:
-echo -e "net.core.rmem_max=7500000\nnet.core.wmem_max=7500000" >> /etc/sysctl.conf
-```
-
-Sem isso a chamada funciona, mas perde pacote sob carga.
+O aviso sumiu do log. Vale registrar que isso **não** era a causa das chamadas
+falharem — a causa foi a rede dupla (armadilha 7). Este ajuste só evita perda de
+pacote sob carga.
 
 ## Verificar que está tudo de pé
 
@@ -110,6 +124,19 @@ curl -i https://livekit.167.88.39.225.sslip.io/
 nc -vzu 167.88.39.225 7882
 nc -vz  167.88.39.225 7881
 ```
+
+O único teste que prova que chamada funciona é com mídia real, rodado **de fora da
+VPS** — rodar de dentro passava mesmo quando nenhum cliente externo conseguia
+conectar:
+
+```bash
+lk load-test --url wss://livekit.167.88.39.225.sslip.io \
+  --api-key $LK_KEY --api-secret $LK_SECRET \
+  --room teste --video-publishers 2 --subscribers 2 --duration 20s
+```
+
+Última medição (05/09/2026): 9/9 tracks, 11 mbps agregados, 0,353% de perda,
+0 erros — 3 publicadores x 3 assinantes, rodado de fora da VPS.
 
 Um teste ponta a ponta (registrar, abrir DM, mandar mensagem, subir e baixar arquivo,
 reagir, pegar token do LiveKit) está no histórico da sessão e pode ser repetido com
