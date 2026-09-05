@@ -59,7 +59,7 @@ Everything runs on one Coolify server:
 |---|---|
 | `whatscord-db` | Postgres, capped at 1 GB / 1 vCPU |
 | `whatscord-redis` | Redis for socket fan-out and presence, 512 MB with `maxmemory` |
-| `whatscord-minio` | S3 storage for attachments, internal only |
+| `whatscord-minio` | stopped — see `docs/operacao.md`; attachments live on a volume next to the API |
 | `whatscord-livekit` | LiveKit SFU, UDP mux on 7882-7885 |
 | `whatscord-api` | this repo, `docker/api.Dockerfile` |
 

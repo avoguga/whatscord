@@ -14,7 +14,7 @@ Base: 10 agentes de pesquisa, 05/09/2026. Fontes nos relatórios citados ao long
 | Dados/sync | **Postgres + WebSocket + SQLite local + outbox idempotente** | Chat é log append-only ordenado. Sync engine não se paga. |
 | Cursor de sync | **`GET /sync?since=<seq>` por conversa** | Modelo do Simplified Sliding Sync do Matrix. |
 | E2EE | **Não na v1** | libsignal é AGPL-only; MLS custa meses. Caminho futuro: `matrix-sdk-crypto` (Apache-2.0). |
-| Arquivos | **Cloudflare R2** | Egress zero, ~US$0,015/GB-mês, 10 GB free. Não compete por disco/inodes do VPS. |
+| Arquivos | **Volume local ao lado da API** | Escolha original era MinIO; ele nao subiu neste host (ver `operacao.md`). O driver em `lib/storage.ts` aceita S3 tambem — definir as variaveis S3_* troca sem mexer em mais nada. |
 
 ## Rejeitado, com motivo
 
