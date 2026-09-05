@@ -18,11 +18,15 @@ RUN npm ci --omit=dev --workspace apps/api --include-workspace-root || npm insta
 FROM node:22-alpine AS build
 WORKDIR /app
 RUN apk add --no-cache openssl
+# Coolify passes the app's env into the build, and NODE_ENV=production makes npm
+# skip devDependencies — which is where typescript and the @types live. Forcing
+# it back to development here is what keeps `tsc` available at build time.
+ENV NODE_ENV=development
 COPY package.json package-lock.json* ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY apps/desktop/package.json apps/desktop/
-RUN npm install
+RUN npm install --include=dev
 COPY apps/api ./apps/api
 RUN npx prisma generate --schema apps/api/prisma/schema.prisma \
  && npx tsc -p apps/api/tsconfig.json
