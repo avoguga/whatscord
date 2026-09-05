@@ -219,3 +219,18 @@ Cross-compilar x64 aqui é o padrão, não configurei outras arquiteturas.
 - [ ] Apertar o `connect-src` do CSP quando a URL da API estiver definida.
 - [ ] Confirmar MSVC Build Tools.
 - [ ] Nada aqui foi compilado — a instrução era só escrever os arquivos.
+
+## Requisito de toolchain (descoberto no primeiro build)
+
+**Rust 1.85 ou mais novo.** Com 1.84.0 o build morre em:
+
+```
+error: failed to parse manifest at `.../serde_spanned-1.1.1/Cargo.toml`
+Caused by: feature `edition2024` is required
+```
+
+A cadeia de dependencias do Tauri v2 ja usa edition 2024. `rustup update stable` resolve.
+Build verificado com rustc 1.98.1.
+
+O instalador sai em `src-tauri/target/release/bundle/nsis/WhatsCord_0.1.0_x64-setup.exe`
+(~1,8 MB) e nao e assinado, entao o SmartScreen avisa no primeiro run.
