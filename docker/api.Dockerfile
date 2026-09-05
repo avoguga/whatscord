@@ -33,7 +33,9 @@ RUN npx prisma generate --schema apps/api/prisma/schema.prisma \
 
 FROM node:22-alpine AS runtime
 WORKDIR /app
-RUN apk add --no-cache openssl tini \
+# curl is here for the healthcheck: Coolify replaces the image's own HEALTHCHECK
+# with a curl/wget probe, and node:alpine ships neither by default.
+RUN apk add --no-cache openssl tini curl \
  && addgroup -S app && adduser -S app -G app
 ENV NODE_ENV=production
 
@@ -47,8 +49,9 @@ COPY apps/api/prisma ./prisma
 USER app
 EXPOSE 3001
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+# No HEALTHCHECK here on purpose. Coolify honours the image's own probe when it
+# finds one and then ignores its configured settings, which hides the real path
+# (/health) and the grace period the boot migration needs.
 
 ENTRYPOINT ["/sbin/tini", "--"]
 # Migrations run at boot: the database is only reachable from inside the
