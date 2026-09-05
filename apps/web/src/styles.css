@@ -266,6 +266,11 @@ input, textarea { font: inherit; color: inherit; }
   z-index: 2;
 }
 .chat-header .avatar { width: 40px; height: 40px; flex-basis: 40px; font-size: 15px; }
+
+/* Hidden until the narrow layout asks for it. `.icon-btn` is already
+   display:grid, so this needs an explicit `none` — otherwise a back arrow sits
+   in the header on a wide screen and closes the conversation you are reading. */
+.back-btn { display: none; margin-left: -6px; margin-right: -6px; }
 .chat-title { flex: 1; min-width: 0; }
 .chat-title strong { display: block; font-size: 16px; font-weight: 500; }
 .chat-title span {
@@ -404,22 +409,66 @@ input, textarea { font: inherit; color: inherit; }
 /* ============================ call ============================ */
 
 /*
-  The call surface is a sheet over the chat, not a separate screen: WhatsApp
-  keeps you in the conversation, and losing the message list mid-call is the
-  thing people complain about in Discord.
+  The call is a sheet over the conversation, not a separate screen: WhatsApp
+  keeps you in the chat, and losing the message list mid-call is the thing
+  people complain about elsewhere. Minimising keeps it running.
+
+  One rule governs the controls: red means off. It used to be that white meant
+  "muted" on the microphone and "camera on" next to it — the same highlight for
+  opposite meanings, which is most of why this screen read as confusing.
 */
+
 .call-sheet {
   position: absolute; inset: var(--header-h) 0 0 0;
   background: #0a1014;
   display: flex; flex-direction: column;
   z-index: 5;
 }
+
+.call-top {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: var(--gap-3);
+  padding: var(--gap-2) var(--gap-3);
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--divider);
+}
+.call-top-title { flex: 1; min-width: 0; }
+.call-top-title strong { display: block; font-size: 15px; font-weight: 500; }
+.call-top-title span { display: block; font-size: 12.5px; color: var(--text-dim); }
+.call-top-title span.bad { color: var(--danger); }
+.call-count {
+  flex: 0 0 auto; min-width: 28px; height: 28px; padding: 0 9px;
+  border-radius: 999px; background: var(--input); color: var(--text);
+  font-size: 13px; font-weight: 600;
+  display: grid; place-items: center;
+}
+
+.call-banner {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: var(--gap-2);
+  padding: 10px var(--gap-4);
+  background: rgba(0, 168, 132, 0.14);
+  color: var(--accent-bright);
+  font-size: 13.5px;
+  text-align: left; width: 100%;
+  border-bottom: 1px solid var(--divider);
+}
+.call-banner.bad { background: rgba(241, 92, 109, 0.14); color: #f6b6bd; }
+
 .call-stage {
   flex: 1; min-height: 0;
   display: grid; gap: var(--gap-2); padding: var(--gap-3);
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   align-content: center;
 }
+.call-alone {
+  grid-column: 1 / -1;
+  text-align: center; color: var(--text);
+  font-size: 15px;
+}
+.call-alone p { margin: 0 0 4px; }
+.call-alone .dim { color: var(--text-dim); font-size: 13.5px; }
+
 .tile {
   position: relative; background: var(--overlay);
   border-radius: 10px; overflow: hidden;
@@ -430,45 +479,69 @@ input, textarea { font: inherit; color: inherit; }
 .tile.screen { grid-column: 1 / -1; aspect-ratio: 16 / 9; }
 .tile .tile-name {
   position: absolute; left: 10px; bottom: 8px;
-  font-size: 12.5px; background: rgba(0, 0, 0, 0.55);
-  padding: 3px 8px; border-radius: 6px;
+  font-size: 12.5px; background: rgba(0, 0, 0, 0.6);
+  padding: 4px 9px; border-radius: 6px;
   display: flex; align-items: center; gap: 6px;
+  max-width: calc(100% - 20px);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.tile.speaking { box-shadow: inset 0 0 0 2px var(--accent-bright); }
+/* A speaking ring only means something when the person can actually be heard,
+   so it is suppressed while they are muted. */
+.tile.speaking { box-shadow: inset 0 0 0 3px var(--accent-bright); }
 .tile-avatar {
   width: 78px; height: 78px; border-radius: 50%;
   background: var(--input); display: grid; place-items: center;
   font-size: 28px; font-weight: 600; color: var(--text-dim);
 }
+.tile-muted { color: var(--danger); display: inline-grid; place-items: center; }
+.tile-quality {
+  position: absolute; right: 10px; top: 10px;
+  color: #f0c14b; background: rgba(0, 0, 0, 0.6);
+  border-radius: 6px; padding: 3px 5px;
+  display: grid; place-items: center;
+}
 
 .call-bar {
-  flex: 0 0 auto; padding: var(--gap-4);
-  display: flex; align-items: center; justify-content: center; gap: var(--gap-3);
+  flex: 0 0 auto; padding: var(--gap-4) var(--gap-3) var(--gap-5);
+  display: flex; align-items: flex-start; justify-content: center; gap: var(--gap-5);
   background: var(--panel-header);
 }
+.call-ctl {
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  color: var(--text-dim);
+}
+.call-ctl:hover { color: var(--text); }
+.call-ctl-label { font-size: 12px; white-space: nowrap; }
 .call-btn {
-  width: 48px; height: 48px; border-radius: 50%;
+  width: 52px; height: 52px; border-radius: 50%;
   display: grid; place-items: center;
   background: var(--input); color: var(--text);
+  transition: background 120ms ease;
 }
-.call-btn:hover { background: #37474f; }
-.call-btn[aria-pressed="true"] { background: var(--text); color: var(--panel-header); }
-.call-btn.hangup { background: var(--danger); color: #fff; width: 58px; }
-.call-btn.sharing { background: var(--accent); color: var(--accent-ink); }
+.call-ctl:hover .call-btn { background: #37474f; }
+/* off: the control is disabled right now. One meaning, one colour. */
+.call-btn.off { background: var(--danger); color: #fff; }
+.call-ctl:hover .call-btn.off { background: #e04b5c; }
+/* on: an optional thing you switched on. */
+.call-btn.on { background: var(--accent); color: var(--accent-ink); }
+.call-ctl:hover .call-btn.on { background: var(--accent-bright); }
+.call-btn.hangup { background: var(--danger); color: #fff; width: 64px; }
+.call-ctl:hover .call-btn.hangup { background: #e04b5c; }
 
-.call-status {
-  position: absolute; top: var(--gap-3); left: 50%; transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.5); padding: 5px 12px; border-radius: 999px;
-  font-size: 12.5px; color: var(--text-dim);
-}
-
-/* a slim bar in the chat header while a call runs in another room */
+/* The ribbon a minimised call leaves behind, so it is never running invisibly. */
 .call-ribbon {
+  position: absolute; top: var(--header-h); left: 0; right: 0; z-index: 6;
   background: var(--accent); color: var(--accent-ink);
-  padding: 7px var(--gap-4); font-size: 13.5px;
+  padding: 9px var(--gap-4); font-size: 13.5px;
   display: flex; align-items: center; gap: var(--gap-3);
 }
 .call-ribbon button { font-weight: 600; text-decoration: underline; }
+.call-ribbon .ribbon-hangup { margin-left: auto; text-decoration: none; background: rgba(0,0,0,.2); padding: 4px 12px; border-radius: 999px; }
+.live-dot {
+  width: 9px; height: 9px; border-radius: 50%; background: #0b3d31;
+  animation: live-pulse 2s ease-in-out infinite;
+}
+@keyframes live-pulse { 0%, 100% { opacity: 1 } 50% { opacity: .35 } }
 
 /* ============================ empty & auth ============================ */
 
@@ -579,7 +652,7 @@ input, textarea { font: inherit; color: inherit; }
   .app[data-room-open="false"] .empty { display: none; }
   .app[data-room-open="true"] .list-panel { display: none; }
 
-  .back-btn { display: grid; }
+  .back-btn { display: grid !important; }
 
   .chat-header, .composer { border-left: 0; }
   .messages { padding: var(--gap-3) 12px; }

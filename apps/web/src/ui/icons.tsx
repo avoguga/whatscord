@@ -98,3 +98,16 @@ export const IconGroup = ({ size }: P) => (
 export const IconBack = ({ size }: P) => (
   <svg {...base(size ?? 22)}><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
 );
+
+export const IconVideoOff = ({ size }: P) => (
+  <svg {...base(size ?? 22)}><path d="M2 2l20 20" /><path d="M16 16H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h1" /><path d="M8 5h6a2 2 0 0 1 2 2v3.5l7-4.5v11l-4-2.6" /></svg>
+);
+export const IconSignal = ({ size }: P) => (
+  <svg {...base(size ?? 16)}><path d="M4 20v-3M9 20v-7M14 20v-11M19 20v-15" /></svg>
+);
+export const IconMinimize = ({ size }: P) => (
+  <svg {...base(size ?? 20)}><path d="M4 14h6v6M20 10h-6V4" /></svg>
+);
+export const IconSpeaker = ({ size }: P) => (
+  <svg {...base(size ?? 18)}><path d="M11 5 6 9H2v6h4l5 4V5z" /><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5" /></svg>
+);
