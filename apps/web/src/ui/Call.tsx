@@ -10,7 +10,7 @@ import {
   type TrackPublication
 } from "livekit-client";
 import { api } from "../lib/api";
-import { useStore } from "../store";
+import { useStore, type User } from "../store";
 import { getSocket } from "../lib/socket";
 import { initials } from "../lib/format";
 import {
@@ -26,6 +26,7 @@ type Tile = {
   isScreen: boolean;
   isLocal: boolean;
   muted: boolean;
+  speaking: boolean;
   quality: ConnectionQuality;
 };
 
@@ -38,6 +39,7 @@ export function CallSheet({
   withVideo: boolean;
   onClose: () => void;
 }) {
+  const me = useStore((s) => s.me);
   const rooms = useStore((s) => s.rooms);
   const roomMeta = rooms.find((r) => r.id === roomId);
   const callName = roomMeta?.name ?? roomMeta?.counterpart?.displayName ?? "Call";
@@ -52,29 +54,26 @@ export function CallSheet({
   const [camOn, setCamOn] = useState(withVideo);
   const [sharing, setSharing] = useState(false);
   const [minimized, setMinimized] = useState(false);
-  /** The browser refused to autoplay audio until the page is clicked. */
   const [audioBlocked, setAudioBlocked] = useState(false);
   const [speakers, setSpeakers] = useState<Set<string>>(new Set());
+  /** Everyone who belongs to this conversation, in or out of the call. */
+  const [roster, setRoster] = useState<User[]>([]);
 
-  /*
-   * LiveKit's participant list lives outside React, so a track arriving has to
-   * be turned into a render by hand. This has to be the state VALUE, not the
-   * setter: a setter is stable by contract, so listing it as a dependency does
-   * nothing and the tile list silently never recomputes.
-   */
   const [revision, setRevision] = useState(0);
   const bump = () => setRevision((n) => n + 1);
 
-  /*
-   * `onClose` is an inline arrow in the parent, so it is a new function on every
-   * render of App. Depending on it re-ran this effect, whose cleanup calls
-   * room.disconnect() — which fires Disconnected, which calls onClose. The call
-   * hung itself up whenever anything else re-rendered.
-   */
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
   });
+
+  // The roster is what answers "who is here and who is not".
+  useEffect(() => {
+    api
+      .get<{ room: { members: User[] } }>(`/rooms/${roomId}`)
+      .then((r) => setRoster(r.room.members))
+      .catch(() => setRoster([]));
+  }, [roomId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,17 +93,15 @@ export function CallSheet({
           .on(RoomEvent.ParticipantDisconnected, () => bump())
           .on(RoomEvent.LocalTrackPublished, () => bump())
           .on(RoomEvent.LocalTrackUnpublished, () => bump())
-          // Someone muting is a state change with no track event of its own.
           .on(RoomEvent.TrackMuted, () => bump())
           .on(RoomEvent.TrackUnmuted, () => bump())
           .on(RoomEvent.ConnectionQualityChanged, () => bump())
-          .on(RoomEvent.ActiveSpeakersChanged, (list: Participant[]) => {
-            setSpeakers(new Set(list.map((p) => p.identity)));
-          })
-          // Browsers refuse to play audio before the page is interacted with.
-          .on(RoomEvent.AudioPlaybackStatusChanged, () => {
-            setAudioBlocked(!room.canPlaybackAudio);
-          })
+          .on(RoomEvent.ActiveSpeakersChanged, (list: Participant[]) =>
+            setSpeakers(new Set(list.map((p) => p.identity)))
+          )
+          .on(RoomEvent.AudioPlaybackStatusChanged, () =>
+            setAudioBlocked(!room.canPlaybackAudio)
+          )
           .on(RoomEvent.Disconnected, () => {
             setStatus("failed");
             onCloseRef.current();
@@ -117,24 +114,19 @@ export function CallSheet({
         setStatus("connected");
         setAudioBlocked(!room.canPlaybackAudio);
 
-        /*
-         * Publishing is best effort. A blocked, missing or busy microphone used
-         * to reject here and abort the whole join — leaving someone who only
-         * wanted to listen unable to enter the call at all.
-         */
+        // Publishing is best effort: no microphone must not keep you out.
         try {
           await room.localParticipant.setMicrophoneEnabled(true);
         } catch {
           setMicOn(false);
-          setNotice("No microphone. You can hear everyone, but they cannot hear you.");
+          setNotice("No microphone found. You can hear everyone, but they cannot hear you.");
         }
-
         if (withVideo) {
           try {
             await room.localParticipant.setCameraEnabled(true);
           } catch {
             setCamOn(false);
-            setNotice("No camera available. You joined with audio only.");
+            setNotice("No camera found. You joined with audio only.");
           }
         }
         bump();
@@ -157,7 +149,15 @@ export function CallSheet({
     };
   }, [roomId, withVideo, room]);
 
-  /** Every remote audio track that needs an element to come out of. */
+  /** Identities currently connected to the LiveKit room. */
+  const connectedIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (status === "connected") ids.add(room.localParticipant.identity);
+    room.remoteParticipants.forEach((p) => ids.add(p.identity));
+    return ids;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room, revision, status]);
+
   const audioTracks = useMemo(() => {
     const out: { id: string; track: Track }[] = [];
     room.remoteParticipants.forEach((p) => {
@@ -171,6 +171,13 @@ export function CallSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room, revision, status]);
 
+  /** Display name for an identity, preferring what our own API knows. */
+  function nameOf(identity: string, fallback?: string) {
+    if (identity === me?.id) return me.displayName;
+    const known = roster.find((u) => u.id === identity);
+    return known?.displayName ?? fallback ?? "Someone";
+  }
+
   const tiles = useMemo<Tile[]>(() => {
     const out: Tile[] = [];
 
@@ -180,48 +187,40 @@ export function CallSheet({
       const cam = pubs.find((p) => p.source === Track.Source.Camera && p.track);
       const mic = pubs.find((p) => p.source === Track.Source.Microphone);
       const muted = !mic || mic.isMuted;
-      const name = participant.name || participant.identity;
+      // LiveKit's `name` is empty until the server echoes it back, which is why
+      // the local tile used to render as "?" for the first seconds.
+      const name = nameOf(participant.identity, participant.name);
+      const speaking = speakers.has(participant.identity) && !muted;
 
       if (screen?.track) {
         out.push({
-          key: `${participant.identity}-screen`,
-          participantId: participant.identity,
-          name,
-          track: screen.track,
-          isScreen: true,
-          isLocal,
-          muted,
+          key: `${participant.identity}-screen`, participantId: participant.identity,
+          name, track: screen.track, isScreen: true, isLocal, muted, speaking,
           quality: participant.connectionQuality
         });
       }
       out.push({
-        key: `${participant.identity}-cam`,
-        participantId: participant.identity,
-        name,
-        track: cam?.track ?? null,
-        isScreen: false,
-        isLocal,
-        muted,
+        key: `${participant.identity}-cam`, participantId: participant.identity,
+        name, track: cam?.track ?? null, isScreen: false, isLocal, muted, speaking,
         quality: participant.connectionQuality
       });
     };
 
-    push(room.localParticipant, true);
+    if (status === "connected") push(room.localParticipant, true);
     room.remoteParticipants.forEach((p) => push(p, false));
 
-    // A shared screen is the thing everyone is looking at — it goes first.
     return out.sort((a, b) => Number(b.isScreen) - Number(a.isScreen));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room, status, sharing, camOn, micOn, revision]);
+  }, [room, status, sharing, camOn, micOn, revision, speakers, roster, me]);
 
-  const peopleCount = room.remoteParticipants.size + 1;
-  const alone = peopleCount === 1;
+  const inCall = roster.filter((u) => connectedIds.has(u.id));
+  const away = roster.filter((u) => !connectedIds.has(u.id));
+  const total = connectedIds.size;
 
   async function toggleMic() {
-    const next = !micOn;
     try {
-      await room.localParticipant.setMicrophoneEnabled(next);
-      setMicOn(next);
+      await room.localParticipant.setMicrophoneEnabled(!micOn);
+      setMicOn(!micOn);
       setNotice(null);
     } catch {
       setNotice("Your microphone could not be turned on. Check the browser's permission.");
@@ -230,10 +229,9 @@ export function CallSheet({
   }
 
   async function toggleCam() {
-    const next = !camOn;
     try {
-      await room.localParticipant.setCameraEnabled(next);
-      setCamOn(next);
+      await room.localParticipant.setCameraEnabled(!camOn);
+      setCamOn(!camOn);
       setNotice(null);
     } catch {
       setNotice("Your camera could not be turned on. Check the browser's permission.");
@@ -241,20 +239,12 @@ export function CallSheet({
     bump();
   }
 
-  /**
-   * Screen sharing. Inside the Tauri webview this goes through WebView2's own
-   * picker — Chromium handles the dialog, and there is no way to replace it.
-   * `audio: true` asks for the sound of what is on screen; the LiveKit token
-   * has to carry the screen_share_audio grant or it is dropped silently.
-   */
   async function toggleShare() {
     try {
-      const next = !sharing;
-      await room.localParticipant.setScreenShareEnabled(next, { audio: true });
-      setSharing(next);
+      await room.localParticipant.setScreenShareEnabled(!sharing, { audio: true });
+      setSharing(!sharing);
       bump();
     } catch (err) {
-      // Dismissing the picker throws too — that is not an error worth showing.
       if (err instanceof Error && err.name !== "NotAllowedError") {
         setNotice("Screen sharing could not start.");
       }
@@ -262,32 +252,25 @@ export function CallSheet({
   }
 
   const statusLabel =
-    status === "connecting"
-      ? "Connecting…"
-      : status === "reconnecting"
-        ? "Reconnecting…"
-        : status === "failed"
-          ? "Could not connect"
-          : alone
-            ? "Waiting for someone to join"
-            : `${peopleCount} on the call`;
+    status === "connecting" ? "Connecting…"
+    : status === "reconnecting" ? "Reconnecting…"
+    : status === "failed" ? "Could not connect"
+    : total <= 1 ? "You are the only one here"
+    : `${total} people connected`;
 
-  // Minimised: the call keeps running, the conversation comes back into view.
   if (minimized) {
     return (
       <>
         <RemoteAudio tracks={audioTracks} />
         <div className="call-ribbon" role="status">
           <span className="live-dot" aria-hidden="true" />
-          <span>
+          <span className="ribbon-text">
             <b>{callName}</b> · {statusLabel}
           </span>
-          <button onClick={() => setMinimized(false)}>Back to the call</button>
-          <button
-            className="ribbon-hangup"
-            onClick={onClose}
-            title="Leave the call"
-          >
+          <button className="ribbon-open" onClick={() => setMinimized(false)}>
+            Open the call
+          </button>
+          <button className="ribbon-hangup" onClick={onClose}>
             Leave
           </button>
         </div>
@@ -296,14 +279,14 @@ export function CallSheet({
   }
 
   return (
-    <div className="call-sheet">
+    <div className="call-sheet" role="dialog" aria-label={`Call in ${callName}`}>
       <RemoteAudio tracks={audioTracks} />
 
       <header className="call-top">
         <button
           className="icon-btn"
           onClick={() => setMinimized(true)}
-          title="Minimise — the call keeps running"
+          title="Minimise — the call keeps running and you go back to the messages"
         >
           <IconMinimize />
         </button>
@@ -311,36 +294,70 @@ export function CallSheet({
           <strong>{callName}</strong>
           <span className={status === "failed" ? "bad" : undefined}>{statusLabel}</span>
         </div>
-        <span className="call-count" title="People on the call">
-          {peopleCount}
-        </span>
+        <button className="call-leave-top" onClick={onClose} title="Leave the call">
+          <IconHangup size={18} /> Leave
+        </button>
       </header>
 
       {audioBlocked && (
         <button className="call-banner" onClick={() => room.startAudio()}>
-          <IconSpeaker /> Sound is blocked by the browser. Click to turn it on.
+          <IconSpeaker /> Sound is blocked by the browser. Click here to turn it on.
         </button>
       )}
-      {error && <div className="call-banner bad">{error}</div>}
+      {error && (
+        <div className="call-banner bad">
+          {error} — media needs UDP open on the server. Messages still work.
+        </div>
+      )}
       {notice && !error && <div className="call-banner">{notice}</div>}
 
-      <div className="call-stage">
-        {alone && status === "connected" && (
-          <div className="call-alone">
-            <p>You are the only one here.</p>
-            <p className="dim">
-              They will see the call in the conversation. Your microphone is
-              {micOn ? " on" : " off"}.
-            </p>
-          </div>
-        )}
-        {tiles.map((tile) => (
-          <VideoTile
-            key={tile.key}
-            tile={tile}
-            speaking={speakers.has(tile.participantId) && !tile.muted}
-          />
-        ))}
+      <div className="call-body">
+        <div className="call-stage">
+          {tiles.length === 0 ? (
+            <div className="call-empty">
+              <div className="tile-avatar">{initials(me?.displayName ?? "?")}</div>
+              <p>{status === "connected" ? "You are connected." : statusLabel}</p>
+              <p className="dim">
+                {status === "connected"
+                  ? "Nobody else has joined yet. They will see this call in the conversation."
+                  : "Hold on while the connection is set up."}
+              </p>
+            </div>
+          ) : (
+            tiles.map((tile) => <VideoTile key={tile.key} tile={tile} />)
+          )}
+        </div>
+
+        {/* The roster is the answer to "who is here and who is not". */}
+        <aside className="call-roster" aria-label="Who is on the call">
+          <p className="roster-head">In the call · {inCall.length || (status === "connected" ? 1 : 0)}</p>
+          {inCall.length === 0 && status === "connected" && (
+            <RosterRow name={me?.displayName ?? "You"} suffix="(you)" here muted={!micOn} />
+          )}
+          {inCall.map((u) => (
+            <RosterRow
+              key={u.id}
+              name={u.displayName}
+              suffix={u.id === me?.id ? "(you)" : undefined}
+              here
+              muted={
+                u.id === me?.id
+                  ? !micOn
+                  : tiles.find((t) => t.participantId === u.id && !t.isScreen)?.muted ?? false
+              }
+              speaking={speakers.has(u.id)}
+            />
+          ))}
+
+          {away.length > 0 && (
+            <>
+              <p className="roster-head">Not in the call · {away.length}</p>
+              {away.map((u) => (
+                <RosterRow key={u.id} name={u.displayName} />
+              ))}
+            </>
+          )}
+        </aside>
       </div>
 
       <div className="call-bar">
@@ -368,23 +385,42 @@ export function CallSheet({
   );
 }
 
+function RosterRow({
+  name, suffix, here, muted, speaking
+}: {
+  name: string; suffix?: string; here?: boolean; muted?: boolean; speaking?: boolean;
+}) {
+  return (
+    <div className={`roster-row${here ? " here" : ""}${speaking ? " speaking" : ""}`}>
+      <span className="roster-avatar">{initials(name)}</span>
+      <span className="roster-name">
+        {name} {suffix && <em>{suffix}</em>}
+      </span>
+      {here ? (
+        muted ? (
+          <span className="roster-state muted" title="Microphone off"><IconMicOff size={14} /></span>
+        ) : (
+          <span className="roster-state on" title="Microphone on"><IconMic size={14} /></span>
+        )
+      ) : (
+        <span className="roster-state away">away</span>
+      )}
+    </div>
+  );
+}
+
 /**
  * A control is an icon plus a word.
  *
- * Icon-only controls were the single biggest source of confusion here, and the
- * two states were drawn with the same white highlight for opposite meanings —
- * white meant "muted" on one button and "camera on" on the next. Red now means
- * one thing everywhere: this is off.
+ * Icon-only controls were the biggest source of confusion here, and the two
+ * states were drawn with the same highlight for opposite meanings. Red now
+ * means one thing everywhere: this is off.
  */
 function CallButton({
   label, icon, onClick, danger, active, hangup
 }: {
-  label: string;
-  icon: React.ReactNode;
-  onClick: () => void;
-  danger?: boolean;
-  active?: boolean;
-  hangup?: boolean;
+  label: string; icon: React.ReactNode; onClick: () => void;
+  danger?: boolean; active?: boolean; hangup?: boolean;
 }) {
   const cls = ["call-btn", danger ? "off" : "", active ? "on" : "", hangup ? "hangup" : ""]
     .filter(Boolean)
@@ -398,11 +434,8 @@ function CallButton({
 }
 
 /**
- * Remote audio needs a real element to come out of.
- *
- * LiveKit does not create one: `Room.startAudio()` only replays tracks that are
- * already attached to something the app made. Without this component the call
- * connects, the tiles render, and nobody hears anybody.
+ * Remote audio needs a real element to come out of. LiveKit does not create
+ * one — without this the call connects, tiles render, and nobody hears anybody.
  */
 function RemoteAudio({ tracks }: { tracks: { id: string; track: Track }[] }) {
   return (
@@ -427,7 +460,7 @@ function AudioSink({ track }: { track: Track }) {
   return <audio ref={ref} autoPlay />;
 }
 
-function VideoTile({ tile, speaking }: { tile: Tile; speaking: boolean }) {
+function VideoTile({ tile }: { tile: Tile }) {
   const ref = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -443,17 +476,14 @@ function VideoTile({ tile, speaking }: { tile: Tile; speaking: boolean }) {
     tile.quality === ConnectionQuality.Poor || tile.quality === ConnectionQuality.Lost;
 
   return (
-    <div className={`tile${tile.isScreen ? " screen" : ""}${speaking ? " speaking" : ""}`}>
+    <div className={`tile${tile.isScreen ? " screen" : ""}${tile.speaking ? " speaking" : ""}`}>
       {tile.track ? (
-        // The local preview is always muted: hearing yourself is feedback.
         <video ref={ref} autoPlay playsInline muted={tile.isLocal} />
       ) : (
         <div className="tile-avatar">{initials(tile.name)}</div>
       )}
 
       <span className="tile-name">
-        {/* Muted is the state people most need to see: it is the difference
-            between someone being quiet and someone shouting into a dead mic. */}
         {tile.muted && !tile.isScreen && (
           <span className="tile-muted" title="Microphone off">
             <IconMicOff size={13} />
@@ -464,8 +494,6 @@ function VideoTile({ tile, speaking }: { tile: Tile; speaking: boolean }) {
         {tile.isScreen ? " — screen" : ""}
       </span>
 
-      {/* Connection quality only shows when it is bad. A green bar on everyone
-          is noise; a yellow one on the person breaking up is information. */}
       {poor && !tile.isLocal && (
         <span className="tile-quality" title="Weak connection">
           <IconSignal size={14} />
