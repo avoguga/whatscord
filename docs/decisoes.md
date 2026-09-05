@@ -82,3 +82,45 @@ A survey de 2025 aponta tempo de compilação como principal limitador de produt
 
 Node/TS compartilha tipos com o cliente React. Go é o meio-termo e é a mesma linguagem do LiveKit.
 Elixir traz Channels/PubSub/Presence prontos (dispensaria o Redis) ao custo de 3-6 meses de rampa.
+
+## Escolha de microfone, câmera e alto-falante
+
+Três coisas separadas, que a gente tende a tratar como uma:
+
+**Qual dispositivo usar.** Guardado em `localStorage` (`whatscord.devices`), não na sessão — é
+propriedade do hardware à frente da pessoa, não da conta. Sobrevive de propósito ao logout: plugar
+o fone uma vez não deveria ter que ser refeito a cada login. Passado ao LiveKit como
+`audioCaptureDefaults`/`videoCaptureDefaults` na construção da `Room`, e não só no primeiro join —
+sem isso, cada `setMicrophoneEnabled` posterior voltava calado para o microfone embutido.
+
+**Um id salvo pode sobreviver ao hardware.** `resolveDeviceId` trata id que não existe mais como
+"sem preferência" em vez de erro. O id continua salvo no disco: se o fone voltar, volta a valer.
+
+**A permissão é por tipo, não global.** Câmera e microfone são concedidos separadamente. Um teste
+global de "o navegador já revelou algum nome?" dava permissão por concedida quando só a câmera
+tinha sido liberada, e o microfone ficava inutilizável sem nenhum aviso — foi exatamente o que
+apareceu ao testar numa máquina com OBS instalado. Por isso `needsPermission` é perguntado por tipo.
+
+**Antes da permissão o Chrome não devolve lista vazia:** devolve uma entrada por tipo com id e
+rótulo vazios. `selectableDevices` descarta essas — oferecê-las faz a escolha não surtir efeito,
+em silêncio, que é pior do que não oferecer nada.
+
+**Saber o nome não é saber se funciona.** Daí o medidor de nível ao lado do seletor: dentro da
+chamada ele lê a própria track publicada (sem segunda permissão nem segundo stream); fora dela, só
+depois de clicar em "Test microphone".
+
+## Avisos sonoros de entrada e saída
+
+Sintetizados em código (`lib/sounds.ts`), não embarcados como arquivo. O motivo não é economizar
+um binário no repositório: é roteamento. O aviso tem que sair pelo alto-falante que a pessoa
+escolheu, e só um elemento de mídia aceita `setSinkId`. Um WAV em data URL alimenta um `<audio>`,
+então o aviso segue o mesmo alto-falante da chamada.
+
+Sobe ao entrar, desce ao sair — a direção carrega o significado sem precisar de legenda. Amplitude
+em 0,22 e envelope de 8 ms nas pontas: um aviso que faz a pessoa se assustar acaba desligado, e aí
+para de cumprir a função. O envelope existe porque começar ou terminar no meio do ciclo estala mais
+alto que a própria nota.
+
+Acompanhado sempre de uma linha na tela ("Fulano entrou na chamada"), porque som sozinho não serve
+para quem está no mudo — e porque antes disso a chegada de alguém só mudava um número no canto.
+

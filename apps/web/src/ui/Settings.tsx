@@ -3,6 +3,7 @@ import { api } from "../lib/api";
 import { useStore, type User } from "../store";
 import { initials } from "../lib/format";
 import { Scrim } from "./Scrim";
+import { DevicePicker } from "./DevicePicker";
 
 /**
  * The account panel the rail's avatar and gear both open.
@@ -83,6 +84,16 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         <button className="btn-primary" disabled={busy || !changed || !displayName.trim()} onClick={save}>
           {busy ? "Saving…" : "Save changes"}
         </button>
+
+        <div style={{ height: 1, background: "var(--divider)", margin: "22px 0 16px" }} />
+
+        {/*
+          Here so the choice can be made calmly, before a call is ringing. The
+          same picker is inside the call for when the headset is only plugged
+          in halfway through.
+        */}
+        <h3 className="settings-head">Audio and video</h3>
+        <DevicePicker onNotice={(text) => notify(text, "bad")} />
 
         <div style={{ height: 1, background: "var(--divider)", margin: "22px 0 16px" }} />
 

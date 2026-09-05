@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ConnectionQuality,
   Room,
   RoomEvent,
   Track,
   type Participant,
+  type RemoteParticipant,
   type RemoteTrack,
   type RemoteTrackPublication,
   type TrackPublication
@@ -13,9 +14,12 @@ import { api } from "../lib/api";
 import { useStore, type User } from "../store";
 import { getSocket } from "../lib/socket";
 import { initials } from "../lib/format";
+import { loadDevicePrefs } from "../lib/devices";
+import { playCue } from "../lib/sounds";
+import { DevicePicker } from "./DevicePicker";
 import {
   IconMic, IconMicOff, IconVideo, IconVideoOff, IconScreen,
-  IconHangup, IconMinimize, IconSignal, IconSpeaker
+  IconHangup, IconMinimize, IconSignal, IconSpeaker, IconSettings, IconClose
 } from "./icons";
 
 type Tile = {
@@ -44,7 +48,22 @@ export function CallSheet({
   const roomMeta = rooms.find((r) => r.id === roomId);
   const callName = roomMeta?.name ?? roomMeta?.counterpart?.displayName ?? "Call";
 
-  const [room] = useState(() => new Room({ adaptiveStream: true, dynacast: true }));
+  /*
+   * The room opens on the devices this machine already chose. Passing them as
+   * capture defaults matters beyond the first join: every later
+   * setMicrophoneEnabled / setCameraEnabled reuses them, so muting and
+   * unmuting cannot quietly drop back to the built-in microphone.
+   */
+  const [room] = useState(() => {
+    const saved = loadDevicePrefs();
+    return new Room({
+      adaptiveStream: true,
+      dynacast: true,
+      audioCaptureDefaults: saved.audioinput ? { deviceId: saved.audioinput } : undefined,
+      videoCaptureDefaults: saved.videoinput ? { deviceId: saved.videoinput } : undefined,
+      audioOutput: saved.audiooutput ? { deviceId: saved.audiooutput } : undefined
+    });
+  });
   const [status, setStatus] = useState<"connecting" | "connected" | "reconnecting" | "failed">(
     "connecting"
   );
@@ -59,6 +78,11 @@ export function CallSheet({
   /** Everyone who belongs to this conversation, in or out of the call. */
   const [roster, setRoster] = useState<User[]>([]);
 
+  const [showDevices, setShowDevices] = useState(false);
+  /** Short-lived "X joined" lines, the visual half of the arrival cue. */
+  const [events, setEvents] = useState<{ id: number; text: string }[]>([]);
+  const [outputId, setOutputId] = useState<string | undefined>(() => loadDevicePrefs().audiooutput);
+
   const [revision, setRevision] = useState(0);
   const bump = () => setRevision((n) => n + 1);
 
@@ -66,6 +90,29 @@ export function CallSheet({
   useEffect(() => {
     onCloseRef.current = onClose;
   });
+
+  /*
+   * Arrivals and departures fire from a listener registered once, which cannot
+   * see later renders. These refs are how it still gets today's roster — and
+   * today's chosen speaker — without re-registering and tearing down the call.
+   */
+  const rosterRef = useRef<User[]>([]);
+  const meRef = useRef(me);
+  const outputRef = useRef(outputId);
+  rosterRef.current = roster;
+  meRef.current = me;
+  outputRef.current = outputId;
+
+  const nameFor = useCallback((identity: string, fallback?: string) => {
+    if (identity === meRef.current?.id) return meRef.current.displayName;
+    return rosterRef.current.find((u) => u.id === identity)?.displayName ?? fallback ?? "Someone";
+  }, []);
+
+  const pushEvent = useCallback((text: string) => {
+    const id = Date.now() + Math.random();
+    setEvents((list) => [...list.slice(-2), { id, text }]);
+    window.setTimeout(() => setEvents((list) => list.filter((e) => e.id !== id)), 4500);
+  }, []);
 
   // The roster is what answers "who is here and who is not".
   useEffect(() => {
@@ -89,13 +136,33 @@ export function CallSheet({
             track.detach();
             bump();
           })
-          .on(RoomEvent.ParticipantConnected, () => bump())
-          .on(RoomEvent.ParticipantDisconnected, () => bump())
+          .on(RoomEvent.ParticipantConnected, (p: RemoteParticipant) => {
+            // Sound plus a line on screen: someone arriving used to change
+            // nothing but a number in the corner, which was easy to miss.
+            pushEvent(`${nameFor(p.identity, p.name)} joined the call`);
+            void playCue("join", outputRef.current);
+            bump();
+          })
+          .on(RoomEvent.ParticipantDisconnected, (p: RemoteParticipant) => {
+            pushEvent(`${nameFor(p.identity, p.name)} left the call`);
+            void playCue("leave", outputRef.current);
+            bump();
+          })
           .on(RoomEvent.LocalTrackPublished, () => bump())
           .on(RoomEvent.LocalTrackUnpublished, () => bump())
           .on(RoomEvent.TrackMuted, () => bump())
           .on(RoomEvent.TrackUnmuted, () => bump())
           .on(RoomEvent.ConnectionQualityChanged, () => bump())
+          .on(RoomEvent.ActiveDeviceChanged, () => bump())
+          .on(RoomEvent.MediaDevicesError, (err: Error) => {
+            setNotice(
+              err.name === "NotAllowedError"
+                ? "The browser blocked your microphone or camera. Allow it in the address bar, then try again."
+                : err.name === "NotFoundError"
+                  ? "The device you picked is not there any more. Choose another under Devices."
+                  : "A microphone or camera could not be opened — another app may be holding it."
+            );
+          })
           .on(RoomEvent.ActiveSpeakersChanged, (list: Participant[]) =>
             setSpeakers(new Set(list.map((p) => p.identity)))
           )
@@ -156,7 +223,7 @@ export function CallSheet({
       room.removeAllListeners();
       room.disconnect().catch(() => undefined);
     };
-  }, [roomId, withVideo, room]);
+  }, [roomId, withVideo, room, nameFor, pushEvent]);
 
   /** Identities currently connected to the LiveKit room. */
   const connectedIds = useMemo(() => {
@@ -270,7 +337,7 @@ export function CallSheet({
   if (minimized) {
     return (
       <>
-        <RemoteAudio tracks={audioTracks} />
+        <RemoteAudio tracks={audioTracks} sinkId={outputId} />
         <div className="call-ribbon" role="status">
           <span className="live-dot" aria-hidden="true" />
           <span className="ribbon-text">
@@ -289,7 +356,7 @@ export function CallSheet({
 
   return (
     <div className="call-sheet" role="dialog" aria-label={`Call in ${callName}`}>
-      <RemoteAudio tracks={audioTracks} />
+      <RemoteAudio tracks={audioTracks} sinkId={outputId} />
 
       <header className="call-top">
         <button
@@ -320,6 +387,14 @@ export function CallSheet({
         </div>
       )}
       {notice && !error && <div className="call-banner">{notice}</div>}
+
+      {events.length > 0 && (
+        <div className="call-events" role="status" aria-live="polite">
+          {events.map((e) => (
+            <span key={e.id} className="call-event">{e.text}</span>
+          ))}
+        </div>
+      )}
 
       <div className="call-body">
         <div className="call-stage">
@@ -389,8 +464,37 @@ export function CallSheet({
           onClick={toggleShare}
           icon={<IconScreen />}
         />
+        <CallButton
+          label="Devices"
+          active={showDevices}
+          onClick={() => setShowDevices((v) => !v)}
+          icon={<IconSettings />}
+        />
         <CallButton label="Leave" hangup onClick={onClose} icon={<IconHangup />} />
       </div>
+
+      {showDevices && (
+        <aside className="call-devices" aria-label="Audio and video devices">
+          <header>
+            <strong>Audio and video</strong>
+            <button
+              className="icon-btn"
+              onClick={() => setShowDevices(false)}
+              title="Close"
+              aria-label="Close devices"
+            >
+              <IconClose />
+            </button>
+          </header>
+          <DevicePicker
+            room={room}
+            onNotice={setNotice}
+            onChange={(kind, id) => {
+              if (kind === "audiooutput") setOutputId(id);
+            }}
+          />
+        </aside>
+      )}
     </div>
   );
 }
@@ -447,18 +551,25 @@ function CallButton({
  * Remote audio needs a real element to come out of. LiveKit does not create
  * one — without this the call connects, tiles render, and nobody hears anybody.
  */
-function RemoteAudio({ tracks }: { tracks: { id: string; track: Track }[] }) {
+function RemoteAudio({
+  tracks,
+  sinkId
+}: {
+  tracks: { id: string; track: Track }[];
+  sinkId?: string;
+}) {
   return (
     <div style={{ display: "none" }} aria-hidden="true">
       {tracks.map((t) => (
-        <AudioSink key={t.id} track={t.track} />
+        <AudioSink key={t.id} track={t.track} sinkId={sinkId} />
       ))}
     </div>
   );
 }
 
-function AudioSink({ track }: { track: Track }) {
+function AudioSink({ track, sinkId }: { track: Track; sinkId?: string }) {
   const ref = useRef<HTMLAudioElement>(null);
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -467,6 +578,18 @@ function AudioSink({ track }: { track: Track }) {
       track.detach(el);
     };
   }, [track]);
+
+  /*
+   * Choosing a speaker only means something if the elements the audio actually
+   * plays through follow it. These are ours, created here, so they have to be
+   * pointed at the chosen output by hand every time it changes.
+   */
+  useEffect(() => {
+    const el = ref.current as (HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> }) | null;
+    if (!el?.setSinkId || !sinkId) return;
+    void el.setSinkId(sinkId).catch(() => undefined);
+  }, [sinkId]);
+
   return <audio ref={ref} autoPlay />;
 }
 
