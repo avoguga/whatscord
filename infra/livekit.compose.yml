@@ -1,0 +1,51 @@
+# LiveKit SFU — recurso "whatscord-livekit" no Coolify.
+#
+# Decisões que importam (ver docs/livekit-coolify.md):
+#  - UDP mux em 7882-7885, NAO a faixa 50000-60000. Aquela faixa cria ~10 mil
+#    mapeamentos DNAT e trava o dockerd numa maquina com 105 containers.
+#  - Só o signaling (7880) passa pelo Traefik. 7881/tcp e o mux UDP vao direto
+#    no host — a doc do LiveKit e explicita que a 7881 nao pode ficar atras de proxy.
+#  - node_ip fixo em vez de use_external_ip: em rede bridge o container so enxerga
+#    172.x, e o self-ping de validacao falha por hairpin NAT do Docker.
+#  - Redis desligado de proposito: habilita-lo poe o LiveKit em modo distribuido,
+#    que so traz ganho com 2+ nos.
+#
+# A chave e o segredo sao substituidos no deploy a partir de .secrets/generated.env.
+services:
+  livekit:
+    image: livekit/livekit-server:v1.13.6
+    restart: unless-stopped
+    mem_limit: 1g
+    mem_reservation: 128m
+    cpus: 1.5
+    environment:
+      LIVEKIT_CONFIG: |
+        port: 7880
+        log_level: info
+        rtc:
+          udp_port: 7882-7885
+          tcp_port: 7881
+          use_external_ip: false
+          node_ip: 167.88.39.225
+        keys:
+          __LK_KEY__: __LK_SECRET__
+        logging:
+          level: info
+          pion_level: error
+          json: true
+          sample: true
+    ports:
+      - "7881:7881/tcp"
+      - "7882-7885:7882-7885/udp"
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=coolify
+      - traefik.http.routers.wclk.entryPoints=https
+      - traefik.http.routers.wclk.rule=Host(`livekit.167.88.39.225.sslip.io`)
+      - traefik.http.routers.wclk.tls=true
+      - traefik.http.routers.wclk.tls.certresolver=letsencrypt
+      - traefik.http.routers.wclk.service=wclk
+      - traefik.http.services.wclk.loadbalancer.server.port=7880
+      - traefik.http.routers.wclk-http.entryPoints=http
+      - traefik.http.routers.wclk-http.rule=Host(`livekit.167.88.39.225.sslip.io`)
+      - traefik.http.routers.wclk-http.middlewares=redirect-to-https

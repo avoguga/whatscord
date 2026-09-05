@@ -1,0 +1,16 @@
+{
+  "name": "@whatscord/desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "WhatsCord desktop shell — Tauri v2 (Windows/WebView2)",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "dist": "tauri build --bundles nsis",
+    "icons": "tauri icon ./src-tauri/icons/app-icon.png",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.11.4"
+  }
+}

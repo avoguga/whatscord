@@ -1,0 +1,185 @@
+// WhatsCord data model.
+//
+// One `Room` table backs every conversation surface: a direct message, a group,
+// a text channel and a voice channel are all rooms. That is what lets the
+// WhatsApp-style sidebar list them together without a union query.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoomKind {
+  DM
+  GROUP
+  TEXT
+  VOICE
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum Presence {
+  ONLINE
+  IDLE
+  BUSY
+  OFFLINE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  username     String   @unique
+  displayName  String
+  avatarUrl    String?
+  bio          String?
+  passwordHash String
+  presence     Presence @default(OFFLINE)
+  lastSeenAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  refreshTokens RefreshToken[]
+  spaces        SpaceMember[]
+  rooms         RoomMember[]
+  messages      Message[]
+  reactions     Reaction[]
+  ownedSpaces   Space[]        @relation("SpaceOwner")
+
+  @@index([username])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  userAgent String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Space {
+  id         String   @id @default(cuid())
+  name       String
+  iconUrl    String?
+  ownerId    String
+  inviteCode String   @unique
+  createdAt  DateTime @default(now())
+
+  owner   User          @relation("SpaceOwner", fields: [ownerId], references: [id])
+  members SpaceMember[]
+  rooms   Room[]
+}
+
+model SpaceMember {
+  id       String     @id @default(cuid())
+  spaceId  String
+  userId   String
+  role     MemberRole @default(MEMBER)
+  joinedAt DateTime   @default(now())
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, userId])
+  @@index([userId])
+}
+
+model Room {
+  id        String   @id @default(cuid())
+  spaceId   String?
+  kind      RoomKind
+  name      String?
+  topic     String?
+  iconUrl   String?
+  position  Int      @default(0)
+  // For DMs: sorted "userA:userB" so the pair can never get two rooms.
+  dmKey     String?  @unique
+  createdAt DateTime @default(now())
+
+  space    Space?       @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  members  RoomMember[]
+  messages Message[]
+
+  @@index([spaceId])
+}
+
+model RoomMember {
+  id                String     @id @default(cuid())
+  roomId            String
+  userId            String
+  role              MemberRole @default(MEMBER)
+  lastReadMessageId String?
+  lastReadAt        DateTime?
+  muted             Boolean    @default(false)
+  joinedAt          DateTime   @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id        String    @id @default(cuid())
+  roomId    String
+  authorId  String
+  content   String    @db.Text
+  replyToId String?
+  createdAt DateTime  @default(now())
+  editedAt  DateTime?
+  deletedAt DateTime?
+
+  room        Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  author      User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  replyTo     Message?     @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies     Message[]    @relation("MessageReply")
+  attachments Attachment[]
+  reactions   Reaction[]
+
+  @@index([roomId, createdAt])
+}
+
+model Attachment {
+  id        String   @id @default(cuid())
+  messageId String
+  url       String
+  name      String
+  mime      String
+  size      Int
+  width     Int?
+  height    Int?
+  durationMs Int?
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "WhatsCord",
+  "version": "0.1.0",
+  "identifier": "app.whatscord.desktop",
+  "build": {
+    "beforeDevCommand": {
+      "script": "npm run dev:web",
+      "cwd": "../../.."
+    },
+    "beforeBuildCommand": {
+      "script": "npm run build:web",
+      "cwd": "../../..",
+      "wait": true
+    },
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../../web/dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "WhatsCord",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 940,
+        "minHeight": 560,
+        "resizable": true,
+        "center": true,
+        "decorations": true,
+        "theme": "Dark",
+        "backgroundColor": "#111B21",
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --auto-accept-camera-and-microphone-capture --autoplay-policy=no-user-gesture-required"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; media-src 'self' blob: data: mediastream:; worker-src 'self' blob:; child-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost blob: data: ws://localhost:* wss://localhost:* http://localhost:* http://127.0.0.1:* https: wss:; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
+      "devCsp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:5173; style-src 'self' 'unsafe-inline' http://localhost:5173; img-src 'self' data: blob: https: http://localhost:5173; font-src 'self' data: http://localhost:5173; media-src 'self' blob: data: mediastream:; worker-src 'self' blob:; child-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost blob: data: ws://localhost:* wss://localhost:* http://localhost:* http://127.0.0.1:* https: wss:; frame-src 'self'; object-src 'none'; base-uri 'self'",
+      "capabilities": ["default"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "WhatsCord",
+    "copyright": "Copyright (c) 2026 WhatsCord",
+    "category": "SocialNetworking",
+    "shortDescription": "WhatsCord — chat, voz e video",
+    "longDescription": "WhatsCord: recursos de Discord com o layout do WhatsApp. Chat, chamadas de voz/video e compartilhamento de tela.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["PortugueseBR", "English"],
+        "displayLanguageSelector": true,
+        "compression": "lzma"
+      }
+    }
+  },
+  "plugins": {}
+}

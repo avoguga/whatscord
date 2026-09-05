@@ -1,0 +1,23 @@
+{
+  "name": "whatscord",
+  "private": true,
+  "version": "0.1.0",
+  "description": "WhatsCord — Discord capabilities, WhatsApp layout. Desktop app.",
+  "workspaces": [
+    "apps/api",
+    "apps/web",
+    "apps/desktop"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev:api": "npm run dev --workspace apps/api",
+    "dev:web": "npm run dev --workspace apps/web",
+    "dev:desktop": "npm run dev --workspace apps/desktop",
+    "build:api": "npm run build --workspace apps/api",
+    "build:web": "npm run build --workspace apps/web",
+    "build:desktop": "npm run build --workspace apps/web && npm run build --workspace apps/desktop",
+    "dist:desktop": "npm run build:desktop && npm run dist --workspace apps/desktop"
+  }
+}

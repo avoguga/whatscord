@@ -1,0 +1,38 @@
+[package]
+name = "whatscord-desktop"
+version = "0.1.0"
+description = "WhatsCord desktop shell"
+authors = ["WhatsCord"]
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+# The Tauri v2 template splits the app into a lib (so mobile targets can reuse it)
+# and a thin main.rs binary. Keep the `_lib` suffix: main.rs refers to it by name.
+name = "whatscord_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+tauri = { version = "2.11.5", features = [] }
+tauri-plugin-shell = "2.3.6"
+tauri-plugin-dialog = "2.7.3"
+tauri-plugin-os = "2.3.2"
+tauri-plugin-notification = "2.4.0"
+tauri-plugin-store = "2.4.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# single-instance is desktop-only: it has no mobile implementation and fails to
+# build for iOS/Android, so it is gated behind a target cfg (as the docs require).
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = "2.4.4"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

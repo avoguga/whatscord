@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+out/
+release/
+.env
+.env.*
+!.env.example
+.secrets/
+*.log
+.DS_Store
+apps/api/prisma/dev.db
+apps/api/uploads/
+coverage/
+.vite/
+*.tsbuildinfo

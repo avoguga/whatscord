@@ -1,0 +1,38 @@
+# MinIO — recurso "whatscord-minio" no Coolify. CONFIRMADO RODANDO.
+#
+# Sem exposicao publica de proposito: a API do WhatsCord fala com o MinIO pela
+# rede interna do Docker e faz proxy dos downloads em GET /files/:id. Isso evita
+# URL pre-assinada, evita mixed content dentro da webview do Tauri e nao deixa o
+# console do storage aberto na internet.
+#
+# DUAS ARMADILHAS QUE CUSTARAM DEPLOYS AQUI:
+#
+# 1. `--console-address ":9001"` faz o container morrer em loop SEM ESCREVER LOG.
+#    A MinIO removeu o console web da edicao community; a flag virou invalida e o
+#    processo sai antes de inicializar o logger. Nao readicione.
+#
+# 2. MINIO_BROWSER_REDIRECT_URL com o magic var do Coolify (SERVICE_FQDN_..._9001)
+#    entrega `host:9001` SEM esquema. O MinIO rejeita URL malformada e reinicia.
+#
+# Nota de sustentabilidade: a MinIO parou de publicar no Docker Hub depois de
+# 2025-09-07. A imagem abaixo e a ultima. Se isso virar problema, as alternativas
+# S3-compativeis vivas sao Garage (tem one-click neste Coolify) e SeaweedFS.
+#
+# Credenciais: geradas pelo Coolify (SERVICE_USER_MINIO / SERVICE_PASSWORD_MINIO)
+# e substituidas no deploy a partir de .secrets/generated.env.
+services:
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    mem_limit: 768m
+    mem_reservation: 128m
+    cpus: 1.0
+    command: server /data
+    environment:
+      - MINIO_ROOT_USER=__MINIO_USER__
+      - MINIO_ROOT_PASSWORD=__MINIO_PASSWORD__
+    volumes:
+      - minio-data:/data
+
+volumes:
+  minio-data:
