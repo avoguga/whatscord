@@ -24,6 +24,28 @@ const app = Fastify({
 });
 
 async function main() {
+  /*
+   * This has to come before the first app.register.
+   *
+   * Fastify snapshots the error handler onto each route when the plugin that
+   * registered it finishes loading (route.js: `context.errorHandler = ...`
+   * inside `this.after`). Registered after the plugins, this is dead code that
+   * fails silently — every 500 then falls through to the default handler, which
+   * serialises the raw error and hands the client Prisma's model, field and
+   * constraint names.
+   */
+  app.setErrorHandler((error: unknown, _request, reply) => {
+    app.log.error(error);
+    const detail = error as { statusCode?: number; message?: string };
+    const status = detail.statusCode ?? 500;
+    reply.code(status).send({
+      error:
+        status >= 500
+          ? "Something broke on our side. Try again."
+          : (detail.message ?? "That request could not be handled.")
+    });
+  });
+
   const origins = env.CORS_ORIGINS.split(",").map((o) => o.trim());
   await app.register(cors, {
     origin: origins.includes("*") ? true : origins,
@@ -48,18 +70,6 @@ async function main() {
   await app.register(spaceRoutes);
   await app.register(fileRoutes);
   await app.register(callRoutes);
-
-  app.setErrorHandler((error: unknown, _request, reply) => {
-    app.log.error(error);
-    const detail = error as { statusCode?: number; message?: string };
-    const status = detail.statusCode ?? 500;
-    reply.code(status).send({
-      error:
-        status >= 500
-          ? "Something broke on our side. Try again."
-          : (detail.message ?? "That request could not be handled.")
-    });
-  });
 
   // Storage failing to initialise must not stop the app from serving messages.
   await initStorage().catch((err) =>

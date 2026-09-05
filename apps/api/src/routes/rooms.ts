@@ -4,7 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { userSelect } from "../lib/shapes.js";
 import { authGuard } from "../plugins/auth.js";
 import { dmKeyFor, HttpError, requireMembership, memberIdsOf } from "../lib/rooms.js";
-import { emitToUsers, joinUserSockets } from "../realtime/bus.js";
+import { emitToUsers, joinUserSockets, leaveUserSockets } from "../realtime/bus.js";
 
 export async function roomRoutes(app: FastifyInstance) {
   app.addHook("preHandler", authGuard);
@@ -48,7 +48,10 @@ export async function roomRoutes(app: FastifyInstance) {
             roomId: m.roomId,
             deletedAt: null,
             authorId: { not: userId },
-            ...(m.lastReadAt ? { createdAt: { gt: m.lastReadAt } } : {})
+            // Falling back to joinedAt, not to "no filter": someone who just
+            // joined a channel with 5,000 messages of history has not missed
+            // 5,000 messages, and a badge saying so reads as the app being broken.
+            createdAt: { gt: m.lastReadAt ?? m.joinedAt }
           }
         })
       )
@@ -194,24 +197,57 @@ export async function roomRoutes(app: FastifyInstance) {
       if (membership.room.kind === "DM") {
         return reply.code(400).send({ error: "A direct message cannot take more people." });
       }
+      /*
+       * Channels take their members from the space, and only from the space.
+       * Allowing a direct add here let any member of a channel walk someone
+       * past the invite code — that person would read the whole history while
+       * never appearing in the space's member list, with no way to remove them.
+       */
+      if (membership.room.spaceId) {
+        return reply.code(400).send({
+          error: "People join a channel by joining its space. Share the space invite code instead."
+        });
+      }
     } catch (err) {
       if (err instanceof HttpError) return reply.code(err.status).send({ error: err.message });
       throw err;
     }
 
+    // Unknown ids would violate the foreign key and surface as a 500.
+    const known = await prisma.user.findMany({
+      where: { id: { in: body.data.userIds } },
+      select: { id: true }
+    });
+    if (known.length === 0) {
+      return reply.code(400).send({ error: "None of those accounts exist." });
+    }
+
     await prisma.roomMember.createMany({
-      data: body.data.userIds.map((userId) => ({ roomId: id, userId })),
+      data: known.map((u) => ({ roomId: id, userId: u.id })),
       skipDuplicates: true
     });
-    await Promise.all(body.data.userIds.map((u) => joinUserSockets(u, id)));
+    await Promise.all(known.map((u) => joinUserSockets(u.id, id)));
     emitToUsers(await memberIdsOf(id), "room:members", { roomId: id });
-    return { ok: true };
+    return { ok: true, added: known.length };
   });
 
   app.delete("/rooms/:id/members/me", async (request, reply) => {
     const { id } = request.params as { id: string };
-    await prisma.roomMember.deleteMany({ where: { roomId: id, userId: request.userId } });
+    const removed = await prisma.roomMember.deleteMany({
+      where: { roomId: id, userId: request.userId }
+    });
+    // Saying "ok" to someone who was never in the room tells them the room
+    // exists, and hides a genuine client bug behind a success.
+    if (removed.count === 0) {
+      return reply.code(404).send({ error: "You are not in that conversation." });
+    }
+
+    // Dropping the row is not enough — an open tab stays subscribed to the room
+    // channel and keeps receiving messages until the page is reloaded.
+    await leaveUserSockets(request.userId, id);
+
     emitToUsers([request.userId], "room:left", { roomId: id });
+    emitToUsers(await memberIdsOf(id), "room:members", { roomId: id });
     return reply.send({ ok: true });
   });
 
@@ -247,6 +283,13 @@ export async function roomRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     const body = z.object({ muted: z.boolean() }).safeParse(request.body);
     if (!body.success) return reply.code(400).send({ error: "Say whether to mute or unmute." });
+
+    try {
+      await requireMembership(id, request.userId);
+    } catch (err) {
+      if (err instanceof HttpError) return reply.code(err.status).send({ error: err.message });
+      throw err;
+    }
 
     await prisma.roomMember.update({
       where: { roomId_userId: { roomId: id, userId: request.userId } },

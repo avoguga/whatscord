@@ -4,7 +4,8 @@ import {
   GetObjectCommand,
   DeleteObjectCommand,
   CreateBucketCommand,
-  HeadBucketCommand
+  HeadBucketCommand,
+  HeadObjectCommand
 } from "@aws-sdk/client-s3";
 import { Readable } from "node:stream";
 import { createReadStream } from "node:fs";
@@ -41,6 +42,18 @@ const s3 = s3Configured
     })
   : null;
 
+/**
+ * The local driver keeps each object's content type in a `<key>.type` sidecar.
+ * That file is an implementation detail and must never be reachable as a key of
+ * its own — a request for `<key>.type` would otherwise hand out internal
+ * storage metadata.
+ */
+const SIDECAR_SUFFIX = ".type";
+
+export function isServableKey(key: string) {
+  return Boolean(key) && !key.includes("..") && !key.endsWith(SIDECAR_SUFFIX);
+}
+
 /** Resolves a key to a path inside UPLOAD_DIR, refusing anything that escapes it. */
 function localPath(key: string) {
   const root = path.resolve(env.UPLOAD_DIR);
@@ -49,6 +62,25 @@ function localPath(key: string) {
     throw new Error("Bad file reference.");
   }
   return full;
+}
+
+/** True when the object exists — used to refuse attachments pointing at nothing. */
+export async function objectExists(key: string) {
+  if (!isServableKey(key)) return false;
+  if (driver === "local") {
+    try {
+      await fs.stat(localPath(key));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  try {
+    await s3!.send(new HeadObjectCommand({ Bucket: env.S3_BUCKET, Key: key }));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function initStorage() {
@@ -63,13 +95,25 @@ export async function initStorage() {
   }
 }
 
-/** Keys are opaque, so a filename never has to be sanitised or trusted. */
-export function newObjectKey(originalName: string) {
+/**
+ * Keys are opaque, so a filename never has to be sanitised or trusted.
+ *
+ * The uploader's id is a path segment on purpose: it is what lets the message
+ * route refuse an attachment that points at somebody else's upload, without
+ * keeping a separate table of who uploaded what.
+ */
+export function newObjectKey(originalName: string, ownerId: string) {
   const raw = originalName.includes(".") ? originalName.split(".").pop()! : "bin";
   const ext = raw.slice(0, 12).toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
   const now = new Date();
   const prefix = `${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-  return `${prefix}/${crypto.randomUUID()}.${ext}`;
+  return `${prefix}/${ownerId}/${crypto.randomUUID()}.${ext}`;
+}
+
+/** The uploader encoded in a key, or null for keys minted before this existed. */
+export function ownerOfKey(key: string): string | null {
+  const parts = key.split("/");
+  return parts.length === 4 ? parts[2] : null;
 }
 
 export async function putObject(key: string, body: Buffer, contentType: string) {

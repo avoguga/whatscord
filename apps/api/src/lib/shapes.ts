@@ -42,6 +42,8 @@ export function messageDTO(message: MessageWithRelations) {
   return {
     id: message.id,
     roomId: message.roomId,
+    // The client matches this against its own optimistic bubble.
+    clientMsgId: message.clientMsgId,
     content: message.deletedAt ? "" : message.content,
     author: message.author,
     attachments: message.deletedAt ? [] : message.attachments,

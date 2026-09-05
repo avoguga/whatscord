@@ -242,7 +242,7 @@ export function Sidebar() {
               onOpen={() => openRoom(room.id)}
               online={room.counterpart ? online.has(room.counterpart.id) : false}
               inVoice={voicePresence[room.id]?.length ?? 0}
-              meId={useStore.getState().me?.id ?? ""}
+              meId={me?.id ?? ""}
             />
           ))}
         </div>

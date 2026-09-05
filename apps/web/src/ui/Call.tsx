@@ -42,8 +42,27 @@ export function CallSheet({
   const [camOn, setCamOn] = useState(withVideo);
   const [sharing, setSharing] = useState(false);
   const [speakers, setSpeakers] = useState<Set<string>>(new Set());
-  const [, forceRender] = useState(0);
-  const bump = () => forceRender((n) => n + 1);
+  /*
+   * LiveKit's participant list lives outside React, so a track arriving has to
+   * be turned into a render by hand. This has to be the state VALUE, not the
+   * setter: a setter is stable by contract, so listing it as a dependency does
+   * nothing and the tile list silently never recomputes — anyone joining after
+   * you would never appear.
+   */
+  const [revision, setRevision] = useState(0);
+  const bump = () => setRevision((n) => n + 1);
+
+  /*
+   * `onClose` is an inline arrow in the parent, so it is a new function on every
+   * render of App. Depending on it re-ran this effect, whose cleanup calls
+   * room.disconnect() — which fires Disconnected, which calls onClose. The call
+   * hung itself up whenever anything else in App re-rendered. The ref keeps the
+   * latest callback without making it a dependency.
+   */
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -68,7 +87,7 @@ export function CallSheet({
           })
           .on(RoomEvent.Disconnected, () => {
             setStatus("Call ended");
-            onClose();
+            onCloseRef.current();
           })
           .on(RoomEvent.Reconnecting, () => setStatus("Reconnecting…"))
           .on(RoomEvent.Reconnected, () => setStatus("Connected"));
@@ -94,9 +113,12 @@ export function CallSheet({
     return () => {
       cancelled = true;
       getSocket()?.emit("call:leave", { roomId });
+      // The listeners are attached to a Room instance that survives re-render,
+      // so leaving them behind stacks a full set on every run.
+      room.removeAllListeners();
       room.disconnect().catch(() => undefined);
     };
-  }, [roomId, withVideo, room, onClose]);
+  }, [roomId, withVideo, room]);
 
   const tiles = useMemo<Tile[]>(() => {
     const out: Tile[] = [];
@@ -132,7 +154,7 @@ export function CallSheet({
     // A shared screen is the thing everyone is looking at — it goes first.
     return out.sort((a, b) => Number(b.isScreen) - Number(a.isScreen));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room, status, sharing, camOn, micOn, forceRender]);
+  }, [room, status, sharing, camOn, micOn, revision]);
 
   async function toggleMic() {
     const next = !micOn;

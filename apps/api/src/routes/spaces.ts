@@ -4,7 +4,7 @@ import crypto from "node:crypto";
 import { prisma } from "../lib/prisma.js";
 import { userSelect } from "../lib/shapes.js";
 import { authGuard } from "../plugins/auth.js";
-import { emitToUsers, joinUserSockets } from "../realtime/bus.js";
+import { emitToRoom, emitToUsers, joinUserSockets } from "../realtime/bus.js";
 
 const inviteCode = () => crypto.randomBytes(5).toString("hex");
 
@@ -142,6 +142,25 @@ export async function spaceRoutes(app: FastifyInstance) {
     await Promise.all(space.rooms.map((r) => joinUserSockets(request.userId, r.id)));
 
     emitToUsers([request.userId], "space:joined", { spaceId: space.id });
+
+    /*
+     * Everyone already in the space has to hear about it too. Telling only the
+     * person who joined is why someone could accept an invite and simply not
+     * appear on the inviter's screen until they reloaded the page.
+     */
+    const others = await prisma.spaceMember.findMany({
+      where: { spaceId: space.id, userId: { not: request.userId } },
+      select: { userId: true }
+    });
+    emitToUsers(
+      others.map((o) => o.userId),
+      "space:members",
+      { spaceId: space.id }
+    );
+    for (const room of space.rooms) {
+      emitToRoom(room.id, "room:members", { roomId: room.id });
+    }
+
     return { space: { id: space.id, name: space.name } };
   });
 

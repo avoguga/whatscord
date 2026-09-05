@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { env } from "../env.js";
 import { authGuard } from "../plugins/auth.js";
-import { getObjectStream, newObjectKey, putObject } from "../lib/storage.js";
+import { getObjectStream, isServableKey, newObjectKey, putObject } from "../lib/storage.js";
 
 /**
  * Uploads go to whichever storage driver is configured; downloads are proxied
@@ -13,6 +13,41 @@ import { getObjectStream, newObjectKey, putObject } from "../lib/storage.js";
  * which matters inside the Tauri webview, where a plain-http URL would be
  * blocked as mixed content.
  */
+
+/**
+ * Only these types are ever echoed back as the response Content-Type.
+ *
+ * The download route is deliberately unauthenticated, so letting the uploader
+ * choose the type turns this origin into a place to host `text/html` — a script
+ * served from the API's own origin. Anything not on this list is served as an
+ * opaque download instead.
+ *
+ * SVG is excluded on purpose: it is an image that can carry script.
+ */
+const INLINE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/avif",
+  "image/bmp",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "audio/mpeg",
+  "audio/ogg",
+  "audio/wav",
+  "audio/webm",
+  "audio/mp4",
+  "application/pdf",
+  "text/plain"
+]);
+
+function safeContentType(mime: string) {
+  const base = mime.split(";")[0].trim().toLowerCase();
+  return INLINE_TYPES.has(base) ? base : "application/octet-stream";
+}
+
 export async function fileRoutes(app: FastifyInstance) {
   app.post("/files", { preHandler: authGuard }, async (request, reply) => {
     const uploaded = await request.file({
@@ -22,13 +57,15 @@ export async function fileRoutes(app: FastifyInstance) {
 
     const buffer = await uploaded.toBuffer().catch(() => null);
     if (!buffer) {
-      return reply
-        .code(413)
-        .send({ error: `Files have to be under ${env.MAX_UPLOAD_MB} MB.` });
+      return reply.code(413).send({ error: `Files have to be under ${env.MAX_UPLOAD_MB} MB.` });
+    }
+    if (buffer.length === 0) {
+      return reply.code(400).send({ error: "That file is empty." });
     }
 
-    const key = newObjectKey(uploaded.filename ?? "file.bin");
-    const mime = uploaded.mimetype || "application/octet-stream";
+    const key = newObjectKey(uploaded.filename ?? "file.bin", request.userId);
+    // Store the sanitised type, so the decision cannot be revisited on the way out.
+    const mime = safeContentType(uploaded.mimetype || "application/octet-stream");
     await putObject(key, buffer, mime);
 
     // The client hands these straight back when it posts the message.
@@ -48,12 +85,22 @@ export async function fileRoutes(app: FastifyInstance) {
    */
   app.get("/files/*", async (request, reply) => {
     const key = decodeURIComponent((request.params as Record<string, string>)["*"] ?? "");
-    if (!key || key.includes("..")) return reply.code(400).send({ error: "Bad file reference." });
+    // Also refuses the driver's internal `.type` sidecar, which is storage
+    // metadata and never a file anyone uploaded.
+    if (!isServableKey(key)) return reply.code(400).send({ error: "Bad file reference." });
 
     try {
       const object = await getObjectStream(key);
-      reply.header("Content-Type", object.contentType);
+      const type = safeContentType(object.contentType);
+
+      reply.header("Content-Type", type);
       if (object.contentLength) reply.header("Content-Length", String(object.contentLength));
+      // Stop the browser from second-guessing the type we just narrowed.
+      reply.header("X-Content-Type-Options", "nosniff");
+      // Anything not on the inline list downloads instead of rendering.
+      if (type === "application/octet-stream") {
+        reply.header("Content-Disposition", "attachment");
+      }
       reply.header("Cache-Control", "private, max-age=31536000, immutable");
       return reply.send(object.body);
     } catch {

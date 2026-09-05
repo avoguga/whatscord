@@ -40,7 +40,14 @@ export function connectSocket() {
 
   socket.on("room:new", () => store().refreshRooms().catch(() => undefined));
   socket.on("room:members", () => store().refreshRooms().catch(() => undefined));
+  socket.on("room:left", () => store().refreshRooms().catch(() => undefined));
   socket.on("space:joined", () => {
+    store().refreshSpaces().catch(() => undefined);
+    store().refreshRooms().catch(() => undefined);
+  });
+  // Someone accepted an invite to a space this client is already in. Without
+  // this, the person who sent the invite never sees them arrive.
+  socket.on("space:members", () => {
     store().refreshSpaces().catch(() => undefined);
     store().refreshRooms().catch(() => undefined);
   });

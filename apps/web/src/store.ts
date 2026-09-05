@@ -1,6 +1,46 @@
 import { create } from "zustand";
 import { api, clearTokens, loadTokens, saveTokens } from "./lib/api";
 
+/**
+ * Collapses a message list to one entry per message and keeps it in time order.
+ *
+ * A message can reach the client twice — once as the optimistic bubble, once as
+ * the socket echo — and the two carry different ids until the server replies.
+ * `clientMsgId` is the stable identity across both, so it wins over `id` when
+ * present. This is the single place that guarantees a send shows up once.
+ */
+function dedupe(list: Message[]): Message[] {
+  const byKey = new Map<string, Message>();
+  for (const m of list) {
+    const key = m.clientMsgId ?? m.id;
+    const existing = byKey.get(key);
+    // A confirmed message always replaces a pending one with the same identity.
+    if (!existing || existing.pending || existing.failed) byKey.set(key, m);
+  }
+
+  const all = [...byKey.values()];
+  /*
+   * Messages the server has accepted are ordered by its clock, with the id as
+   * the tie-break — the same order the API pages by.
+   *
+   * Anything still in flight is pinned to the end regardless of timestamp: its
+   * createdAt comes from this machine's clock, and a clock that is off by an
+   * hour would otherwise drop the bubble into the middle of the history, or
+   * under yesterday's date separator.
+   */
+  const settled = all.filter((m) => !m.pending);
+  const inFlight = all.filter((m) => m.pending);
+
+  settled.sort((a, b) => {
+    const ta = new Date(a.createdAt).getTime();
+    const tb = new Date(b.createdAt).getTime();
+    if (ta !== tb) return ta - tb;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+
+  return [...settled, ...inFlight];
+}
+
 export type User = {
   id: string;
   username: string;
@@ -24,6 +64,8 @@ export type Attachment = {
 export type Message = {
   id: string;
   roomId: string;
+  /** Minted by this client before sending. How an echo is matched to its bubble. */
+  clientMsgId: string | null;
   content: string;
   author: User;
   attachments: Attachment[];
@@ -121,31 +163,45 @@ type State = {
   setVoicePresence: (roomId: string, userIds: string[]) => void;
 };
 
+/**
+ * Everything that belongs to one signed-in person.
+ *
+ * The store outlives sign-out — React swaps the tree, it does not unmount the
+ * store — so anything left behind here bleeds into the next account. That is
+ * what made a fresh sign-in land on a sidebar filtered by the previous user's
+ * space: no room matched, and because the filter was set, direct messages were
+ * hidden too. Reset through this object, never field by field.
+ */
+const blankSession = {
+  rooms: [] as Room[],
+  spaces: [] as Space[],
+  activeSpaceId: null as string | null,
+  activeRoomId: null as string | null,
+  messages: {} as Record<string, Message[]>,
+  cursors: {} as Record<string, string | null>,
+  loadingRoom: false,
+  typing: {} as Record<string, string[]>,
+  online: new Set<string>(),
+  filter: "all" as const,
+  search: "",
+  replyTo: null as Message | null,
+  voicePresence: {} as Record<string, string[]>
+};
+
 export const useStore = create<State>((set, get) => ({
   me: null,
   booting: true,
-  rooms: [],
-  spaces: [],
-  activeSpaceId: null,
-  activeRoomId: null,
-  messages: {},
-  cursors: {},
-  loadingRoom: false,
-  typing: {},
-  online: new Set(),
-  filter: "all",
-  search: "",
-  replyTo: null,
-  voicePresence: {},
+  ...blankSession,
 
   async bootstrap() {
-    if (!loadTokens()) return set({ booting: false });
+    if (!loadTokens()) return set({ booting: false, me: null, ...blankSession });
     try {
       const { user } = await api.get<{ user: User }>("/auth/me");
-      set({ me: user });
+      set({ me: user, ...blankSession });
       await Promise.all([get().refreshRooms(), get().refreshSpaces()]);
     } catch {
       clearTokens();
+      set({ me: null, ...blankSession });
     } finally {
       set({ booting: false });
     }
@@ -157,7 +213,7 @@ export const useStore = create<State>((set, get) => ({
       { identifier, password }
     );
     saveTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
-    set({ me: res.user });
+    set({ me: res.user, ...blankSession });
     await Promise.all([get().refreshRooms(), get().refreshSpaces()]);
   },
 
@@ -167,7 +223,7 @@ export const useStore = create<State>((set, get) => ({
       input
     );
     saveTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
-    set({ me: res.user });
+    set({ me: res.user, ...blankSession });
     await Promise.all([get().refreshRooms(), get().refreshSpaces()]);
   },
 
@@ -175,7 +231,7 @@ export const useStore = create<State>((set, get) => ({
     const tokens = loadTokens();
     await api.post("/auth/logout", { refreshToken: tokens?.refreshToken }).catch(() => undefined);
     clearTokens();
-    set({ me: null, rooms: [], spaces: [], messages: {}, activeRoomId: null });
+    set({ me: null, ...blankSession });
   },
 
   async refreshRooms() {
@@ -201,8 +257,13 @@ export const useStore = create<State>((set, get) => ({
         const res = await api.get<{ messages: Message[]; nextCursor: string | null }>(
           `/rooms/${roomId}/messages?limit=40`
         );
+        // Merge, never overwrite: a message can arrive over the socket while
+        // this GET is in flight, and assigning would throw it away until reload.
         set((s) => ({
-          messages: { ...s.messages, [roomId]: res.messages },
+          messages: {
+            ...s.messages,
+            [roomId]: dedupe([...res.messages, ...(s.messages[roomId] ?? [])])
+          },
           cursors: { ...s.cursors, [roomId]: res.nextCursor }
         }));
       }
@@ -219,7 +280,10 @@ export const useStore = create<State>((set, get) => ({
       `/rooms/${roomId}/messages?limit=40&before=${encodeURIComponent(cursor)}`
     );
     set((s) => ({
-      messages: { ...s.messages, [roomId]: [...res.messages, ...(s.messages[roomId] ?? [])] },
+      messages: {
+        ...s.messages,
+        [roomId]: dedupe([...res.messages, ...(s.messages[roomId] ?? [])])
+      },
       cursors: { ...s.cursors, [roomId]: res.nextCursor }
     }));
   },
@@ -233,11 +297,13 @@ export const useStore = create<State>((set, get) => ({
     const me = get().me;
     if (!me) return;
 
-    const tempId = `pending-${crypto.randomUUID()}`;
+    const clientMsgId = crypto.randomUUID();
+    const tempId = `pending-${clientMsgId}`;
     const reply = get().replyTo;
     const optimistic: Message = {
       id: tempId,
       roomId,
+      clientMsgId,
       content,
       author: me,
       attachments: [],
@@ -260,12 +326,20 @@ export const useStore = create<State>((set, get) => ({
       const res = await api.post<{ message: Message }>(`/rooms/${roomId}/messages`, {
         content,
         replyToId: reply?.id,
+        clientMsgId,
         attachments
       });
+      // The socket echo may have arrived first. Drop the placeholder and any
+      // copy already ingested, then insert the server's version once.
       set((s) => ({
         messages: {
           ...s.messages,
-          [roomId]: (s.messages[roomId] ?? []).map((m) => (m.id === tempId ? res.message : m))
+          [roomId]: dedupe([
+            ...(s.messages[roomId] ?? []).filter(
+              (m) => m.id !== tempId && m.clientMsgId !== clientMsgId
+            ),
+            res.message
+          ])
         }
       }));
       get().refreshRooms().catch(() => undefined);
@@ -297,7 +371,9 @@ export const useStore = create<State>((set, get) => ({
   ingestMessage(m) {
     set((s) => {
       const existing = s.messages[m.roomId];
-      const list = existing ? [...existing.filter((x) => x.id !== m.id), m] : undefined;
+      // Keep it even for a room whose history has not been fetched yet — the
+      // fetch merges rather than overwrites, so nothing is lost either way.
+      const list = dedupe([...(existing ?? []), m]);
 
       const rooms = s.rooms.map((r) =>
         r.id === m.roomId
@@ -321,7 +397,7 @@ export const useStore = create<State>((set, get) => ({
 
       return {
         rooms,
-        messages: list ? { ...s.messages, [m.roomId]: list } : s.messages
+        messages: { ...s.messages, [m.roomId]: list }
       };
     });
 

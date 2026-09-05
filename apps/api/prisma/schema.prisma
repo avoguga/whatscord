@@ -134,14 +134,22 @@ model RoomMember {
 }
 
 model Message {
-  id        String    @id @default(cuid())
-  roomId    String
-  authorId  String
-  content   String    @db.Text
-  replyToId String?
-  createdAt DateTime  @default(now())
-  editedAt  DateTime?
-  deletedAt DateTime?
+  id       String @id @default(cuid())
+  roomId   String
+  authorId String
+  content  String @db.Text
+  // Minted by the client before sending. It is what makes a retry idempotent
+  // and what lets the client tell its own optimistic bubble apart from the
+  // copy that comes back over the socket — without it, one send shows twice.
+  //
+  // Scoped to the author, never global: a global unique would let anyone look
+  // up someone else's message by guessing the id, and would make two people
+  // colliding on an id silently swallow one of the sends.
+  clientMsgId String?
+  replyToId   String?
+  createdAt   DateTime  @default(now())
+  editedAt    DateTime?
+  deletedAt   DateTime?
 
   room        Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
   author      User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
@@ -150,7 +158,11 @@ model Message {
   attachments Attachment[]
   reactions   Reaction[]
 
-  @@index([roomId, createdAt])
+  @@unique([authorId, clientMsgId])
+  // Tie-break for pagination: createdAt alone is millisecond precision, and
+  // messages sharing a millisecond come back in non-deterministic order —
+  // which makes a cursor skip some of them permanently.
+  @@index([roomId, createdAt, id])
 }
 
 model Attachment {
