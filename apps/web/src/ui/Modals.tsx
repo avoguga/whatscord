@@ -3,20 +3,7 @@ import { api } from "../lib/api";
 import { useStore, type User } from "../store";
 import { initials } from "../lib/format";
 import { IconSearch } from "./icons";
-
-function Scrim({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  return (
-    <div className="modal-scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-modal="true">{children}</div>
-    </div>
-  );
-}
+import { Scrim } from "./Scrim";
 
 export function NewChatModal({ onClose }: { onClose: () => void }) {
   const [term, setTerm] = useState("");

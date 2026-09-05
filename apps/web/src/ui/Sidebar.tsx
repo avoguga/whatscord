@@ -4,9 +4,10 @@ import { api, fileUrl } from "../lib/api";
 import { initials, listStamp } from "../lib/format";
 import {
   IconChats, IconPhone, IconSpaces, IconSearch, IconNewChat, IconMenu,
-  IconMute, IconChecks, IconCheck, IconVoiceRoom, IconSettings
+  IconMute, IconChecks, IconVoiceRoom, IconSettings, IconUserPlus, IconGroup
 } from "./icons";
 import { NewChatModal, NewSpaceModal } from "./Modals";
+import { SpaceModal, NewGroupModal, AddPeopleModal } from "./Invites";
 
 export function Sidebar() {
   const me = useStore((s) => s.me);
@@ -25,8 +26,12 @@ export function Sidebar() {
   const setActiveSpace = useStore((s) => s.setActiveSpace);
   const signOut = useStore((s) => s.signOut);
 
-  const [modal, setModal] = useState<"chat" | "space" | null>(null);
+  const [modal, setModal] = useState<"chat" | "space" | "group" | "spaceInfo" | "addPeople" | null>(
+    null
+  );
   const [menuOpen, setMenuOpen] = useState(false);
+  const [newMenuOpen, setNewMenuOpen] = useState(false);
+  const activeRoom = rooms.find((r) => r.id === activeRoomId);
 
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -111,13 +116,94 @@ export function Sidebar() {
       <section className="list-panel" aria-label="Conversations">
         <header className="list-header">
           <h1>{activeSpaceId ? spaces.find((s) => s.id === activeSpaceId)?.name ?? "Space" : "Chats"}</h1>
-          <div className="header-actions">
-            <button className="icon-btn" onClick={() => setModal("chat")} title="New chat">
-              <IconNewChat />
-            </button>
+          <div className="header-actions" style={{ position: "relative" }}>
+            {activeSpaceId ? (
+              <button
+                className="icon-btn accent"
+                onClick={() => setModal("spaceInfo")}
+                title="Invite people and add channels"
+              >
+                <IconUserPlus />
+              </button>
+            ) : (
+              <button
+                className="icon-btn"
+                onClick={() => setNewMenuOpen((v) => !v)}
+                title="New chat or group"
+              >
+                <IconNewChat />
+              </button>
+            )}
             <button className="icon-btn" title="Menu"><IconMenu /></button>
+
+            {newMenuOpen && !activeSpaceId && (
+              <div className="modal" style={{ position: "absolute", top: 44, right: 0, width: 220, zIndex: 30 }}>
+                <div className="modal-body" style={{ padding: 8 }}>
+                  <button
+                    className="row"
+                    style={{ height: 46, padding: "0 8px", gap: 12 }}
+                    onClick={() => { setNewMenuOpen(false); setModal("chat"); }}
+                  >
+                    <IconNewChat size={18} />
+                    <span className="row-name" style={{ fontSize: 14.5 }}>New chat</span>
+                  </button>
+                  <button
+                    className="row"
+                    style={{ height: 46, padding: "0 8px", gap: 12 }}
+                    onClick={() => { setNewMenuOpen(false); setModal("group"); }}
+                  >
+                    <IconGroup size={18} />
+                    <span className="row-name" style={{ fontSize: 14.5 }}>New group</span>
+                  </button>
+                  <button
+                    className="row"
+                    style={{ height: 46, padding: "0 8px", gap: 12 }}
+                    onClick={() => { setNewMenuOpen(false); setModal("space"); }}
+                  >
+                    <IconSpaces size={18} />
+                    <span className="row-name" style={{ fontSize: 14.5 }}>New space</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </header>
+
+        {/* A space you created is a room with no door until the code is visible. */}
+        {activeSpaceId && (
+          <button
+            className="row"
+            style={{ height: 52, borderBottom: "1px solid var(--divider)" }}
+            onClick={() => setModal("spaceInfo")}
+          >
+            <span style={{ color: "var(--accent-bright)", display: "grid", placeItems: "center", width: 32 }}>
+              <IconUserPlus size={19} />
+            </span>
+            <div className="row-body">
+              <span className="row-name" style={{ fontSize: 14.5, color: "var(--accent-bright)" }}>
+                Invite people to this space
+              </span>
+              <span className="row-preview">
+                Code {spaces.find((s) => s.id === activeSpaceId)?.inviteCode ?? "…"}
+              </span>
+            </div>
+          </button>
+        )}
+
+        {activeRoom?.kind === "GROUP" && !activeSpaceId && (
+          <button
+            className="row"
+            style={{ height: 48, borderBottom: "1px solid var(--divider)" }}
+            onClick={() => setModal("addPeople")}
+          >
+            <span style={{ color: "var(--accent-bright)", display: "grid", placeItems: "center", width: 32 }}>
+              <IconUserPlus size={18} />
+            </span>
+            <span className="row-name" style={{ fontSize: 14.5, color: "var(--accent-bright)" }}>
+              Add people to {activeRoom.name}
+            </span>
+          </button>
+        )}
 
         <div className="search-wrap">
           <div className="search">
@@ -164,6 +250,13 @@ export function Sidebar() {
 
       {modal === "chat" && <NewChatModal onClose={() => setModal(null)} />}
       {modal === "space" && <NewSpaceModal onClose={() => setModal(null)} />}
+      {modal === "group" && <NewGroupModal onClose={() => setModal(null)} />}
+      {modal === "spaceInfo" && activeSpaceId && (
+        <SpaceModal spaceId={activeSpaceId} onClose={() => setModal(null)} />
+      )}
+      {modal === "addPeople" && activeRoomId && (
+        <AddPeopleModal roomId={activeRoomId} onClose={() => setModal(null)} />
+      )}
     </>
   );
 }
