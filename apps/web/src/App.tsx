@@ -5,6 +5,7 @@ import { Auth } from "./ui/Auth";
 import { Sidebar } from "./ui/Sidebar";
 import { Chat } from "./ui/Chat";
 import { CallSheet } from "./ui/Call";
+import { Toasts } from "./ui/Toasts";
 
 export default function App() {
   const me = useStore((s) => s.me);
@@ -52,6 +53,7 @@ export default function App() {
       {call && (
         <CallSheet roomId={call.roomId} withVideo={call.video} onClose={() => setCall(null)} />
       )}
+      <Toasts />
     </div>
   );
 }

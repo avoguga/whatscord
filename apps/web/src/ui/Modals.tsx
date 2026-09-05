@@ -11,6 +11,7 @@ export function NewChatModal({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const openRoom = useStore((s) => s.openRoom);
   const refreshRooms = useStore((s) => s.refreshRooms);
+  const notify = useStore((s) => s.notify);
 
   useEffect(() => {
     if (!term.trim()) return setResults([]);
@@ -31,6 +32,7 @@ export function NewChatModal({ onClose }: { onClose: () => void }) {
       const res = await api.post<{ room: { id: string } }>("/rooms/dm", { userId: user.id });
       await refreshRooms();
       await openRoom(res.room.id);
+      notify(`Chat with ${user.displayName} is open.`);
       onClose();
     } finally {
       setBusy(false);
@@ -86,6 +88,7 @@ export function NewSpaceModal({ onClose }: { onClose: () => void }) {
   const refreshSpaces = useStore((s) => s.refreshSpaces);
   const refreshRooms = useStore((s) => s.refreshRooms);
   const setActiveSpace = useStore((s) => s.setActiveSpace);
+  const notifySpace = useStore((s) => s.notify);
 
   async function create() {
     if (!name.trim()) return;
@@ -95,6 +98,7 @@ export function NewSpaceModal({ onClose }: { onClose: () => void }) {
       const res = await api.post<{ space: { id: string } }>("/spaces", { name: name.trim() });
       await Promise.all([refreshSpaces(), refreshRooms()]);
       setActiveSpace(res.space.id);
+      notifySpace(`Space ${name.trim()} created. Share the invite code to bring people in.`);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "That did not work.");
@@ -108,9 +112,10 @@ export function NewSpaceModal({ onClose }: { onClose: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      const res = await api.post<{ space: { id: string } }>(`/spaces/join/${joinCode.trim()}`);
+      const res = await api.post<{ space: { id: string; name: string } }>(`/spaces/join/${joinCode.trim()}`);
       await Promise.all([refreshSpaces(), refreshRooms()]);
       setActiveSpace(res.space.id);
+      notifySpace(`You joined ${res.space.name}.`);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "That invite did not work.");

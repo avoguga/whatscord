@@ -62,6 +62,7 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
   const spaces = useStore((s) => s.spaces);
   const refreshSpaces = useStore((s) => s.refreshSpaces);
   const refreshRooms = useStore((s) => s.refreshRooms);
+  const notify = useStore((s) => s.notify);
   const space = spaces.find((s) => s.id === spaceId);
 
   const [members, setMembers] = useState<User[]>([]);
@@ -90,6 +91,7 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
       });
       setChannelName("");
       await Promise.all([refreshSpaces(), refreshRooms()]);
+      notify(`${channelKind === "VOICE" ? "Voice room" : "Channel"} ${channelName.trim()} created.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "That channel could not be created.");
     } finally {
@@ -269,6 +271,7 @@ export function NewGroupModal({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const refreshRooms = useStore((s) => s.refreshRooms);
   const openRoom = useStore((s) => s.openRoom);
+  const notify = useStore((s) => s.notify);
 
   const toggle = (u: User) =>
     setChosen((prev) =>
@@ -286,6 +289,7 @@ export function NewGroupModal({ onClose }: { onClose: () => void }) {
       });
       await refreshRooms();
       await openRoom(res.room.id);
+      notify(`Group ${name.trim()} created.`);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "That group could not be created.");
@@ -327,6 +331,7 @@ export function AddPeopleModal({ roomId, onClose }: { roomId: string; onClose: (
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const refreshRooms = useStore((s) => s.refreshRooms);
+  const notify = useStore((s) => s.notify);
 
   const toggle = (u: User) =>
     setChosen((prev) =>
@@ -340,6 +345,7 @@ export function AddPeopleModal({ roomId, onClose }: { roomId: string; onClose: (
     try {
       await api.post(`/rooms/${roomId}/members`, { userIds: chosen.map((c) => c.id) });
       await refreshRooms();
+      notify(chosen.length === 1 ? `${chosen[0].displayName} was added.` : `${chosen.length} people were added.`);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "They could not be added.");

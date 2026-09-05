@@ -79,6 +79,8 @@ export type Message = {
   failed?: boolean;
 };
 
+export type Toast = { id: string; text: string; kind: "ok" | "bad" };
+
 export type RoomKind = "DM" | "GROUP" | "TEXT" | "VOICE";
 
 export type Room = {
@@ -131,6 +133,7 @@ type State = {
   search: string;
   replyTo: Message | null;
   voicePresence: Record<string, string[]>;
+  toasts: Toast[];
 
   bootstrap: () => Promise<void>;
   signIn: (identifier: string, password: string) => Promise<void>;
@@ -155,6 +158,8 @@ type State = {
   setSearch: (s: string) => void;
   setReplyTo: (m: Message | null) => void;
   setActiveSpace: (id: string | null) => void;
+  notify: (text: string, kind?: "ok" | "bad") => void;
+  dismissToast: (id: string) => void;
 
   ingestMessage: (m: Message) => void;
   patchMessage: (m: Message) => void;
@@ -192,6 +197,7 @@ const blankSession = {
 export const useStore = create<State>((set, get) => ({
   me: null,
   booting: true,
+  toasts: [],
   ...blankSession,
 
   async bootstrap() {
@@ -373,6 +379,16 @@ export const useStore = create<State>((set, get) => ({
   setSearch: (search) => set({ search }),
   setReplyTo: (replyTo) => set({ replyTo }),
   setActiveSpace: (activeSpaceId) => set({ activeSpaceId }),
+
+  notify(text, kind = "ok") {
+    const id = crypto.randomUUID();
+    // Cap the stack: a burst of failures should not paper over the screen.
+    set((s) => ({ toasts: [...s.toasts.slice(-2), { id, text, kind }] }));
+  },
+
+  dismissToast(id) {
+    set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
+  },
 
   ingestMessage(m) {
     set((s) => {

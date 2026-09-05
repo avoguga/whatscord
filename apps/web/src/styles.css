@@ -673,6 +673,204 @@ input, textarea { font: inherit; color: inherit; }
 }
 
 
+
+/* ============================ affordances ============================
+
+   Everything in this block exists because a new person could not tell what
+   the app could do. Icons with no label, actions that only appeared on hover,
+   and no confirmation that anything had worked.
+   ==================================================================== */
+
+/* ---- tooltip on the places rail ---- */
+
+.rail-btn, .space-chip { position: relative; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; left: calc(100% + 10px); top: 50%;
+  transform: translateY(-50%);
+  background: var(--overlay); color: var(--text);
+  padding: 6px 10px; border-radius: 6px;
+  font-size: 12.5px; white-space: nowrap;
+  box-shadow: var(--shadow);
+  opacity: 0; pointer-events: none;
+  transition: opacity 90ms ease;
+  z-index: 30;
+}
+/* 90ms, not the ~1s of a native title: the rail is unlabelled, so the tooltip
+   is the label and it has to arrive at the speed of a glance. */
+[data-tip]:hover::after, [data-tip]:focus-visible::after { opacity: 1; }
+
+.rail-badge {
+  position: absolute; top: -2px; right: -2px;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; background: var(--accent); color: var(--accent-ink);
+  font-size: 11px; font-weight: 600; display: grid; place-items: center;
+}
+.rail-me {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--input); display: grid; place-items: center;
+  font-size: 13px; font-weight: 600; color: var(--text);
+}
+
+/* A channel is not a person: square-ish avatar, hash instead of initials. */
+.avatar.channel { border-radius: 14px; color: var(--text-dim); }
+
+/* ---- menus that used to be dead buttons ---- */
+
+.pop-menu {
+  position: absolute; top: 46px; right: 0; z-index: 30;
+  min-width: 218px; padding: 6px;
+  background: var(--panel-header); border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.pop-menu button {
+  display: flex; align-items: center; gap: var(--gap-3);
+  width: 100%; padding: 10px var(--gap-3);
+  border-radius: 6px; font-size: 14.5px; color: var(--text); text-align: left;
+}
+.pop-menu button:hover { background: var(--hover); }
+.pop-menu button.danger { color: var(--danger); }
+
+/* ---- the invite strip ---- */
+
+.invite-strip {
+  display: flex; align-items: center; gap: var(--gap-3);
+  width: 100%; padding: 11px var(--gap-4);
+  border-bottom: 1px solid var(--divider);
+  color: var(--accent-bright); text-align: left;
+}
+.invite-strip:hover { background: var(--hover); }
+.invite-strip span { display: block; min-width: 0; }
+.invite-strip b { display: block; font-size: 14px; font-weight: 500; }
+.invite-strip em {
+  display: block; font-style: normal; font-size: 12.5px;
+  color: var(--text-dim); font-family: ui-monospace, monospace;
+}
+
+/* ---- empty states that offer a next step ---- */
+
+.list-empty {
+  display: flex; flex-direction: column; gap: var(--gap-2);
+  padding: var(--gap-5) var(--gap-4);
+  text-align: center;
+}
+.list-empty p { margin: 0 0 var(--gap-2); color: var(--text-dim); font-size: 14px; }
+
+.btn-outline {
+  border: 1px solid var(--divider); border-radius: 8px;
+  padding: 10px; font-size: 14px; color: var(--text);
+  background: transparent;
+}
+.btn-outline:hover { border-color: var(--accent); color: var(--accent-bright); }
+.btn-outline.danger { color: var(--danger); border-color: rgba(241, 92, 109, 0.4); }
+.btn-outline.danger:hover { background: rgba(241, 92, 109, 0.1); border-color: var(--danger); color: var(--danger); }
+
+/* ---- find in conversation ---- */
+
+.find-bar {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: var(--gap-3);
+  padding: var(--gap-2) var(--gap-3);
+  background: var(--panel-header);
+  border-bottom: 1px solid var(--divider);
+  border-left: 1px solid var(--divider);
+}
+.find-bar input {
+  flex: 1; background: var(--input); border: 0; outline: none;
+  border-radius: 8px; padding: 8px var(--gap-3); font-size: 14.5px;
+}
+.find-count { font-size: 12.5px; color: var(--text-dim); white-space: nowrap; }
+
+/* ---- message actions ---- */
+
+/*
+  Always rendered, holding its own space, revealed on hover or keyboard focus.
+  Rendering it conditionally made the bubble jump sideways as the mouse crossed
+  it, and on a touch screen — where hover does not exist — reply and react were
+  simply unreachable. Long-press and double-tap open them there.
+*/
+.msg-actions {
+  display: flex; align-items: center; gap: 2px;
+  padding: 0 4px;
+  opacity: 0;
+  transition: opacity 110ms ease;
+}
+.msg-actions .icon-btn { width: 30px; height: 30px; }
+.msg:hover .msg-actions,
+.msg:focus-within .msg-actions { opacity: 1; }
+.msg.out { flex-direction: row-reverse; }
+@media (hover: none) {
+  /* No hover to reveal them, and no space to spare: the long-press opens the
+     reaction picker instead. */
+  .msg-actions { display: none; }
+}
+
+/* ---- emoji ---- */
+
+.emoji-anchor { position: absolute; bottom: 50px; left: 0; z-index: 30; }
+.react-anchor { position: absolute; bottom: 36px; left: 0; z-index: 30; }
+.react-anchor.left { left: auto; right: 0; }
+
+.emoji-pop {
+  background: var(--panel-header); border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  padding: var(--gap-3);
+  width: 296px; max-height: 320px; overflow-y: auto;
+}
+.emoji-pop.compact {
+  width: auto; display: flex; gap: 2px; padding: 6px;
+}
+.emoji-group + .emoji-group { margin-top: var(--gap-3); }
+.emoji-label {
+  margin: 0 0 6px; font-size: 11px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint);
+}
+.emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
+.emoji-cell {
+  width: 34px; height: 34px; border-radius: 6px;
+  display: grid; place-items: center; font-size: 19px; line-height: 1;
+}
+.emoji-cell:hover { background: var(--hover); }
+
+/* ---- confirmation ---- */
+
+.toasts {
+  position: fixed; bottom: var(--gap-5); left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex; flex-direction: column; gap: var(--gap-2);
+  align-items: center;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  display: flex; align-items: center; gap: var(--gap-3);
+  background: var(--overlay); color: var(--text);
+  border-left: 3px solid var(--accent);
+  padding: 11px var(--gap-3) 11px var(--gap-4);
+  border-radius: 8px; font-size: 14px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.5);
+  max-width: min(460px, calc(100vw - 32px));
+  animation: toast-in 160ms ease;
+}
+.toast.bad { border-left-color: var(--danger); }
+.toast > span { flex: 1; }
+.toast button { color: var(--text-dim); display: grid; place-items: center; }
+.toast button:hover { color: var(--text); }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---- account panel ---- */
+
+.settings-id {
+  display: flex; align-items: center; gap: var(--gap-4);
+  margin-bottom: var(--gap-4);
+}
+.settings-id strong { display: block; font-size: 16px; }
+.settings-id span { display: block; font-size: 13px; color: var(--text-dim); }
+
 /* ============================ responsive ============================
 
    Three layouts, one markup.
@@ -752,6 +950,14 @@ input, textarea { font: inherit; color: inherit; }
   .rail-spacer { flex: 0 0 auto; width: var(--gap-2); }
   .rail-sep { width: 1px; height: 26px; margin: 0 var(--gap-1); flex: 0 0 1px; }
   .rail-btn, .space-chip { flex: 0 0 auto; }
+  [data-tip]::after {
+    left: 50%; top: auto; bottom: calc(100% + 8px);
+    transform: translateX(-50%);
+  }
+  [data-tip]::after {
+    left: 50%; top: auto; bottom: calc(100% + 8px);
+    transform: translateX(-50%);
+  }
   /* The active marker sits under the icon instead of beside it. */
   .rail-btn[aria-pressed="true"]::before {
     left: 50%; top: auto; bottom: -10px;

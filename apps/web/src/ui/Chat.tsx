@@ -1,15 +1,14 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useStore, type Message } from "../store";
-import { fileUrl, uploadFile } from "../lib/api";
+import { api, fileUrl, uploadFile } from "../lib/api";
 import { clock, daySeparator, fileSize, initials, isImage, isVideo, sameDay } from "../lib/format";
 import { signalTyping, stopTyping } from "../lib/socket";
+import { EmojiPicker } from "./EmojiPicker";
 import {
-  IconAttach, IconEmoji, IconSend, IconMic, IconSearch, IconMenu, IconPhone,
+  IconAttach, IconEmoji, IconSend, IconSearch, IconMenu, IconPhone,
   IconVideo, IconChecks, IconCheck, IconClock, IconReply, IconClose, IconFile,
-  IconVoiceRoom, IconBack
+  IconVoiceRoom, IconBack, IconHash, IconMute, IconUserPlus
 } from "./icons";
-
-const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
 export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void }) {
   const activeRoomId = useStore((s) => s.activeRoomId);
@@ -26,18 +25,24 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
   const loadOlder = useStore((s) => s.loadOlder);
   const setReplyTo = useStore((s) => s.setReplyTo);
   const closeRoom = useStore((s) => s.closeRoom);
+  const refreshRooms = useStore((s) => s.refreshRooms);
+  const notify = useStore((s) => s.notify);
 
   const room = rooms.find((r) => r.id === activeRoomId);
   const scroller = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
 
   const [draft, setDraft] = useState("");
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [findOpen, setFindOpen] = useState(false);
+  const [findTerm, setFindTerm] = useState("");
   const [pendingFiles, setPendingFiles] = useState<
     { key: string; name: string; mime: string; size: number; progress: number }[]
   >([]);
   const fileInput = useRef<HTMLInputElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
 
-  // Follow new messages, but only when the reader is already at the bottom.
   useLayoutEffect(() => {
     const el = scroller.current;
     if (!el || !stickToBottom.current) return;
@@ -47,12 +52,24 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
   useEffect(() => {
     setDraft("");
     setPendingFiles([]);
+    setEmojiOpen(false);
+    setMenuOpen(false);
+    setFindOpen(false);
+    setFindTerm("");
     stickToBottom.current = true;
   }, [activeRoomId]);
+
+  const all = messages ?? [];
+  const list = useMemo(() => {
+    const t = findTerm.trim().toLowerCase();
+    if (!t) return all;
+    return all.filter((m) => m.content.toLowerCase().includes(t));
+  }, [all, findTerm]);
 
   if (!room || !activeRoomId) return <EmptyState />;
 
   const isVoiceRoom = room.kind === "VOICE";
+  const isChannel = room.kind === "TEXT";
   const title = room.name ?? room.counterpart?.displayName ?? "Conversation";
   const counterpartOnline = room.counterpart ? online.has(room.counterpart.id) : false;
 
@@ -61,9 +78,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
     : typing && typing.length > 0
       ? "typing…"
       : room.kind === "DM"
-        ? counterpartOnline
-          ? "online"
-          : "offline"
+        ? counterpartOnline ? "online" : "offline"
         : room.topic || `${room.memberCount} members`;
 
   async function onFilesPicked(files: FileList | null) {
@@ -76,15 +91,14 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
       ]);
       try {
         const uploaded = await uploadFile(file, (pct) =>
-          setPendingFiles((prev) =>
-            prev.map((p, i) => (i === index ? { ...p, progress: pct } : p))
-          )
+          setPendingFiles((prev) => prev.map((p, i) => (i === index ? { ...p, progress: pct } : p)))
         );
         setPendingFiles((prev) =>
           prev.map((p, i) => (i === index ? { ...uploaded, progress: 100 } : p))
         );
-      } catch {
+      } catch (err) {
         setPendingFiles((prev) => prev.filter((_, i) => i !== index));
+        notify(err instanceof Error ? err.message : "That file could not be uploaded.", "bad");
       }
     }
   }
@@ -96,6 +110,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
 
     setDraft("");
     setPendingFiles([]);
+    setEmojiOpen(false);
     stopTyping(activeRoomId!);
     stickToBottom.current = true;
     await send(
@@ -105,39 +120,113 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
     );
   }
 
-  const list = messages ?? [];
+  function insertEmoji(emoji: string) {
+    setDraft((d) => d + emoji);
+    setEmojiOpen(false);
+    composerRef.current?.focus();
+  }
+
+  async function toggleMute() {
+    setMenuOpen(false);
+    try {
+      await api.patch(`/rooms/${activeRoomId}/mute`, { muted: !room!.muted });
+      await refreshRooms();
+      notify(room!.muted ? "Notifications turned back on." : "Conversation muted.");
+    } catch {
+      notify("That could not be changed.", "bad");
+    }
+  }
+
+  async function leaveRoom() {
+    setMenuOpen(false);
+    try {
+      await api.del(`/rooms/${activeRoomId}/members/me`);
+      await refreshRooms();
+      closeRoom();
+      notify(`You left ${title}.`);
+    } catch {
+      notify("You could not leave that conversation.", "bad");
+    }
+  }
+
+  const canSend = Boolean(draft.trim()) || pendingFiles.some((f) => f.key);
 
   return (
     <section className="chat">
       <header className="chat-header">
-        {/* Only rendered on a narrow screen, where the list is off-screen. */}
         <button className="icon-btn back-btn" onClick={closeRoom} title="Back to conversations">
           <IconBack />
         </button>
-        <div className={`avatar${isVoiceRoom ? " voice" : ""}`}>
-          {isVoiceRoom ? <IconVoiceRoom size={20} /> : room.iconUrl ? (
-            <img src={fileUrl(room.iconUrl)} alt="" />
-          ) : (
-            initials(title)
-          )}
+        <div className={`avatar${isVoiceRoom ? " voice" : ""}${isChannel ? " channel" : ""}`}>
+          {isVoiceRoom ? <IconVoiceRoom size={20} />
+            : isChannel ? <IconHash size={19} />
+            : room.iconUrl ? <img src={fileUrl(room.iconUrl)} alt="" />
+            : initials(title)}
         </div>
         <div className="chat-title">
-          <strong>{room.kind === "TEXT" ? `# ${title}` : title}</strong>
+          <strong>{title}</strong>
           <span style={typing && typing.length ? { color: "var(--accent-bright)" } : undefined}>
             {subtitle}
           </span>
         </div>
-        <div className="header-actions">
+
+        <div className="header-actions" style={{ position: "relative" }}>
           <button className="icon-btn" title="Start a video call" onClick={() => onStartCall(true)}>
             <IconVideo />
           </button>
           <button className="icon-btn" title="Start a voice call" onClick={() => onStartCall(false)}>
             <IconPhone />
           </button>
-          <button className="icon-btn" title="Search in conversation"><IconSearch size={22} /></button>
-          <button className="icon-btn" title="Menu"><IconMenu size={22} /></button>
+          <button
+            className="icon-btn"
+            title="Search in this conversation"
+            aria-pressed={findOpen}
+            onClick={() => { setFindOpen((v) => !v); setFindTerm(""); }}
+          >
+            <IconSearch size={22} />
+          </button>
+          <button className="icon-btn" title="More options" onClick={() => setMenuOpen((v) => !v)}>
+            <IconMenu size={22} />
+          </button>
+
+          {menuOpen && (
+            <div className="pop-menu right">
+              <button onClick={toggleMute}>
+                <IconMute size={17} /> {room.muted ? "Unmute notifications" : "Mute notifications"}
+              </button>
+              {room.kind === "GROUP" && (
+                <button onClick={leaveRoom} className="danger">
+                  <IconClose size={17} /> Leave this group
+                </button>
+              )}
+              {room.space && (
+                <button onClick={() => { setMenuOpen(false); notify("Open the space from the left rail to invite people."); }}>
+                  <IconUserPlus size={17} /> How to invite people
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </header>
+
+      {findOpen && (
+        <div className="find-bar">
+          <IconSearch />
+          <input
+            autoFocus
+            value={findTerm}
+            onChange={(e) => setFindTerm(e.target.value)}
+            placeholder="Find in this conversation"
+            aria-label="Find in this conversation"
+          />
+          <span className="find-count">
+            {findTerm.trim() ? `${list.length} found` : `${all.length} loaded`}
+          </span>
+          <button className="icon-btn" onClick={() => { setFindOpen(false); setFindTerm(""); }} title="Close search">
+            <IconClose size={18} />
+          </button>
+        </div>
+      )}
 
       <div
         className="messages"
@@ -145,7 +234,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
         onScroll={(e) => {
           const el = e.currentTarget;
           stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-          if (el.scrollTop < 120 && cursor) {
+          if (el.scrollTop < 120 && cursor && !findTerm) {
             const before = el.scrollHeight;
             loadOlder(activeRoomId!).then(() => {
               requestAnimationFrame(() => {
@@ -155,29 +244,24 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
           }
         }}
       >
-        {cursor && (
-          <div className="day-sep"><span>Loading earlier messages…</span></div>
+        {findTerm.trim() && list.length === 0 && (
+          <div className="day-sep"><span>Nothing loaded matches “{findTerm.trim()}”</span></div>
         )}
-        {!cursor && list.length > 0 && (
+        {!findTerm && cursor && <div className="day-sep"><span>Loading earlier messages…</span></div>}
+        {!findTerm && !cursor && all.length > 0 && (
           <div className="day-sep"><span>This is the start of the conversation</span></div>
         )}
-
-        {isVoiceRoom && list.length === 0 && (
-          <div className="day-sep">
-            <span>Voice room — press the call button to join</span>
-          </div>
+        {isVoiceRoom && all.length === 0 && (
+          <div className="day-sep"><span>Voice room — press the call button above to join</span></div>
         )}
 
         {list.map((message, i) => {
           const prev = list[i - 1];
           const newDay = !prev || !sameDay(prev.createdAt, message.createdAt);
-          const firstOfRun =
-            newDay || !prev || prev.author.id !== message.author.id;
+          const firstOfRun = newDay || !prev || prev.author.id !== message.author.id;
           return (
             <div key={message.id}>
-              {newDay && (
-                <div className="day-sep"><span>{daySeparator(message.createdAt)}</span></div>
-              )}
+              {newDay && <div className="day-sep"><span>{daySeparator(message.createdAt)}</span></div>}
               <Bubble
                 message={message}
                 mine={message.author.id === me?.id}
@@ -230,8 +314,23 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
       )}
 
       <div className="composer">
-        <button className="icon-btn" title="Emoji"><IconEmoji /></button>
-        <button className="icon-btn" title="Attach" onClick={() => fileInput.current?.click()}>
+        <div style={{ position: "relative" }}>
+          <button
+            className="icon-btn"
+            title="Insert an emoji"
+            aria-pressed={emojiOpen}
+            onClick={() => setEmojiOpen((v) => !v)}
+          >
+            <IconEmoji />
+          </button>
+          {emojiOpen && (
+            <div className="emoji-anchor">
+              <EmojiPicker onPick={insertEmoji} onClose={() => setEmojiOpen(false)} />
+            </div>
+          )}
+        </div>
+
+        <button className="icon-btn" title="Attach a file" onClick={() => fileInput.current?.click()}>
           <IconAttach />
         </button>
         <input
@@ -239,16 +338,15 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
           type="file"
           multiple
           hidden
-          onChange={(e) => {
-            onFilesPicked(e.target.files);
-            e.target.value = "";
-          }}
+          onChange={(e) => { onFilesPicked(e.target.files); e.target.value = ""; }}
         />
+
         <textarea
+          ref={composerRef}
           className="composer-input"
           rows={1}
           value={draft}
-          placeholder="Type a message"
+          placeholder={isVoiceRoom ? "Message this voice room" : "Type a message"}
           onChange={(e) => {
             setDraft(e.target.value);
             e.target.style.height = "auto";
@@ -256,19 +354,20 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
             signalTyping(activeRoomId!);
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              submit();
-            }
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
           }}
         />
-        {draft.trim() || pendingFiles.some((f) => f.key) ? (
-          <button className="icon-btn accent" onClick={submit} title="Send">
-            <IconSend size={20} />
-          </button>
-        ) : (
-          <button className="icon-btn" title="Voice message"><IconMic /></button>
-        )}
+
+        {/* Send is always here, disabled until there is something to send. A
+            microphone button that records nothing was worse than no button. */}
+        <button
+          className="icon-btn accent"
+          onClick={submit}
+          disabled={!canSend}
+          title={canSend ? "Send" : "Write something first"}
+        >
+          <IconSend size={20} />
+        </button>
       </div>
     </section>
   );
@@ -282,13 +381,15 @@ function Bubble({
 }) {
   const react = useStore((s) => s.react);
   const me = useStore((s) => s.me);
-  const [hovered, setHovered] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   return (
     <div
       className={`msg ${mine ? "out" : "in"}${firstOfRun ? " first-of-run" : ""}`}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      /* Long-press and double-tap open the actions on touch, where hover does
+         not exist and these were simply unreachable. */
+      onDoubleClick={() => setPickerOpen(true)}
+      onContextMenu={(e) => { e.preventDefault(); setPickerOpen(true); }}
     >
       <div className="bubble">
         {showAuthor && <div className="bubble-author">{message.author.displayName}</div>}
@@ -331,6 +432,7 @@ function Bubble({
                 className="reaction"
                 aria-pressed={me ? r.userIds.includes(me.id) : false}
                 onClick={() => react(message.id, r.emoji)}
+                title={r.userIds.includes(me?.id ?? "") ? "Remove your reaction" : "React"}
               >
                 {r.emoji} {r.userIds.length}
               </button>
@@ -342,7 +444,7 @@ function Bubble({
           {message.editedAt && <span>edited</span>}
           {clock(message.createdAt)}
           {mine && (
-            <span className={`ticks${message.failed ? "" : ""}`}>
+            <span className="ticks">
               {message.pending ? <IconClock /> : message.failed ? <IconCheck size={15} /> : <IconChecks />}
             </span>
           )}
@@ -355,36 +457,51 @@ function Bubble({
         )}
       </div>
 
-      {hovered && !message.deleted && (
-        <div style={{ display: "flex", alignItems: "center", gap: 2, padding: "0 6px" }}>
-          <button className="icon-btn" style={{ width: 30, height: 30 }} onClick={onReply} title="Reply">
+      {/* Always in the DOM, reserving its space, revealed on hover or focus.
+          Rendering it conditionally made the bubble jump sideways. */}
+      {!message.deleted && (
+        <div className="msg-actions">
+          <button className="icon-btn" onClick={onReply} title="Reply to this message">
             <IconReply size={16} />
           </button>
-          <button
-            className="icon-btn"
-            style={{ width: 30, height: 30, fontSize: 15 }}
-            onClick={() => react(message.id, QUICK_REACTIONS[0])}
-            title="React"
-          >
-            {QUICK_REACTIONS[0]}
-          </button>
+          <div style={{ position: "relative" }}>
+            <button
+              className="icon-btn"
+              onClick={() => setPickerOpen((v) => !v)}
+              title="React to this message"
+            >
+              <IconEmoji size={16} />
+            </button>
+            {pickerOpen && (
+              <div className={`react-anchor${mine ? " left" : ""}`}>
+                <EmojiPicker
+                  compact
+                  onPick={(e) => { react(message.id, e); setPickerOpen(false); }}
+                  onClose={() => setPickerOpen(false)}
+                />
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
   );
 }
 
+/** What a brand new account sees. It should offer a first step, not a shrug. */
 function EmptyState() {
   return (
     <div className="empty">
       <div className="empty-inner">
         <h2>WhatsCord</h2>
         <p>
-          Pick a conversation on the left, or start a new one. Voice rooms sit in the same
-          list — open one and press the call button to join whoever is already there.
+          Pick a conversation on the left, or start one. Voice rooms sit in the same
+          list — open one and press the call button in the header to join whoever is there.
         </p>
         <div className="rule" />
-        <p style={{ fontSize: 13 }}>Messages are encrypted in transit. Calls run peer-to-server over your own LiveKit.</p>
+        <p style={{ fontSize: 13 }}>
+          Messages travel over an encrypted connection. Calls run through your own LiveKit server.
+        </p>
       </div>
     </div>
   );

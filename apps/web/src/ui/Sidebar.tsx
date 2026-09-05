@@ -1,13 +1,14 @@
 import { useMemo, useState } from "react";
 import { useStore, type Room } from "../store";
-import { api, fileUrl } from "../lib/api";
+import { fileUrl } from "../lib/api";
 import { initials, listStamp } from "../lib/format";
 import {
-  IconChats, IconPhone, IconSpaces, IconSearch, IconNewChat, IconMenu,
-  IconMute, IconChecks, IconVoiceRoom, IconSettings, IconUserPlus, IconGroup
+  IconChats, IconSearch, IconNewChat, IconMute, IconChecks,
+  IconVoiceRoom, IconSettings, IconUserPlus, IconGroup, IconSpaces, IconHash
 } from "./icons";
 import { NewChatModal, NewSpaceModal } from "./Modals";
 import { SpaceModal, NewGroupModal, AddPeopleModal } from "./Invites";
+import { SettingsModal } from "./Settings";
 
 export function Sidebar() {
   const me = useStore((s) => s.me);
@@ -24,14 +25,13 @@ export function Sidebar() {
   const setFilter = useStore((s) => s.setFilter);
   const setSearch = useStore((s) => s.setSearch);
   const setActiveSpace = useStore((s) => s.setActiveSpace);
-  const signOut = useStore((s) => s.signOut);
 
-  const [modal, setModal] = useState<"chat" | "space" | "group" | "spaceInfo" | "addPeople" | null>(
-    null
-  );
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [modal, setModal] = useState<
+    "chat" | "space" | "group" | "spaceInfo" | "addPeople" | "settings" | null
+  >(null);
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const activeRoom = rooms.find((r) => r.id === activeRoomId);
+  const activeSpace = spaces.find((s) => s.id === activeSpaceId);
 
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -45,77 +45,82 @@ export function Sidebar() {
       });
   }, [rooms, filter, search, activeSpaceId]);
 
+  // Inside a space, a flat list of text and voice channels reads as one pile.
+  const textChannels = visible.filter((r) => r.kind === "TEXT");
+  const voiceChannels = visible.filter((r) => r.kind === "VOICE");
   const unreadTotal = rooms.reduce((n, r) => n + r.unread, 0);
+
+  const row = (room: Room) => (
+    <RoomRow
+      key={room.id}
+      room={room}
+      selected={room.id === activeRoomId}
+      onOpen={() => openRoom(room.id)}
+      online={room.counterpart ? online.has(room.counterpart.id) : false}
+      inVoice={voicePresence[room.id]?.length ?? 0}
+      meId={me?.id ?? ""}
+    />
+  );
 
   return (
     <>
+      {/*
+        The rail holds places, not actions. Two buttons here used to do nothing
+        at all — half of the first thing a new person sees was inert, which
+        reads as the app being broken rather than as a feature not being ready.
+      */}
       <nav className="rail" aria-label="Places">
         <button
           className="rail-btn"
+          data-tip="Chats"
           aria-pressed={activeSpaceId === null}
           onClick={() => setActiveSpace(null)}
-          title="Chats"
         >
           <IconChats />
           {unreadTotal > 0 && activeSpaceId !== null && (
-            <span className="badge" style={{ position: "absolute", top: -2, right: -2 }}>
-              {unreadTotal > 99 ? "99+" : unreadTotal}
-            </span>
+            <span className="rail-badge">{unreadTotal > 99 ? "99+" : unreadTotal}</span>
           )}
         </button>
-        <button className="rail-btn" title="Calls"><IconPhone /></button>
-        <button className="rail-btn" title="People"><IconSpaces /></button>
 
-        <div className="rail-sep" />
+        {spaces.length > 0 && <div className="rail-sep" />}
 
         {spaces.map((space) => (
           <button
             key={space.id}
             className="space-chip"
+            data-tip={space.name}
             aria-pressed={activeSpaceId === space.id}
             onClick={() => setActiveSpace(space.id)}
-            title={space.name}
           >
-            {space.iconUrl ? <img className="rail-avatar" src={fileUrl(space.iconUrl)} alt="" /> : initials(space.name)}
+            {space.iconUrl ? (
+              <img className="rail-avatar" src={fileUrl(space.iconUrl)} alt="" />
+            ) : (
+              initials(space.name)
+            )}
           </button>
         ))}
 
-        <button className="rail-btn" onClick={() => setModal("space")} title="New space">
-          <IconNewChat size={22} />
+        <button className="rail-btn" data-tip="Create or join a space" onClick={() => setModal("space")}>
+          <IconSpaces size={22} />
         </button>
 
         <div className="rail-spacer" />
 
-        <button className="rail-btn" title="Settings"><IconSettings /></button>
-        <button className="rail-btn" onClick={() => setMenuOpen((v) => !v)} title={me?.displayName ?? "You"}>
+        <button className="rail-btn" data-tip="Settings and account" onClick={() => setModal("settings")}>
+          <IconSettings />
+        </button>
+        <button className="rail-btn" data-tip={me?.displayName ?? "You"} onClick={() => setModal("settings")}>
           {me?.avatarUrl ? (
             <img className="rail-avatar" src={fileUrl(me.avatarUrl)} alt="" />
           ) : (
-            <span className="avatar" style={{ width: 38, height: 38, flexBasis: 38, fontSize: 14 }}>
-              {initials(me?.displayName ?? "?")}
-            </span>
+            <span className="rail-me">{initials(me?.displayName ?? "?")}</span>
           )}
         </button>
-        {menuOpen && (
-          <div style={{ position: "absolute", bottom: 16, left: 68, zIndex: 30 }}>
-            <div className="modal" style={{ width: 200 }}>
-              <div className="modal-body" style={{ padding: 8 }}>
-                <button
-                  className="btn-ghost"
-                  style={{ width: "100%", textAlign: "left" }}
-                  onClick={() => { setMenuOpen(false); signOut(); }}
-                >
-                  Sign out
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </nav>
 
       <section className="list-panel" aria-label="Conversations">
         <header className="list-header">
-          <h1>{activeSpaceId ? spaces.find((s) => s.id === activeSpaceId)?.name ?? "Space" : "Chats"}</h1>
+          <h1>{activeSpaceId ? (activeSpace?.name ?? "Space") : "Chats"}</h1>
           <div className="header-actions" style={{ position: "relative" }}>
             {activeSpaceId ? (
               <button
@@ -127,80 +132,45 @@ export function Sidebar() {
               </button>
             ) : (
               <button
-                className="icon-btn"
+                className="icon-btn accent"
                 onClick={() => setNewMenuOpen((v) => !v)}
-                title="New chat or group"
+                title="Start something new"
               >
                 <IconNewChat />
               </button>
             )}
-            <button className="icon-btn" title="Menu"><IconMenu /></button>
 
             {newMenuOpen && !activeSpaceId && (
-              <div className="modal" style={{ position: "absolute", top: 44, right: 0, width: 220, zIndex: 30 }}>
-                <div className="modal-body" style={{ padding: 8 }}>
-                  <button
-                    className="row"
-                    style={{ height: 46, padding: "0 8px", gap: 12 }}
-                    onClick={() => { setNewMenuOpen(false); setModal("chat"); }}
-                  >
-                    <IconNewChat size={18} />
-                    <span className="row-name" style={{ fontSize: 14.5 }}>New chat</span>
-                  </button>
-                  <button
-                    className="row"
-                    style={{ height: 46, padding: "0 8px", gap: 12 }}
-                    onClick={() => { setNewMenuOpen(false); setModal("group"); }}
-                  >
-                    <IconGroup size={18} />
-                    <span className="row-name" style={{ fontSize: 14.5 }}>New group</span>
-                  </button>
-                  <button
-                    className="row"
-                    style={{ height: 46, padding: "0 8px", gap: 12 }}
-                    onClick={() => { setNewMenuOpen(false); setModal("space"); }}
-                  >
-                    <IconSpaces size={18} />
-                    <span className="row-name" style={{ fontSize: 14.5 }}>New space</span>
-                  </button>
-                </div>
+              <div className="pop-menu">
+                <button onClick={() => { setNewMenuOpen(false); setModal("chat"); }}>
+                  <IconNewChat size={18} /> New chat
+                </button>
+                <button onClick={() => { setNewMenuOpen(false); setModal("group"); }}>
+                  <IconGroup size={18} /> New group
+                </button>
+                <button onClick={() => { setNewMenuOpen(false); setModal("space"); }}>
+                  <IconSpaces size={18} /> New space
+                </button>
               </div>
             )}
           </div>
         </header>
 
-        {/* A space you created is a room with no door until the code is visible. */}
         {activeSpaceId && (
-          <button
-            className="row"
-            style={{ height: 52, borderBottom: "1px solid var(--divider)" }}
-            onClick={() => setModal("spaceInfo")}
-          >
-            <span style={{ color: "var(--accent-bright)", display: "grid", placeItems: "center", width: 32 }}>
-              <IconUserPlus size={19} />
+          <button className="invite-strip" onClick={() => setModal("spaceInfo")}>
+            <IconUserPlus size={19} />
+            <span>
+              <b>Invite people to this space</b>
+              <em>Code {activeSpace?.inviteCode ?? "…"}</em>
             </span>
-            <div className="row-body">
-              <span className="row-name" style={{ fontSize: 14.5, color: "var(--accent-bright)" }}>
-                Invite people to this space
-              </span>
-              <span className="row-preview">
-                Code {spaces.find((s) => s.id === activeSpaceId)?.inviteCode ?? "…"}
-              </span>
-            </div>
           </button>
         )}
 
         {activeRoom?.kind === "GROUP" && !activeSpaceId && (
-          <button
-            className="row"
-            style={{ height: 48, borderBottom: "1px solid var(--divider)" }}
-            onClick={() => setModal("addPeople")}
-          >
-            <span style={{ color: "var(--accent-bright)", display: "grid", placeItems: "center", width: 32 }}>
-              <IconUserPlus size={18} />
-            </span>
-            <span className="row-name" style={{ fontSize: 14.5, color: "var(--accent-bright)" }}>
-              Add people to {activeRoom.name}
+          <button className="invite-strip" onClick={() => setModal("addPeople")}>
+            <IconUserPlus size={18} />
+            <span>
+              <b>Add people to {activeRoom.name}</b>
             </span>
           </button>
         )}
@@ -211,7 +181,7 @@ export function Sidebar() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search or start a new chat"
+              placeholder="Search conversations"
               aria-label="Search conversations"
             />
           </div>
@@ -226,31 +196,33 @@ export function Sidebar() {
 
         <div className="list-scroll">
           {visible.length === 0 && (
-            <p style={{ padding: "32px 24px", color: "var(--text-dim)", fontSize: 13.5, textAlign: "center" }}>
-              {search.trim()
-                ? "Nothing here matches that."
-                : activeSpaceId
-                  ? "This space has no channels yet."
-                  : "No conversations yet. Start one with the + button."}
-            </p>
-          )}
-          {visible.map((room) => (
-            <RoomRow
-              key={room.id}
-              room={room}
-              selected={room.id === activeRoomId}
-              onOpen={() => openRoom(room.id)}
-              online={room.counterpart ? online.has(room.counterpart.id) : false}
-              inVoice={voicePresence[room.id]?.length ?? 0}
-              meId={me?.id ?? ""}
+            <EmptyList
+              inSpace={Boolean(activeSpaceId)}
+              searching={Boolean(search.trim())}
+              onNewChat={() => setModal("chat")}
+              onNewGroup={() => setModal("group")}
+              onNewSpace={() => setModal("space")}
+              onInvite={() => setModal("spaceInfo")}
             />
-          ))}
+          )}
+
+          {activeSpaceId ? (
+            <>
+              {textChannels.length > 0 && <p className="section-label">Text channels</p>}
+              {textChannels.map(row)}
+              {voiceChannels.length > 0 && <p className="section-label">Voice channels</p>}
+              {voiceChannels.map(row)}
+            </>
+          ) : (
+            visible.map(row)
+          )}
         </div>
       </section>
 
       {modal === "chat" && <NewChatModal onClose={() => setModal(null)} />}
       {modal === "space" && <NewSpaceModal onClose={() => setModal(null)} />}
       {modal === "group" && <NewGroupModal onClose={() => setModal(null)} />}
+      {modal === "settings" && <SettingsModal onClose={() => setModal(null)} />}
       {modal === "spaceInfo" && activeSpaceId && (
         <SpaceModal spaceId={activeSpaceId} onClose={() => setModal(null)} />
       )}
@@ -261,6 +233,35 @@ export function Sidebar() {
   );
 }
 
+/** An empty list is the first thing a new account sees. It should offer a next step. */
+function EmptyList({
+  inSpace, searching, onNewChat, onNewGroup, onNewSpace, onInvite
+}: {
+  inSpace: boolean; searching: boolean;
+  onNewChat: () => void; onNewGroup: () => void;
+  onNewSpace: () => void; onInvite: () => void;
+}) {
+  if (searching) {
+    return <p className="list-empty">Nothing here matches that.</p>;
+  }
+  if (inSpace) {
+    return (
+      <div className="list-empty">
+        <p>This space has no channels yet.</p>
+        <button className="btn-primary" onClick={onInvite}>Add a channel</button>
+      </div>
+    );
+  }
+  return (
+    <div className="list-empty">
+      <p>No conversations yet.</p>
+      <button className="btn-primary" onClick={onNewChat}>Message someone</button>
+      <button className="btn-outline" onClick={onNewGroup}>Create a group</button>
+      <button className="btn-outline" onClick={onNewSpace}>Create or join a space</button>
+    </div>
+  );
+}
+
 function RoomRow({
   room, selected, onOpen, online, inVoice, meId
 }: {
@@ -268,37 +269,38 @@ function RoomRow({
   online: boolean; inVoice: number; meId: string;
 }) {
   const isVoice = room.kind === "VOICE";
+  const isChannel = room.kind === "TEXT";
   const label = room.name ?? room.counterpart?.displayName ?? "Conversation";
   const last = room.lastMessage;
 
   const preview = isVoice
     ? inVoice > 0
       ? `${inVoice} connected`
-      : "No one here right now"
+      : "Nobody here right now"
     : last
       ? last.attachmentCount > 0 && !last.content
         ? attachmentLabel(last.attachmentMime)
-        : last.content || " "
+        : last.content || " "
       : "No messages yet";
 
   return (
     <button className="row" aria-selected={selected} onClick={onOpen}>
-      <div className={`avatar${isVoice ? " voice" : ""}`}>
+      <div className={`avatar${isVoice ? " voice" : ""}${isChannel ? " channel" : ""}`}>
         {isVoice ? (
           <IconVoiceRoom size={22} />
+        ) : isChannel ? (
+          <IconHash size={20} />
         ) : room.iconUrl ? (
           <img src={fileUrl(room.iconUrl)} alt="" />
         ) : (
           initials(label)
         )}
-        {online && !isVoice && <span className="presence-dot" />}
+        {online && !isVoice && !isChannel && <span className="presence-dot" />}
       </div>
 
       <div className="row-body">
         <div className="row-top">
-          <span className="row-name">
-            {room.kind === "TEXT" ? `# ${label}` : label}
-          </span>
+          <span className="row-name">{label}</span>
           {last && !isVoice && (
             <span className={`row-time${room.unread ? " unread" : ""}`}>{listStamp(last.createdAt)}</span>
           )}
@@ -308,13 +310,13 @@ function RoomRow({
             {!isVoice && last && last.authorId === meId && (
               <span className="ticks"><IconChecks size={15} /></span>
             )}
-            {(room.kind === "GROUP" || room.kind === "TEXT") && last && last.authorId !== meId && (
+            {(room.kind === "GROUP" || isChannel) && last && last.authorId !== meId && (
               <span style={{ color: "var(--text-faint)" }}>{last.authorName}:</span>
             )}
             {preview}
           </span>
           <span className="row-badges">
-            {room.muted && <span className="muted-icon"><IconMute /></span>}
+            {room.muted && <span className="muted-icon" title="Muted"><IconMute /></span>}
             {room.unread > 0 && <span className="badge">{room.unread > 99 ? "99+" : room.unread}</span>}
           </span>
         </div>
