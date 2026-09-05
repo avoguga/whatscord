@@ -61,7 +61,13 @@ async function main() {
     });
   });
 
-  if (storageEnabled) await ensureBucket();
+  // Storage being unreachable must not stop the app from serving messages.
+  // Attachments will fail with a clear 503 until it comes back.
+  if (storageEnabled) {
+    await ensureBucket().catch((err) =>
+      app.log.warn(`storage unreachable at boot: ${err?.message ?? err}`)
+    );
+  }
 
   await app.listen({ port: env.PORT, host: env.HOST });
   await attachSocketServer(app.server);
