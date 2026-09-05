@@ -38,6 +38,8 @@ export function CallSheet({
   const [room] = useState(() => new Room({ adaptiveStream: true, dynacast: true }));
   const [status, setStatus] = useState("Connecting…");
   const [error, setError] = useState<string | null>(null);
+  /** A non-fatal note: the call works, but something is degraded. */
+  const [notice, setNotice] = useState<string | null>(null);
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(withVideo);
   const [sharing, setSharing] = useState(false);
@@ -94,10 +96,28 @@ export function CallSheet({
 
         await room.connect(res.url, res.token);
         if (cancelled) return;
-
-        await room.localParticipant.setMicrophoneEnabled(true);
-        if (withVideo) await room.localParticipant.setCameraEnabled(true);
         setStatus("Connected");
+
+        /*
+         * Publishing is best effort. A blocked, missing or busy microphone used
+         * to reject here and abort the whole join — leaving someone who only
+         * wanted to listen unable to enter the call at all.
+         */
+        try {
+          await room.localParticipant.setMicrophoneEnabled(true);
+        } catch {
+          setMicOn(false);
+          setNotice("No microphone. You can hear everyone, but they cannot hear you.");
+        }
+
+        if (withVideo) {
+          try {
+            await room.localParticipant.setCameraEnabled(true);
+          } catch {
+            setCamOn(false);
+            setNotice("No camera available. You joined with audio only.");
+          }
+        }
         bump();
       } catch (err) {
         if (cancelled) return;
@@ -194,6 +214,7 @@ export function CallSheet({
       <div className="call-status">
         {error ?? `${roomMeta?.name ?? roomMeta?.counterpart?.displayName ?? "Call"} · ${status}`}
       </div>
+      {notice && !error && <div className="call-notice">{notice}</div>}
 
       <div className="call-stage">
         {tiles.map((tile) => (

@@ -15,9 +15,25 @@ type Tokens = { accessToken: string; refreshToken: string };
 
 const STORE_KEY = "whatscord.session";
 
+/**
+ * Session storage wins over local storage when both are set.
+ *
+ * localStorage is shared by every tab on the origin, so two accounts cannot be
+ * open side by side — which is exactly what you need to try a call, or to keep
+ * a work and a personal account open at once. A session that starts in
+ * sessionStorage stays there and belongs to that one tab.
+ */
+function store(): Storage {
+  try {
+    return sessionStorage.getItem(STORE_KEY) ? sessionStorage : localStorage;
+  } catch {
+    return localStorage;
+  }
+}
+
 export function loadTokens(): Tokens | null {
   try {
-    const raw = localStorage.getItem(STORE_KEY);
+    const raw = sessionStorage.getItem(STORE_KEY) ?? localStorage.getItem(STORE_KEY);
     return raw ? (JSON.parse(raw) as Tokens) : null;
   } catch {
     return null;
@@ -25,10 +41,15 @@ export function loadTokens(): Tokens | null {
 }
 
 export function saveTokens(tokens: Tokens) {
-  localStorage.setItem(STORE_KEY, JSON.stringify(tokens));
+  store().setItem(STORE_KEY, JSON.stringify(tokens));
 }
 
 export function clearTokens() {
+  try {
+    sessionStorage.removeItem(STORE_KEY);
+  } catch {
+    /* private mode can refuse sessionStorage */
+  }
   localStorage.removeItem(STORE_KEY);
 }
 
