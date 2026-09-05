@@ -103,8 +103,17 @@ export function CallSheet({
             setAudioBlocked(!room.canPlaybackAudio)
           )
           .on(RoomEvent.Disconnected, () => {
-            setStatus("failed");
-            onCloseRef.current();
+            /*
+             * Only fall out of the call if it had actually started. A
+             * disconnect that arrives before the first successful connect is a
+             * failure, and closing the screen on it leaves the person staring
+             * at the conversation with no idea why the call vanished — which
+             * is exactly what it looked like when media could not get through.
+             */
+            setStatus((prev) => {
+              if (prev === "connected" || prev === "reconnecting") onCloseRef.current();
+              return "failed";
+            });
           })
           .on(RoomEvent.Reconnecting, () => setStatus("reconnecting"))
           .on(RoomEvent.Reconnected, () => setStatus("connected"));
@@ -304,9 +313,10 @@ export function CallSheet({
           <IconSpeaker /> Sound is blocked by the browser. Click here to turn it on.
         </button>
       )}
-      {error && (
+      {status === "failed" && (
         <div className="call-banner bad">
-          {error} — media needs UDP open on the server. Messages still work.
+          {error ??
+            "The call dropped before it could start. The audio and video path could not be established — the server's media ports may be closed. Messages are unaffected."}
         </div>
       )}
       {notice && !error && <div className="call-banner">{notice}</div>}
