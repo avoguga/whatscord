@@ -39,9 +39,18 @@ export function fileSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/**
+ * Two letters for an avatar, skipping the small joining words.
+ *
+ * Taking the first two words blindly turned "Time de Produto" into "TD", which
+ * is nobody's initials. Words of one or two letters are almost always
+ * prepositions or articles, in any of the languages this is likely to see.
+ */
 export function initials(name: string) {
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const meaningful = words.filter((w) => w.length > 2);
+  const picked = (meaningful.length >= 2 ? meaningful : words).slice(0, 2);
+  return picked.map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
 }
 
 export const isImage = (mime: string) => mime.startsWith("image/");

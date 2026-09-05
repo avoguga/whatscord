@@ -100,8 +100,10 @@ export function Sidebar() {
           </button>
         ))}
 
-        <button className="rail-btn" data-tip="Create or join a space" onClick={() => setModal("space")}>
-          <IconSpaces size={22} />
+        {/* A plus, not the people glyph: this adds a space, it does not list
+            people, and the two icons sat next to each other. */}
+        <button className="rail-btn add" data-tip="Create or join a space" onClick={() => setModal("space")}>
+          <IconNewChat size={22} />
         </button>
 
         <div className="rail-spacer" />
