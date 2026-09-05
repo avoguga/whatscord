@@ -16,7 +16,10 @@ COPY apps/web/package.json apps/web/
 COPY apps/desktop/package.json apps/desktop/
 RUN npm install --include=dev
 COPY apps/web ./apps/web
-RUN npx vite build --config apps/web/vite.config.ts --root apps/web
+# `vite build` recebe o root como argumento posicional, nao como --root.
+# Rodar de dentro do workspace resolve: o npx acha o node_modules hoisted na raiz.
+WORKDIR /app/apps/web
+RUN npx vite build
 
 FROM nginx:1.27-alpine AS runtime
 RUN apk add --no-cache curl
