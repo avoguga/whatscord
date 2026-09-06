@@ -89,9 +89,14 @@ Todo o resto ignora `role`. Em particular, `POST /rooms/:id/members` deixa
 ### Rotas que NÃO existem hoje
 
 - remover membro de um espaço · remover membro de um grupo · mudar `role`
-- trocar ícone de espaço · trocar ícone de grupo · trocar avatar do usuário
+- trocar ícone de espaço (`PATCH /spaces/:id` não existe) · trocar ícone de
+  grupo (`PATCH /rooms/:id` não existe)
 - reordenar espaços · reordenar canais (o campo existe, a rota não)
 - regerar/revogar o código de convite
+
+**Já existe, ao contrário do que se poderia supor:** `PATCH /users/me` aceita
+`avatarUrl`. O avatar do usuário está pronto no servidor — falta só a interface
+e a validação de imagem.
 
 ### Rotas que existem e são relevantes
 
@@ -106,15 +111,24 @@ Todo o resto ignora `role`. Em particular, `POST /rooms/:id/members` deixa
 
 ### Interface
 
-- **~93 strings** de interface em `apps/web/src/ui/*.tsx` (contagem por regex,
-  subestima: não pega texto JSX multilinha nem as passadas a `notify(...)`).
-  Concentração: `Chat.tsx` 20, `Sidebar.tsx` 17, `Call.tsx` 13, `Invites.tsx` 11.
-- **47 mensagens de erro** distintas vindas da API que chegam à tela. Tradução
-  só no cliente **não cobre essas** — decidir cedo se a API passa a devolver
-  código de erro em vez de frase.
-- **33 variáveis CSS** em `:root`, e **45 cores literais fora do `:root`** que
-  não trocariam junto com o tema. Zero suporte a `prefers-color-scheme` ou
-  `data-theme` hoje.
+- **~285 ocorrências** de string de interface em `apps/web/src/`, contando cada
+  ramo de ternário e cada local separadamente (cada um vira um `t(...)`).
+  Concentração: `Chat.tsx` 52, `Call.tsx` 49, `Invites.tsx` 45, `Sidebar.tsx` 38,
+  `Auth.tsx` 23. Mais 19 espalhadas em `lib/` — inclusive "Today"/"Yesterday" e
+  os sufixos "B"/"KB"/"MB" em `format.ts`.
+- **42 mensagens de erro distintas** vindas da API (45 pontos de retorno em
+  `routes/*.ts` mais 1 em `lib/rooms.ts`), exibidas direto via `err.message`.
+  Tradução só no cliente **não cobre essas** — decidir cedo se a API passa a
+  devolver código de erro em vez de frase.
+- Datas já são locale-aware: `format.ts` usa `Intl.DateTimeFormat(undefined, …)`,
+  então ordem dos números e nome do dia já seguem o sistema. O que não segue são
+  os textos ao redor.
+- **26 variáveis** no `:root` de `styles.css`, mais 4 de safe-area. E
+  **45 cores literais fora do `:root`** que não trocariam junto com o tema.
+  `color-scheme: dark` está **fixo** na linha 56. Zero suporte a
+  `prefers-color-scheme` ou `data-theme`.
+- Boa notícia: as 13 cores inline em JSX (`style={{ color: … }}`) **já usam
+  `var(--…)`** — nenhuma cor literal embutida em componente.
 - **Nenhuma biblioteca de i18n** e **nenhuma de drag-and-drop** instalada.
 
 ### LiveKit (v2.22.x, lido do `.d.ts` e do bundle compilado)
@@ -136,8 +150,13 @@ roomOptionDefaults = { adaptiveStream: false, dynacast: false }  // desligados p
   `ScreenShare → maintain-resolution`, `Camera → maintain-framerate`.
 - `contentHint` **não** é aplicado sozinho, exceto com codec SVC (vp9/av1), onde
   o SDK força `motion` para contornar bug do Chrome com screenshare.
-- `ScreenShareCaptureOptions.resolution` **default 1080** — repassado ao
-  `getDisplayMedia`.
+- `ScreenShareCaptureOptions.resolution`: quando não passamos, o SDK aplica
+  `ScreenSharePresets.h1080fps30.resolution` (1920×1080 **a 30 fps**) — note que
+  isso diverge do `screenShareEncoding` padrão, que é 15 fps.
+  E o mais importante: vira `width: { ideal: 1920 }, height: { ideal: 1080 }` —
+  **`ideal`, não `exact`** (só o Safari recebe `max`). `aspectRatio` **não** é
+  enviado. Ou seja, o navegador fica livre para devolver outra proporção: o SDK
+  **não** força 16:9.
 - vp9/av1 em screenshare no Chrome é área historicamente instável, segundo
   comentário dos próprios mantenedores no código.
 
@@ -247,26 +266,47 @@ compartilhado ou várias telas · **alto** = pode quebrar artefato de produção
 **B1. Proporção errada no compartilhamento de tela** · risco baixo · *bug*
 Sintoma relatado: *"fica bugado como se estivesse widescreen sem estar na
 resolução correta"*.
-**Hipótese principal, não confirmada:** o SDK usa `resolution` default 1080 e
-repassa ao `getDisplayMedia`. Numa tela que não seja 16:9 (1920×1200, ultrawide,
-ou uma janela avulsa) isso força escala/corte.
-Investigar, nesta ordem: (1) no bundle do livekit-client, ver se width/height vão
-como `ideal` ou `exact` e se `aspectRatio` é enviado — `ideal` distorce menos que
-`exact`; (2) testar passando `resolution` igual à da tela de origem, e testar
-**sem** forçar resolução; (3) conferir se `.stage-main .tile { aspect-ratio: auto }`
-em `styles.css` está esticando o `<video>` — o `object-fit: contain` deveria
-impedir, mas confirme com uma tela 16:10 real.
+
+**A hipótese óbvia foi investigada e enfraquecida.** Suspeitava-se de que o
+`resolution` default (1920×1080) forçasse 16:9. Ao ler o bundle do
+livekit-client, as constraints saem como `width: { ideal: 1920 }` — **`ideal`,
+não `exact`** — e `aspectRatio` nunca é enviado. Com `ideal`, o navegador é livre
+para devolver a proporção nativa da fonte. O SDK provavelmente **não** é o
+culpado.
+
+Onde procurar agora, em ordem:
+1. **O lado de quem recebe.** `.call-stage.focus .stage-main .tile` usa
+   `aspect-ratio: auto; height: 100%`, e `.tile video` usa `object-fit: contain`.
+   `contain` deveria criar barras em vez de esticar — confirme com uma tela 16:10
+   real e o inspetor aberto, medindo `videoWidth`/`videoHeight` da track contra o
+   tamanho renderizado.
+2. **Reproduzir e medir antes de mexer.** Numa chamada real, do lado de quem
+   recebe: `track.mediaStreamTrack.getSettings()` dá a resolução que de fato
+   chegou. Compare com a resolução da tela compartilhada. Se baterem, o problema
+   é CSS; se não baterem, é captura.
+3. **A divergência de fps** (captura pede 30, encoding entrega 15) não causa
+   distorção, mas é desperdício — vale arrumar junto.
+4. Só depois de 1–3, testar passar `resolution` explicitamente.
+
 Teste de aceite: compartilhar uma janela estreita e uma tela ultrawide; a imagem
 recebida não pode ter barras deformadas nem texto esticado.
 
 **B2. Câmera não trocável no celular** · risco baixo · *bug*
-Hoje a troca é por `deviceId`. Em navegador de celular o padrão correto é a
-constraint `facingMode` (`"user"` / `"environment"`) — no iOS Safari os
-deviceIds de frente/trás são instáveis. **Validar na MDN antes de implementar.**
-Provável desenho: detectar toque/celular e trocar o seletor de câmera por um
-botão "virar câmera", mantendo o seletor por deviceId no desktop.
-Verificar se `room.switchActiveDevice` aceita algo além de deviceId; se não
-aceitar, o caminho é republicar a track com `facingMode`.
+Hoje a troca é 100% por `deviceId`; `facingMode` não aparece em lugar nenhum do
+código.
+
+Apurado: `room.switchActiveDevice(kind, deviceId, exact?)` **só aceita
+deviceId** — não há como passar `facingMode` por ali. A MDN confirma que
+`facingMode` é a constraint para escolher a direção da câmera e traz o próprio
+exemplo de "trocar de câmera" com `applyConstraints`, mas **não** afirma que
+deviceId seja pouco confiável em celular. Ou seja: a premissa "no celular tem que
+ser facingMode" é plausível e **não está confirmada** — comece medindo.
+
+Primeiro passo: num celular real, logar o resultado de `enumerateDevices()` e ver
+se as câmeras vêm com deviceIds distintos e rotulados. Se vierem, o seletor atual
+pode simplesmente funcionar e a tarefa vira só de interface. Se não vierem, o
+caminho é republicar a track de vídeo com `facingMode`, contornando o
+`switchActiveDevice`.
 
 ### Grupo 2 — Chamada e voz
 
@@ -281,14 +321,35 @@ Hoje só dispositivos. Acrescentar pelo menos: volume de entrada e de saída,
 supressão de ruído e cancelamento de eco (`AudioCaptureOptions` do LiveKit já
 aceita), e o modo de compartilhamento que já existe.
 
-**C3. Avatares de quem está na sala de voz, na barra lateral** · risco médio
-O cliente já tem `voicePresence` no store, alimentado pelos eventos
-`call:joined` / `call:left`. **Apurar antes:** se o payload traz só `userId` ou
-também nome/avatar, e se a presença sobrevive a um reload (há fallback em
-memória quando o Redis está ausente). Se só houver id, ou se enriquece o evento
-no servidor, ou o cliente resolve pelo roster que já carrega.
+**C3. Avatares de quem está na sala de voz, na barra lateral** · risco **alto**
+(reclassificado depois do inventário — é mais do que interface)
+
+O que existe: `voicePresence: Record<roomId, userId[]>` no store, e a barra
+lateral só usa a **contagem** (`"3 connected"` / `"Nobody here right now"`).
+
+Três problemas apurados que precisam ser resolvidos antes dos avatares:
+
+1. **A presença não é persistida em lugar nenhum.** O Redis só guarda
+   online/offline geral (`whatscord:online`); não há chave de "quem está na sala
+   de voz X". A presença existe só como evento efêmero de socket. **Depois de um
+   F5 o objeto volta vazio** e só se preenche com eventos futuros — quem já
+   estava na chamada some da tela.
+2. **`call:joined` é emitido em `POST /rooms/:id/call/token`**, ou seja, toda vez
+   que alguém pede token — inclusive em reconexão. Não está atrelado ao evento
+   real de conexão do LiveKit. Pedir token e não entrar marca a pessoa como
+   presente.
+3. O payload de `call:joined` traz `{ roomId, userId, displayName }` — **sem
+   `avatarUrl`**. Já dá para mostrar iniciais; para avatar de imagem, ou enriquece
+   o evento, ou o cliente resolve pelo roster.
+
+O trabalho honesto aqui é dar à presença de voz uma fonte de verdade (chave no
+Redis, alimentada pelos webhooks do LiveKit ou por uma rota de listagem
+consultada ao montar a tela), e só então desenhar os avatares. Fazer só o
+desenho entrega algo que mente depois de qualquer recarga.
+
 Teste de aceite: dois navegadores; entrar na voz num e ver o avatar aparecer no
-outro em menos de 2 s; recarregar a página e o avatar continuar lá.
+outro em menos de 2 s; **recarregar a página e o avatar continuar lá**; fechar a
+aba sem sair da chamada e ver a pessoa desaparecer em tempo razoável.
 
 ### Grupo 3 — Identidade e organização
 
@@ -299,8 +360,9 @@ e não redimensiona — um ícone de 8 MB seria servido inteiro em cada render).
 Quem pode trocar: **decisão do dono do produto**, ver seção 7.
 
 **I2. Avatar do usuário** · risco baixo
-`User.avatarUrl` existe e nunca foi usado. Mesma necessidade de validação e
-redimensionamento de I1.
+`User.avatarUrl` existe **e `PATCH /users/me` já o aceita**. Falta só a interface
+(escolher arquivo, enviar por `POST /files`, gravar a URL) e a mesma validação de
+imagem de I1. É a tarefa mais barata da lista inteira.
 
 **I3. Reordenar espaços por arrastar** · risco médio
 **Não existe campo de ordem para espaço.** Precisa de migração — o lugar certo é
