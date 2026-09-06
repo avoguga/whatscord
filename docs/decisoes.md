@@ -129,9 +129,11 @@ para quem está no mudo — e porque antes disso a chegada de alguém só mudava
 Os padrões do LiveKit já eram 1080p a 15 fps com teto de 2.5 Mbps — o preset não
 era o problema. Três outras coisas eram:
 
-**Simulcast ligado.** O padrão publica três camadas (a original mais h180 e
-h360) e reparte entre elas o mesmo teto de banda. A camada boa recebia uma
-fração dos 2.5 Mbps, e o codificador ainda fazia três vezes o trabalho. Numa
+**Simulcast ligado.** Para tela o padrão publica duas camadas — a original mais
+uma com metade da resolução — e reparte entre elas o mesmo teto de banda. A
+camada boa recebia uma fração dos 2.5 Mbps e o codificador fazia o trabalho duas
+vezes. (Atenção ao ler o SDK: o comentário "defaults to h180, h360" é de
+`videoSimulcastLayers`, que vale para a câmera, com 3 camadas — não para tela.) Numa
 chamada pequena isso é desperdício puro. Agora `simulcast: false`, passado **por
 publicação** e não em `publishDefaults`, para não desligar o simulcast da
 câmera — lá ele serve, porque quem está com rede ruim cai para uma camada menor

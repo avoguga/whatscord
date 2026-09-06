@@ -86,11 +86,15 @@ export function captureOptions(mode: ShareMode): ShareCaptureOptions {
 /**
  * Como publicar a track de tela.
  *
- * `simulcast: false` é a mudança que mais pesa. O padrão do LiveKit publica
- * três camadas (a original mais h180 e h360) e REPARTE entre elas o mesmo teto
- * de banda — então a camada boa recebia uma fração dos 2.5 Mbps, e ainda por
- * cima o codificador fazia três vezes o trabalho. Numa chamada pequena isso é
- * só desperdício: aqui a banda inteira vai para uma camada só.
+ * `simulcast: false` é a mudança que mais pesa. Para TELA o LiveKit publica
+ * duas camadas: a original mais uma com metade da resolução
+ * (`computeDefaultScreenShareSimulcastPresets`), e reparte entre elas o mesmo
+ * teto de banda — então a camada boa recebia uma fração dos 2.5 Mbps e o
+ * codificador fazia o trabalho duas vezes. Numa chamada pequena isso é só
+ * desperdício: aqui a banda inteira vai para uma camada só.
+ *
+ * Cuidado ao ler o SDK: o comentário "defaults to h180, h360" no `.d.ts` é de
+ * `videoSimulcastLayers` (câmera, 3 camadas). Ele NÃO vale para tela.
  *
  * Passado por publicação, e não em `publishDefaults`, para não desligar o
  * simulcast da câmera — lá ele é útil, porque quem tem rede ruim cai para uma
