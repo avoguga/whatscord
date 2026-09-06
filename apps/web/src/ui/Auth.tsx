@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useStore } from "../store";
+import { peekPendingInvite } from "../lib/deeplink";
 
 export function Auth() {
   const [mode, setMode] = useState<"in" | "up">("in");
@@ -47,6 +48,15 @@ export function Auth() {
         <p className="sub">
           {mode === "in" ? "Sign in to pick up where you left off." : "Create an account to get started."}
         </p>
+
+        {/* Quem chegou por um link de convite precisa saber que ele não se
+            perdeu no login — senão parece que o link simplesmente não fez nada. */}
+        {peekPendingInvite() && (
+          <div className="auth-invite">
+            You were invited to a space. {mode === "in" ? "Sign in" : "Create your account"} and you
+            will be taken straight in.
+          </div>
+        )}
 
         {error && <div className="form-error">{error}</div>}
 

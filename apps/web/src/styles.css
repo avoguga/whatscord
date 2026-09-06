@@ -1205,3 +1205,13 @@ input, textarea { font: inherit; color: inherit; }
 @media (max-width: 860px) {
   .call-stage.focus .stage-strip .tile { width: 118px; }
 }
+
+/* Aviso na tela de login para quem chegou por um link de convite. */
+.auth-invite {
+  background: rgba(0, 168, 132, 0.12);
+  border: 1px solid rgba(0, 168, 132, 0.35);
+  color: var(--text);
+  border-radius: 8px; padding: 10px 12px;
+  font-size: 13.5px; line-height: 1.45;
+  margin-bottom: var(--gap-3);
+}

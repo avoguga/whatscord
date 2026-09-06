@@ -192,3 +192,63 @@ barra de gestos do Android ficaria **por cima** da barra de controles da chamada
 — cobrindo justamente desligar e mudo. No desktop os insets valem 0px, então as
 regras não mudam nada lá.
 
+## Links de convite e o protocolo `whatscord://`
+
+Antes disso não existia link de convite: havia um código hexadecimal que a
+pessoa copiava e a outra digitava em "New space → Have an invite code?". Agora
+há um link, e ele abre o app desktop se estiver instalado.
+
+**Quem registra o protocolo é o instalador, não o app.** O NSIS gerado pelo
+Tauri escreve, a partir de `plugins.deep-link.desktop.schemes`:
+
+```nsis
+WriteRegStr SHCTX "Software\Classes\whatscord" "URL Protocol" ""
+WriteRegStr SHCTX "Software\Classes\whatscord\shell\open\command" "" "$\"$INSTDIR\...exe$\" $\"%1$\""
+```
+
+e o desinstalador remove. Por isso `register_all()` é chamado **só em
+depuração**: em release ele faria uma cópia portátil roubar o esquema da
+instalada.
+
+**No Windows o sistema não avisa um app aberto.** Ele abre uma instância nova
+com a URL como argumento único. Quem resolve isso é o `single-instance`, que já
+existia aqui para focar a janela: agora ele também repassa o `argv` para
+`handle_cli_arguments`. Sem isso, clicar num convite com o app aberto não faria
+nada. **Não ligue a feature `deep-link` do single-instance**: ela faz a mesma
+chamada antes do callback, e somada à nossa o convite chegaria duas vezes.
+
+**A ponte até a interface é um evento de DOM, não o canal de eventos do Tauri.**
+O Rust faz `window.eval` disparando `whatscord:deeplink`. Assim o código da
+interface não importa nada de Tauri para tratar convite, o mesmo arquivo roda no
+navegador (onde o evento nunca dispara), e o build web não carrega uma linha de
+Tauri. A URL vem do sistema operacional e é serializada com `serde_json` antes
+de entrar no JS — nunca interpolada crua.
+
+**A validação do código é estreita de propósito.** Qualquer programa da máquina
+pode disparar `whatscord://` com o conteúdo que quiser, e o que sai dali vira
+segmento de uma URL de API. Só passa hexadecimal de 6 a 64 caracteres; o resto é
+recusado (43 testes cobrem isso, incluindo travessia de caminho, tag HTML e
+esquema alheio).
+
+### Dois problemas achados testando
+
+**O link web não podia ser um caminho aninhado.** O Vite está com `base: "./"`
+por exigência da configuração do app desktop, então o `index.html` referencia os
+assets relativamente. Em `/join/abc` o navegador procurava o bundle em
+`/join/assets/…`, recebia o próprio HTML de volta pelo fallback de SPA, e o app
+não subia — em produção também. Por isso o link é `/?join=<código>`. O formato
+de caminho continua sendo aceito na leitura, para o dia em que a base virar
+absoluta.
+
+**Dentro do app desktop, `location.origin` é `http://tauri.localhost`.** Gerar o
+convite com essa origem produzia um link que não abre em nenhuma outra máquina —
+e na tela ele parecia um link normal. `shareOrigin()` troca origens internas
+(tauri.localhost, localhost, 127.0.0.1, [::1]) pelo endereço público.
+
+### O convite sobrevive ao login
+
+Um link aberto por quem ainda não tem conta fica guardado no `sessionStorage` e
+é consumido assim que a sessão aparece. Sem isso a pessoa se cadastra e cai numa
+tela vazia, sem nunca entrar no espaço para o qual foi convidada. A tela de login
+avisa que há um convite esperando, senão parece que o link não fez nada.
+

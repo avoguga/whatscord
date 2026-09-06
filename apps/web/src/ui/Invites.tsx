@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { inviteLink } from "../lib/deeplink";
 import { useStore, type User } from "../store";
 import { initials } from "../lib/format";
 import { IconSearch, IconCopy, IconCheck, IconClose } from "./icons";
@@ -106,8 +107,15 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
         {error && <div className="form-error">{error}</div>}
 
         <p style={{ color: "var(--text-dim)", fontSize: 13.5, margin: "0 0 14px" }}>
-          Anyone with this code can join. Send it over, and they enter it under{" "}
-          <b style={{ color: "var(--text)" }}>New space → Have an invite code?</b>
+          Anyone with this link can join. Opening it signs them straight into the space — in the
+          desktop app if they have it installed, in the browser if they do not.
+        </p>
+
+        <CopyField value={inviteLink(space.inviteCode)} label="Invite link" />
+
+        <p style={{ color: "var(--text-faint)", fontSize: 12.5, margin: "14px 0 8px" }}>
+          Or send just the code, for someone who would rather type it under{" "}
+          <b style={{ color: "var(--text-dim)" }}>New space → Have an invite code?</b>
         </p>
 
         <CopyField value={space.inviteCode} label="Invite code" />

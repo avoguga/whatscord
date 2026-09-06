@@ -147,6 +147,7 @@ type State = {
 
   refreshRooms: () => Promise<void>;
   refreshSpaces: () => Promise<void>;
+  joinSpaceByCode: (code: string) => Promise<{ id: string; name: string }>;
   openRoom: (roomId: string) => Promise<void>;
   closeRoom: () => void;
   loadOlder: (roomId: string) => Promise<void>;
@@ -249,6 +250,23 @@ export const useStore = create<State>((set, get) => ({
   async refreshSpaces() {
     const { spaces } = await api.get<{ spaces: Space[] }>("/spaces");
     set({ spaces });
+  },
+
+  /**
+   * Entra num espaço por código de convite.
+   *
+   * Um caminho só, usado tanto por quem digita o código quanto por quem abre um
+   * link — assim as duas entradas não podem divergir no que atualizam depois.
+   * O código é escapado por vir de fora: de um link, ele chega do sistema
+   * operacional e pode ser qualquer coisa.
+   */
+  async joinSpaceByCode(code) {
+    const res = await api.post<{ space: { id: string; name: string } }>(
+      `/spaces/join/${encodeURIComponent(code)}`
+    );
+    await Promise.all([get().refreshSpaces(), get().refreshRooms()]);
+    set({ activeSpaceId: res.space.id });
+    return res.space;
   },
 
   async openRoom(roomId) {

@@ -1,6 +1,12 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useStore } from "./store";
 import { connectSocket, disconnectSocket } from "./lib/socket";
+import {
+  inviteFromLocation,
+  onDeepLink,
+  stashPendingInvite,
+  takePendingInvite
+} from "./lib/deeplink";
 import { Auth } from "./ui/Auth";
 import { Sidebar } from "./ui/Sidebar";
 import { Chat } from "./ui/Chat";
@@ -20,11 +26,58 @@ export default function App() {
   const bootstrap = useStore((s) => s.bootstrap);
   const activeRoomId = useStore((s) => s.activeRoomId);
 
+  const joinSpaceByCode = useStore((s) => s.joinSpaceByCode);
+  const notify = useStore((s) => s.notify);
+
   const [call, setCall] = useState<{ roomId: string; video: boolean } | null>(null);
 
   useEffect(() => {
     bootstrap();
   }, [bootstrap]);
+
+  /*
+   * Convites.
+   *
+   * Um link chega por dois caminhos — o endereço com que a página abriu, ou o
+   * app desktop entregando `whatscord://join/...` com a janela já aberta — e os
+   * dois passam por aqui.
+   */
+  const meRef = useRef(me);
+  meRef.current = me;
+
+  const accept = useCallback(
+    async (code: string) => {
+      // Sem sessão o convite espera: aceitar exige token, e mandar a pessoa
+      // fazer login perdendo o convite no caminho é o mesmo que não ter link.
+      if (!meRef.current) {
+        stashPendingInvite(code);
+        return;
+      }
+      try {
+        const space = await joinSpaceByCode(code);
+        notify(`You joined ${space.name}.`);
+      } catch (err) {
+        notify(err instanceof Error ? err.message : "That invite did not work.", "bad");
+      }
+    },
+    [joinSpaceByCode, notify]
+  );
+
+  // Links entregues com o app já aberto.
+  useEffect(() => onDeepLink((code) => void accept(code)), [accept]);
+
+  // O endereço com que a página abriu, uma vez só.
+  useEffect(() => {
+    const code = inviteFromLocation();
+    if (code) void accept(code);
+  }, [accept]);
+
+  // E o convite que ficou esperando alguém entrar.
+  useEffect(() => {
+    if (!me) return;
+    const code = takePendingInvite();
+    if (code) void accept(code);
+  }, [me, accept]);
 
   useEffect(() => {
     if (!me) {

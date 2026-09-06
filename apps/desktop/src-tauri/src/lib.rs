@@ -142,6 +142,40 @@ fn render_badge_icon(count: u32) -> (Vec<u8>, u32, u32) {
 }
 
 // ---------------------------------------------------------------------------
+// Links de convite (whatscord://join/<codigo>)
+// ---------------------------------------------------------------------------
+
+/// Entrega a URL ao frontend como um evento de DOM e traz a janela para frente.
+///
+/// De proposito nao usa o canal de eventos do Tauri: assim o codigo da interface
+/// nao precisa importar nada de Tauri para ouvir o convite, e o mesmo arquivo
+/// roda no navegador (onde este evento simplesmente nunca dispara).
+///
+/// A URL vem do sistema operacional, escrita por quem mandou o link, e por isso
+/// e serializada com serde_json em vez de interpolada crua — o resultado e um
+/// literal de string JS valido para qualquer conteudo.
+#[cfg(desktop)]
+fn deliver_deep_links<R: tauri::Runtime>(app: &tauri::AppHandle<R>, urls: Vec<String>) {
+    let Some(window) = app.get_webview_window("main") else {
+        return;
+    };
+
+    for url in urls {
+        let Ok(json) = serde_json::to_string(&url) else {
+            continue;
+        };
+        let _ = window.eval(&format!(
+            "window.dispatchEvent(new CustomEvent('whatscord:deeplink',{{detail:{json}}}))"
+        ));
+    }
+
+    // Um convite so serve se a pessoa VER que ele chegou.
+    let _ = window.unminimize();
+    let _ = window.show();
+    let _ = window.set_focus();
+}
+
+// ---------------------------------------------------------------------------
 // Bootstrap
 // ---------------------------------------------------------------------------
 
@@ -154,7 +188,7 @@ pub fn run() {
     // ele entra aqui, antes do encadeamento dos demais, e nao dentro do setup().
     #[cfg(desktop)]
     {
-        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             // Segunda instancia: em vez de abrir outra janela, traz a existente
             // para frente (comportamento de Discord/WhatsApp Desktop).
             if let Some(window) = app.get_webview_window("main") {
@@ -162,10 +196,54 @@ pub fn run() {
                 let _ = window.show();
                 let _ = window.set_focus();
             }
+
+            /*
+             * No Windows o sistema NAO avisa um app ja aberto que um link foi
+             * clicado: ele abre uma instancia nova com a URL como unico
+             * argumento. E aqui que essa segunda instancia entrega o link para
+             * a que ja estava rodando, antes de morrer. Sem isto, clicar num
+             * convite com o app aberto nao faria absolutamente nada.
+             *
+             * NAO ligue a feature "deep-link" do tauri-plugin-single-instance:
+             * ela faz exatamente esta chamada antes do callback, e somada a
+             * esta linha o convite seria entregue duas vezes.
+             */
+            use tauri_plugin_deep_link::DeepLinkExt;
+            app.deep_link().handle_cli_arguments(argv.iter());
         }));
     }
 
     builder
+        .plugin(tauri_plugin_deep_link::init())
+        .setup(|app| {
+            use tauri_plugin_deep_link::DeepLinkExt;
+
+            let handle = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                deliver_deep_links(
+                    &handle,
+                    event.urls().into_iter().map(|u| u.to_string()).collect(),
+                );
+            });
+
+            /*
+             * Em desenvolvimento nada registrou o esquema no Windows — quem faz
+             * isso na versao final e o instalador NSIS, a partir de
+             * `plugins.deep-link.desktop.schemes`. Registrar aqui tambem em
+             * release faria uma copia portatil roubar o esquema da instalada.
+             */
+            #[cfg(debug_assertions)]
+            let _ = app.deep_link().register_all();
+
+            /*
+             * O caso de abrir o app CLICANDO no link, com ele fechado: a URL
+             * chega como argumento de linha de comando e ninguem a leu ainda.
+             * Precisa vir depois do `on_open_url` acima, que e quem escuta.
+             */
+            app.deep_link().handle_cli_arguments(std::env::args());
+
+            Ok(())
+        })
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_os::init())
