@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useStore, type Message } from "../store";
 import { api, fileUrl, uploadFile } from "../lib/api";
 import { clock, daySeparator, fileSize, initials, isImage, isVideo, sameDay } from "../lib/format";
@@ -267,7 +267,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
                 mine={message.author.id === me?.id}
                 firstOfRun={firstOfRun}
                 showAuthor={firstOfRun && room.kind !== "DM" && message.author.id !== me?.id}
-                onReply={() => setReplyTo(message)}
+                onReply={setReplyTo}
               />
             </div>
           );
@@ -373,11 +373,23 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
   );
 }
 
-function Bubble({
+/**
+ * Uma bolha de mensagem.
+ *
+ * Memoizada porque a lista nao e virtualizada: sem isso, cada tecla digitada
+ * por alguem do outro lado ("esta digitando…") re-renderizava TODAS as
+ * mensagens da conversa. Com 200 mensagens abertas isso e trabalho puro e
+ * jogado fora, e e o que fazia a rolagem engasgar.
+ *
+ * Para o memo valer, as props precisam ser estaveis: `onReply` recebe a acao do
+ * store (que nunca muda) em vez de uma seta nova a cada render, e a identidade
+ * de `message` e preservada pelo dedupe do store.
+ */
+const Bubble = memo(function Bubble({
   message, mine, firstOfRun, showAuthor, onReply
 }: {
   message: Message; mine: boolean; firstOfRun: boolean;
-  showAuthor: boolean; onReply: () => void;
+  showAuthor: boolean; onReply: (m: Message) => void;
 }) {
   const react = useStore((s) => s.react);
   const me = useStore((s) => s.me);
@@ -461,7 +473,7 @@ function Bubble({
           Rendering it conditionally made the bubble jump sideways. */}
       {!message.deleted && (
         <div className="msg-actions">
-          <button className="icon-btn" onClick={onReply} title="Reply to this message">
+          <button className="icon-btn" onClick={() => onReply(message)} title="Reply to this message">
             <IconReply size={16} />
           </button>
           <div style={{ position: "relative" }}>
@@ -486,7 +498,7 @@ function Bubble({
       )}
     </div>
   );
-}
+});
 
 /** What a brand new account sees. It should offer a first step, not a shrug. */
 function EmptyState() {

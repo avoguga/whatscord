@@ -16,6 +16,15 @@ import { getSocket } from "../lib/socket";
 import { initials } from "../lib/format";
 import { loadDevicePrefs } from "../lib/devices";
 import { playCue } from "../lib/sounds";
+import {
+  canShareScreen,
+  captureOptions,
+  loadShareMode,
+  publishOptions,
+  saveShareMode,
+  SHARE_MODE_LABELS,
+  type ShareMode
+} from "../lib/screenshare";
 import { DevicePicker } from "./DevicePicker";
 import {
   IconMic, IconMicOff, IconVideo, IconVideoOff, IconScreen,
@@ -82,6 +91,7 @@ export function CallSheet({
   /** Short-lived "X joined" lines, the visual half of the arrival cue. */
   const [events, setEvents] = useState<{ id: number; text: string }[]>([]);
   const [outputId, setOutputId] = useState<string | undefined>(() => loadDevicePrefs().audiooutput);
+  const [shareMode, setShareMode] = useState<ShareMode>(() => loadShareMode());
 
   const [revision, setRevision] = useState(0);
   const bump = () => setRevision((n) => n + 1);
@@ -149,7 +159,15 @@ export function CallSheet({
             bump();
           })
           .on(RoomEvent.LocalTrackPublished, () => bump())
-          .on(RoomEvent.LocalTrackUnpublished, () => bump())
+          .on(RoomEvent.LocalTrackUnpublished, (pub) => {
+            /*
+             * O navegador tem a propria barra de "parar compartilhamento", e
+             * quem a usa nao passa pelo nosso botao. Sem isto o app continuava
+             * dizendo "Stop sharing" para uma tela que ja nao ia mais.
+             */
+            if (pub.source === Track.Source.ScreenShare) setSharing(false);
+            bump();
+          })
           .on(RoomEvent.TrackMuted, () => bump())
           .on(RoomEvent.TrackUnmuted, () => bump())
           .on(RoomEvent.ConnectionQualityChanged, () => bump())
@@ -289,6 +307,9 @@ export function CallSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room, status, sharing, camOn, micOn, revision, speakers, roster, me]);
 
+  const screenTiles = tiles.filter((t) => t.isScreen);
+  const peopleTiles = tiles.filter((t) => !t.isScreen);
+
   const inCall = roster.filter((u) => connectedIds.has(u.id));
   const away = roster.filter((u) => !connectedIds.has(u.id));
   const total = connectedIds.size;
@@ -316,9 +337,33 @@ export function CallSheet({
   }
 
   async function toggleShare() {
+    const turningOn = !sharing;
     try {
-      await room.localParticipant.setScreenShareEnabled(!sharing, { audio: true });
-      setSharing(!sharing);
+      await room.localParticipant.setScreenShareEnabled(
+        turningOn,
+        turningOn ? captureOptions(shareMode) : undefined,
+        turningOn ? publishOptions(shareMode) : undefined
+      );
+      setSharing(turningOn);
+
+      if (turningOn) {
+        /*
+         * Pedir `audio: true` nao garante som: quem compartilha precisa marcar
+         * a caixinha no dialogo do navegador, e em "janela" o Chrome no Windows
+         * nem oferece a opcao. Dizer isso na hora e melhor do que a outra
+         * pessoa avisar depois que nao esta ouvindo nada.
+         */
+        const comSom = !!room.localParticipant.getTrackPublication(
+          Track.Source.ScreenShareAudio
+        );
+        setNotice(
+          comSom
+            ? null
+            : "Sharing without sound. To include it, share again and tick “Also share tab audio” (or “Share system audio”) in the browser's dialog — Chrome on Windows only offers it for a tab or a whole screen, not a single window."
+        );
+      } else {
+        setNotice(null);
+      }
       bump();
     } catch (err) {
       if (err instanceof Error && err.name !== "NotAllowedError") {
@@ -397,8 +442,8 @@ export function CallSheet({
       )}
 
       <div className="call-body">
-        <div className="call-stage">
-          {tiles.length === 0 ? (
+        {tiles.length === 0 ? (
+          <div className="call-stage">
             <div className="call-empty">
               <div className="tile-avatar">{initials(me?.displayName ?? "?")}</div>
               <p>{status === "connected" ? "You are connected." : statusLabel}</p>
@@ -408,10 +453,36 @@ export function CallSheet({
                   : "Hold on while the connection is set up."}
               </p>
             </div>
-          ) : (
-            tiles.map((tile) => <VideoTile key={tile.key} tile={tile} />)
-          )}
-        </div>
+          </div>
+        ) : screenTiles.length > 0 ? (
+          /*
+           * Com tela compartilhada, ela vira o palco e as pessoas viram uma
+           * tira embaixo. Nao e so estetica: com `adaptiveStream`, o LiveKit
+           * escolhe a camada de video pelo TAMANHO do elemento — dividir o
+           * espaco em partes iguais fazia o servidor mandar menos resolucao
+           * justamente para o conteudo em que a nitidez importa.
+           */
+          <div className="call-stage focus">
+            <div className="stage-main">
+              {screenTiles.map((tile) => (
+                <VideoTile key={tile.key} tile={tile} />
+              ))}
+            </div>
+            {peopleTiles.length > 0 && (
+              <div className="stage-strip">
+                {peopleTiles.map((tile) => (
+                  <VideoTile key={tile.key} tile={tile} />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="call-stage">
+            {tiles.map((tile) => (
+              <VideoTile key={tile.key} tile={tile} />
+            ))}
+          </div>
+        )}
 
         {/* The roster is the answer to "who is here and who is not". */}
         <aside className="call-roster" aria-label="Who is on the call">
@@ -462,6 +533,12 @@ export function CallSheet({
           label={sharing ? "Stop sharing" : "Share screen"}
           active={sharing}
           onClick={toggleShare}
+          disabled={!canShareScreen}
+          title={
+            canShareScreen
+              ? undefined
+              : "Screen sharing is not available on this device — Android's WebView cannot capture the screen."
+          }
           icon={<IconScreen />}
         />
         <CallButton
@@ -487,12 +564,42 @@ export function CallSheet({
             </button>
           </header>
           <DevicePicker
-            room={room}
+            micTrack={
+              room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track
+                ?.mediaStreamTrack ?? null
+            }
+            onSwitch={(kind, id) => room.switchActiveDevice(kind, id).then(() => undefined)}
             onNotice={setNotice}
             onChange={(kind, id) => {
               if (kind === "audiooutput") setOutputId(id);
             }}
           />
+
+          {canShareScreen && (
+          <div className="share-modes">
+            <p className="settings-head">Screen sharing</p>
+            {(Object.keys(SHARE_MODE_LABELS) as ShareMode[]).map((mode) => (
+              <label key={mode} className="share-mode">
+                <input
+                  type="radio"
+                  name="share-mode"
+                  checked={shareMode === mode}
+                  onChange={() => {
+                    setShareMode(mode);
+                    saveShareMode(mode);
+                    if (sharing) {
+                      setNotice("The new setting applies the next time you start sharing.");
+                    }
+                  }}
+                />
+                <span>
+                  <strong>{SHARE_MODE_LABELS[mode].title}</strong>
+                  <em>{SHARE_MODE_LABELS[mode].hint}</em>
+                </span>
+              </label>
+            ))}
+          </div>
+          )}
         </aside>
       )}
     </div>
@@ -531,16 +638,17 @@ function RosterRow({
  * means one thing everywhere: this is off.
  */
 function CallButton({
-  label, icon, onClick, danger, active, hangup
+  label, icon, onClick, danger, active, hangup, disabled, title
 }: {
   label: string; icon: React.ReactNode; onClick: () => void;
   danger?: boolean; active?: boolean; hangup?: boolean;
+  disabled?: boolean; title?: string;
 }) {
   const cls = ["call-btn", danger ? "off" : "", active ? "on" : "", hangup ? "hangup" : ""]
     .filter(Boolean)
     .join(" ");
   return (
-    <button className="call-ctl" onClick={onClick} title={label}>
+    <button className="call-ctl" onClick={onClick} disabled={disabled} title={title ?? label}>
       <span className={cls}>{icon}</span>
       <span className="call-ctl-label">{label}</span>
     </button>

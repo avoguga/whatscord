@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import type { Room } from "livekit-client";
-import { Track } from "livekit-client";
 import {
   canChooseOutput,
   deviceLabel,
@@ -75,11 +73,22 @@ function useMicLevel(track: MediaStreamTrack | null): number {
  * without dropping the call.
  */
 export function DevicePicker({
-  room,
+  micTrack,
+  onSwitch,
   onNotice,
   onChange
 }: {
-  room?: Room | null;
+  /**
+   * The microphone already open in a call, if there is one, so the meter reads
+   * the very track the other side hears.
+   *
+   * Passed in rather than pulled from a Room on purpose: importing livekit-client
+   * here would drag the whole SDK — 1.4 MB of source — into the settings screen,
+   * and from there into the first chunk the app loads.
+   */
+  micTrack?: MediaStreamTrack | null;
+  /** Applies the choice to a live call. Absent outside a call. */
+  onSwitch?: (kind: DeviceKind, deviceId: string) => Promise<void>;
   onNotice?: (text: string) => void;
   /** Lets the call follow the speaker choice without re-reading storage. */
   onChange?: (kind: DeviceKind, deviceId: string | undefined) => void;
@@ -90,15 +99,8 @@ export function DevicePicker({
   const [busy, setBusy] = useState<DeviceKind | null>(null);
   const [probe, setProbe] = useState<MediaStream | null>(null);
 
-  /*
-   * In a call the microphone is already open, so the meter reads the very track
-   * the other side hears — no second permission prompt, no second stream. Out
-   * of a call there is nothing to read until the person asks for it.
-   */
-  const liveMic =
-    room?.localParticipant
-      .getTrackPublication(Track.Source.Microphone)
-      ?.track?.mediaStreamTrack ?? null;
+  // Out of a call there is nothing to read until the person asks for it.
+  const liveMic = micTrack ?? null;
   const probeMic = probe?.getAudioTracks()[0] ?? null;
   const level = useMicLevel(liveMic ?? probeMic);
 
@@ -116,10 +118,10 @@ export function DevicePicker({
     const id = deviceId || undefined;
     choose(kind, id);
     onChange?.(kind, id);
-    if (!room || !id) return;
+    if (!onSwitch || !id) return;
     setBusy(kind);
     try {
-      await room.switchActiveDevice(kind, id);
+      await onSwitch(kind, id);
     } catch {
       onNotice?.(
         kind === "audiooutput"

@@ -23,6 +23,12 @@ import {
   toBase64,
   type ToneStep
 } from "../apps/web/src/lib/sounds";
+import {
+  captureOptions,
+  loadShareMode,
+  publishOptions,
+  type ShareMode
+} from "../apps/web/src/lib/screenshare";
 
 let passed = 0;
 const failures: string[] = [];
@@ -333,6 +339,93 @@ check(
   Buffer.from(url.slice("data:audio/wav;base64,".length), "base64")
     .subarray(0, 4)
     .toString() === "RIFF"
+);
+
+// ---------------------------------------------------------------------------
+section("compartilhamento de tela — o que se pede ao navegador");
+
+for (const mode of ["text", "motion"] as ShareMode[]) {
+  const c = captureOptions(mode);
+  check(`[${mode}] pede áudio junto`, c.audio === true);
+  check(
+    `[${mode}] pede que o som do sistema seja OFERECIDO no diálogo`,
+    c.systemAudio === "include",
+    "include",
+    c.systemAudio
+  );
+  check(
+    `[${mode}] não oferece compartilhar a própria aba (efeito túnel)`,
+    c.selfBrowserSurface === "exclude"
+  );
+  check(
+    `[${mode}] deixa trocar a aba compartilhada sem recomeçar`,
+    c.surfaceSwitching === "include"
+  );
+  check(
+    `[${mode}] evita eco do próprio áudio em quem compartilha`,
+    c.suppressLocalAudioPlayback === true
+  );
+}
+
+check(
+  "texto pede contentHint 'text' (preserva borda, não borra letra)",
+  captureOptions("text").contentHint === "text",
+  "text",
+  captureOptions("text").contentHint
+);
+check(
+  "movimento pede contentHint 'motion'",
+  captureOptions("motion").contentHint === "motion"
+);
+
+// ---------------------------------------------------------------------------
+section("compartilhamento de tela — como se publica");
+
+/*
+ * A correção que mais pesa: o padrão do LiveKit publica três camadas e reparte
+ * entre elas o mesmo teto de banda, então a camada boa recebia uma fração dos
+ * 2.5 Mbps. Se este teste falhar, a qualidade regrediu.
+ */
+for (const mode of ["text", "motion"] as ShareMode[]) {
+  check(`[${mode}] simulcast DESLIGADO na tela`, publishOptions(mode).simulcast === false);
+  check(
+    `[${mode}] banda declarada é positiva`,
+    publishOptions(mode).screenShareEncoding.maxBitrate > 0
+  );
+}
+
+check(
+  "texto prioriza resolução (letra ilegível é pior que letra que atualiza devagar)",
+  publishOptions("text").degradationPreference === "maintain-resolution",
+  "maintain-resolution",
+  publishOptions("text").degradationPreference
+);
+check(
+  "movimento prioriza taxa de quadros (engasgar é pior que perder nitidez)",
+  publishOptions("motion").degradationPreference === "maintain-framerate"
+);
+check(
+  "movimento tem mais quadros por segundo que texto",
+  publishOptions("motion").screenShareEncoding.maxFramerate >
+    publishOptions("text").screenShareEncoding.maxFramerate,
+  "motion > text",
+  {
+    motion: publishOptions("motion").screenShareEncoding.maxFramerate,
+    text: publishOptions("text").screenShareEncoding.maxFramerate
+  }
+);
+check(
+  "movimento reserva mais banda que texto",
+  publishOptions("motion").screenShareEncoding.maxBitrate >
+    publishOptions("text").screenShareEncoding.maxBitrate
+);
+
+// Sem localStorage (é o caso aqui no node) nada pode explodir: cai no padrão.
+check(
+  "sem armazenamento disponível, o modo padrão é 'text'",
+  loadShareMode() === "text",
+  "text",
+  loadShareMode()
 );
 
 // ---------------------------------------------------------------------------

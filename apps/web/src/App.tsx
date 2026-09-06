@@ -1,11 +1,18 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useStore } from "./store";
 import { connectSocket, disconnectSocket } from "./lib/socket";
 import { Auth } from "./ui/Auth";
 import { Sidebar } from "./ui/Sidebar";
 import { Chat } from "./ui/Chat";
-import { CallSheet } from "./ui/Call";
 import { Toasts } from "./ui/Toasts";
+
+/*
+ * A tela de chamada carrega sob demanda porque ela traz junto o livekit-client,
+ * de longe a maior dependencia do app. No bundle unico ele era baixado e
+ * interpretado por todo mundo que abre o WhatsCord, inclusive quem so vai ler
+ * mensagem — e no celular isso e a diferenca entre abrir rapido e nao abrir.
+ */
+const CallSheet = lazy(() => import("./ui/Call").then((m) => ({ default: m.CallSheet })));
 
 export default function App() {
   const me = useStore((s) => s.me);
@@ -51,7 +58,9 @@ export default function App() {
       <Sidebar />
       <Chat onStartCall={(video) => activeRoomId && setCall({ roomId: activeRoomId, video })} />
       {call && (
-        <CallSheet roomId={call.roomId} withVideo={call.video} onClose={() => setCall(null)} />
+        <Suspense fallback={<div className="call-sheet call-loading">Opening the call…</div>}>
+          <CallSheet roomId={call.roomId} withVideo={call.video} onClose={() => setCall(null)} />
+        </Suspense>
       )}
       <Toasts />
     </div>

@@ -1120,3 +1120,88 @@ input, textarea { font: inherit; color: inherit; }
     bottom: calc(var(--call-bar-h) + var(--gap-2)); max-height: 55vh;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Areas seguras (entalhe e barra de gestos).
+
+   No desktop env(safe-area-inset-*) vale 0px, entao estas regras nao mudam
+   nada la. No celular — e sobretudo no APK, onde a WebView desenha ate as
+   bordas — sem elas a barra de gestos do Android fica POR CIMA da barra de
+   controles da chamada e do rail inferior, cobrindo justamente os botoes de
+   desligar e de mudo.
+--------------------------------------------------------------------------- */
+
+:root {
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+}
+
+/* A tela de chamada ocupa a viewport inteira, entao ela mesma se afasta. */
+.call-sheet { padding-top: var(--safe-t); }
+.call-bar { padding-bottom: calc(var(--gap-5) + var(--safe-b)); }
+.call-ribbon { padding-bottom: calc(var(--gap-2) + var(--safe-b)); }
+.call-devices { bottom: calc(var(--call-bar-h) + var(--gap-3) + var(--safe-b)); }
+
+/* O compositor e o ultimo elemento acima da barra de gestos na conversa. */
+.composer { padding-bottom: calc(var(--gap-2) + var(--safe-b)); }
+
+@media (max-width: 560px) {
+  /* Aqui o rail vira barra inferior: e ele que encosta na barra de gestos. */
+  .rail {
+    height: calc(60px + var(--safe-b));
+    flex-basis: calc(60px + var(--safe-b));
+    padding-bottom: var(--safe-b);
+  }
+  /* Com o rail embaixo, o compositor nao encosta mais na borda. */
+  .composer { padding-bottom: var(--gap-2); }
+  .call-devices { bottom: calc(var(--call-bar-h) + var(--gap-2) + var(--safe-b)); }
+}
+
+/* Entalhe lateral no modo paisagem. */
+@media (orientation: landscape) {
+  .app { padding-left: var(--safe-l); padding-right: var(--safe-r); }
+  .call-sheet { padding-left: var(--safe-l); padding-right: var(--safe-r); }
+}
+
+/* Escolha entre nitidez e fluidez no compartilhamento de tela. */
+.share-modes { display: flex; flex-direction: column; gap: var(--gap-2); }
+.share-mode {
+  display: flex; align-items: flex-start; gap: var(--gap-2);
+  padding: var(--gap-2); border-radius: 8px; cursor: pointer;
+}
+.share-mode:hover { background: var(--hover); }
+.share-mode input { margin-top: 3px; accent-color: var(--accent); flex: 0 0 auto; }
+.share-mode span { display: flex; flex-direction: column; gap: 2px; }
+.share-mode strong { font-size: 13.5px; font-weight: 500; color: var(--text); }
+.share-mode em { font-style: normal; font-size: 12.5px; color: var(--text-dim); line-height: 1.4; }
+
+/* Um controle indisponivel tem que parecer indisponivel, nao quebrado. */
+.call-ctl:disabled { opacity: 0.4; cursor: not-allowed; }
+.call-ctl:disabled:hover { color: var(--text-dim); }
+.call-ctl:disabled:hover .call-btn { background: #2a3942; }
+.call-loading { display: grid; place-items: center; color: var(--text-dim); }
+
+/* Palco com tela compartilhada: a tela manda, as pessoas viram tira. */
+.call-stage.focus {
+  display: flex; flex-direction: column; gap: var(--gap-2);
+  align-content: stretch;
+}
+.stage-main { flex: 1 1 auto; min-height: 0; display: flex; gap: var(--gap-2); }
+/* aspect-ratio: auto deixa a tela ocupar a altura toda disponivel em vez de
+   ficar presa num retangulo 16/9 no meio do vazio. */
+.call-stage.focus .stage-main .tile {
+  flex: 1 1 0; min-width: 0; aspect-ratio: auto; height: 100%;
+}
+.stage-strip {
+  flex: 0 0 auto; display: flex; gap: var(--gap-2);
+  overflow-x: auto; overflow-y: hidden; padding-bottom: 2px;
+}
+.call-stage.focus .stage-strip .tile {
+  flex: 0 0 auto; width: 168px; aspect-ratio: 16 / 10; height: auto;
+}
+
+@media (max-width: 860px) {
+  .call-stage.focus .stage-strip .tile { width: 118px; }
+}

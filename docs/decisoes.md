@@ -124,3 +124,71 @@ alto que a própria nota.
 Acompanhado sempre de uma linha na tela ("Fulano entrou na chamada"), porque som sozinho não serve
 para quem está no mudo — e porque antes disso a chegada de alguém só mudava um número no canto.
 
+## Compartilhamento de tela: o que estava ruim
+
+Os padrões do LiveKit já eram 1080p a 15 fps com teto de 2.5 Mbps — o preset não
+era o problema. Três outras coisas eram:
+
+**Simulcast ligado.** O padrão publica três camadas (a original mais h180 e
+h360) e reparte entre elas o mesmo teto de banda. A camada boa recebia uma
+fração dos 2.5 Mbps, e o codificador ainda fazia três vezes o trabalho. Numa
+chamada pequena isso é desperdício puro. Agora `simulcast: false`, passado **por
+publicação** e não em `publishDefaults`, para não desligar o simulcast da
+câmera — lá ele serve, porque quem está com rede ruim cai para uma camada menor
+em vez de travar.
+
+**Sem `contentHint`.** Sem essa dica o codificador trata a tela como vídeo em
+movimento e borra texto para economizar banda. `"text"` preserva bordas.
+
+**A tela dividia o palco em partes iguais com as câmeras.** Isso não é só
+estética: com `adaptiveStream`, o LiveKit escolhe a camada de vídeo pelo
+**tamanho do elemento na tela**. Renderizar a tela pequena fazia o servidor
+mandar menos resolução justamente para o conteúdo em que a nitidez importa. Agora
+a tela ocupa o palco e as pessoas viram uma tira embaixo.
+
+Escolha entre "texto" e "movimento" porque a resposta certa depende do conteúdo:
+texto quer resolução e aceita 15 fps; vídeo quer 30 fps e aceita perder nitidez.
+`degradationPreference` acompanha a escolha.
+
+### Áudio junto com a tela
+
+`audio: true` sozinho não basta. Falta `systemAudio: "include"`, que faz o Chrome
+**oferecer** a caixinha de som no diálogo — sem isso a opção pode nem aparecer. E
+mesmo assim depende de a pessoa marcar: no Windows o Chrome só oferece som para
+"aba" ou "tela inteira", nunca para uma janela isolada. Como isso é invisível de
+fora, o app checa se veio track de `ScreenShareAudio` e avisa na hora, em vez de
+deixar a outra pessoa descobrir que está mudo.
+
+## Performance de carregamento
+
+O bundle era **864 KB** num arquivo só, e o `livekit-client` (1.4 MB de fonte)
+respondia pela maior parte — baixado e interpretado por todo mundo que abre o
+app, inclusive quem só vai ler mensagem.
+
+A tela de chamada passou a carregar sob demanda (`lazy` + `Suspense`). Para isso
+valer, o `DevicePicker` teve de parar de importar `Track` do livekit: um único
+import de valor na tela de configurações arrastava o SDK inteiro de volta para o
+primeiro chunk. Ele agora recebe a track do microfone e a função de troca como
+props.
+
+| | Antes | Depois |
+|---|---|---|
+| Ao abrir o app | 864 KB (242 KB gzip) | **298 KB (92 KB gzip)** |
+| Ao iniciar chamada | — | +566 KB (149 KB gzip) |
+
+Verificado em execução: ao carregar o app o navegador busca só `index-*.js` e o
+CSS; o chunk `Call-*.js` só aparece quando a chamada começa.
+
+**A lista de mensagens não é virtualizada**, e enquanto não for, cada tecla
+digitada do outro lado ("está digitando…") re-renderizava todas as mensagens
+abertas. `Bubble` agora é memoizado; para o memo valer, `onReply` passou a
+receber a ação do store (estável) em vez de uma seta nova a cada render.
+
+## Áreas seguras no celular
+
+`100dvh` já estava tratado, mas não havia nada de `env(safe-area-inset-*)`. No
+APK a WebView desenha até as bordas (`enableEdgeToEdge()` no `MainActivity`), e a
+barra de gestos do Android ficaria **por cima** da barra de controles da chamada
+— cobrindo justamente desligar e mudo. No desktop os insets valem 0px, então as
+regras não mudam nada lá.
+
