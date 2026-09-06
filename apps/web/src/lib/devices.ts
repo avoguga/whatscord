@@ -111,9 +111,128 @@ export function deviceLabel(device: Pick<MediaDeviceInfo, "label" | "kind">, ind
   return `${noun} ${index + 1}`;
 }
 
+/* ------------------------------------------------------------------------ *
+ * Virar a câmera (frontal ⇄ traseira)
+ * ------------------------------------------------------------------------ */
+
+export type FacingMode = "user" | "environment";
+
+/** O outro lado. Só há dois, e virar duas vezes tem de voltar ao começo. */
+export function proximoFacingMode(atual: FacingMode): FacingMode {
+  return atual === "user" ? "environment" : "user";
+}
+
+/**
+ * Que lado um rótulo de câmera anuncia, se anunciar algum.
+ *
+ * O Android nomeia "camera2 0, facing back"; o iOS, "Front Camera"/"Back Dual
+ * Wide Camera". Uma webcam de mesa não fala de lado nenhum — ela não tem lado.
+ * Por isso este é um sinal POSITIVO de aparelho de mão, e não um palpite sobre
+ * o user-agent.
+ *
+ * "user"/"environment" de propósito NÃO entram na busca: são valores da API,
+ * não palavras de rótulo, e "user" apareceria dentro de nomes como
+ * "User's Webcam".
+ */
+export function facingDoRotulo(label: string | undefined): FacingMode | null {
+  const l = (label ?? "").toLowerCase();
+  if (/\b(front|frontal|selfie|delantera)\b/.test(l)) return "user";
+  if (/\b(back|rear|traseira|trasera|posterior)\b/.test(l)) return "environment";
+  return null;
+}
+
+/**
+ * Se a troca de câmera aqui deve pedir `facingMode` em vez de `deviceId`.
+ *
+ * CRITÉRIO, e por que ele e não o user-agent: um user-agent é uma string que
+ * qualquer navegador pode mentir, e a WebView do Tauri no Android nem se
+ * apresenta como um telefone. O que decide de verdade é se dá para escolher uma
+ * câmera POR IDENTIDADE. Então olhamos o que `enumerateDevices` devolveu:
+ *
+ *  a) alguma câmera sem `deviceId` — não há id para passar ao
+ *     `switchActiveDevice`, então só resta descrever o lado;
+ *  b) mais de uma câmera e NENHUMA com rótulo, mesmo já tendo id (o id só
+ *     aparece depois da permissão, então id sem nome quer dizer que a
+ *     plataforma se recusa a nomear — é o caso da WebView do Android);
+ *  c) algum rótulo que anuncia o lado ("facing back", "Front Camera") — o
+ *     próprio aparelho está dizendo que as câmeras diferem pelo lado.
+ *
+ * E, em todos os casos, é preciso haver MAIS DE UMA câmera: com uma só não há
+ * para onde virar, e o botão seria um controle morto.
+ *
+ * O caso (b) pode dar falso positivo num navegador de mesa que esconda rótulos
+ * (Firefox com anti-impressão-digital, por exemplo). Aceitamos: quem tem duas
+ * webcams sem nome também não conseguiria escolher pelo seletor, e a troca cai
+ * no plano B por `deviceId` se o `facingMode` não pegar.
+ *
+ * Recebe a lista CRUA, antes de `selectableDevices`: é justamente a entrada sem
+ * `deviceId` que o critério (a) precisa enxergar.
+ */
+export function deveUsarFacingMode(
+  cameras: Pick<MediaDeviceInfo, "deviceId" | "label">[]
+): boolean {
+  if (cameras.length < 2) return false;
+  const semId = cameras.some((c) => !c.deviceId);
+  const semRotulo = cameras.every((c) => !c.label);
+  const anunciaLado = cameras.some((c) => facingDoRotulo(c.label) !== null);
+  return semId || semRotulo || anunciaLado;
+}
+
+/**
+ * Plano B: qual `deviceId` tentar quando o `facingMode` não deu certo.
+ *
+ * Primeiro a câmera cujo rótulo anuncia o lado pedido. Sem rótulo que ajude,
+ * qualquer outra que não seja a de agora — em aparelho de duas câmeras "a
+ * outra" é exatamente a certa, e em aparelho de três é ao menos uma mudança
+ * visível, que a pessoa pode repetir até chegar onde quer.
+ */
+export function cameraParaFacing(
+  cameras: Pick<MediaDeviceInfo, "deviceId" | "label">[],
+  alvo: FacingMode,
+  atualId?: string
+): string | undefined {
+  const usaveis = cameras.filter((c) => !!c.deviceId);
+  const peloRotulo = usaveis.find((c) => facingDoRotulo(c.label) === alvo);
+  if (peloRotulo) return peloRotulo.deviceId;
+  return usaveis.find((c) => c.deviceId !== atualId)?.deviceId;
+}
+
+/**
+ * Se a câmera realmente mudou depois de um `restartTrack`.
+ *
+ * ARMADILHA MEDIDA NO SDK: `restartTrack({ facingMode })` não chega ao navegador
+ * como uma exigência. O `constraintsForOptions` do livekit-client injeta
+ * `deviceId ??= { ideal: "default" }` e o `facingMode` vai como valor nu — os
+ * dois são "ideal", não "exact". Ou seja: a promessa resolve com sucesso mesmo
+ * quando o navegador devolveu a MESMA câmera. Sem esta checagem, o plano B
+ * nunca rodaria nos aparelhos em que ele é necessário.
+ *
+ * Quando não dá para saber (nenhuma das duas pistas veio), respondemos que
+ * mudou: reabrir a câmera à toa é pior do que não confirmar.
+ */
+export function trocouDeCamera(
+  antes: { deviceId?: string; facingMode?: string },
+  depois: { deviceId?: string; facingMode?: string },
+  alvo: FacingMode
+): boolean {
+  if (depois.facingMode === "user" || depois.facingMode === "environment") {
+    return depois.facingMode === alvo;
+  }
+  if (antes.deviceId && depois.deviceId) return antes.deviceId !== depois.deviceId;
+  return true;
+}
+
 export type DeviceState = {
   microphones: MediaDeviceInfo[];
   cameras: MediaDeviceInfo[];
+  /**
+   * As câmeras como o navegador as devolveu, placeholders inclusive.
+   *
+   * `deveUsarFacingMode` precisa ver a entrada sem `deviceId` que
+   * `selectableDevices` joga fora — é ela que denuncia a plataforma em que a
+   * troca por id não funciona.
+   */
+  rawCameras: MediaDeviceInfo[];
   speakers: MediaDeviceInfo[];
   /** Kinds still waiting on the browser's permission prompt. */
   micBlocked: boolean;
@@ -190,6 +309,7 @@ export function useDevices(): DeviceState {
   return {
     microphones: selectableDevices(rawMics),
     cameras: selectableDevices(rawCams),
+    rawCameras: rawCams,
     speakers: selectableDevices(rawSpeakers),
     micBlocked: needsPermission(rawMics),
     camBlocked: needsPermission(rawCams),
