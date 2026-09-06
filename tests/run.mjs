@@ -2117,14 +2117,27 @@ async function secPresencaDeVoz() {
   console.log("\n=== 12. Presença de voz ===");
   const { A, B, C } = state;
 
-  const spaces = await GET("/spaces", { token: A.token });
-  const space = spaces.json?.spaces?.find((s) => s.id === state.space.id);
-  const voice = space?.channels?.find((c) => c.kind === "VOICE");
-  if (!voice) {
-    fail("presença de voz", "um canal VOICE no espaço de teste", JSON.stringify(space?.channels));
+  /*
+   * Canal PRÓPRIO desta seção, e não o canal de voz que o espaço de teste já
+   * tem.
+   *
+   * Reaproveitar o compartilhado parecia econômico e estava errado: seções
+   * anteriores pedem token de chamada nele, e os sockets daquelas seções
+   * continuam abertos em `state.sockets`. A pessoa segue legitimamente na sala,
+   * então "sala vazia" falhava, "a última conexão caiu" não era a última, e o
+   * teste acusava um defeito que não existia — enquanto o real, que era o
+   * anúncio condicionado a "a lista mudou", passava despercebido no meio do
+   * ruído. Um canal novo isola esta seção do resto da bateria.
+   */
+  const canal = await POST(`/spaces/${state.space.id}/channels`, {
+    token: A.token,
+    body: { name: `voz-presenca-${Date.now()}`, kind: "VOICE" }
+  });
+  const sala = canal.json?.channel?.id ?? canal.json?.room?.id;
+  if (!sala) {
+    fail("presença de voz", "um canal VOICE novo para a seção", short(canal));
     return;
   }
-  const sala = voice.id;
 
   const vozA = await connectSocket(A.token, "vozA");
   const vozB = await connectSocket(B.token, "vozB");

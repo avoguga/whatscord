@@ -145,11 +145,20 @@ export async function attachSocketServer(httpServer: HttpServer) {
     const entrar = (payload: { roomId?: string }) =>
       safe(async () => {
         if (!payload?.roomId || !(await isMember(payload.roomId, userId))) return;
-        const mudou = await entrarNaVoz(payload.roomId, userId, socket.id);
+        await entrarNaVoz(payload.roomId, userId, socket.id);
         socket
           .to(roomChannel(payload.roomId))
           .emit("call:joined", { roomId: payload.roomId, userId });
-        if (mudou) await anunciarPresencaDeVoz(payload.roomId);
+        /*
+         * Anuncia sempre, e nao so quando a lista mudou.
+         *
+         * "Mudou" aqui quer dizer "esta pessoa nao estava na sala". Uma segunda
+         * aba da mesma pessoa, ou um reingresso depois de reconectar, nao muda
+         * a lista — e ninguem seria avisado, deixando as telas que perderam o
+         * evento anterior sem nada que as corrigisse. O evento carrega a lista
+         * INTEIRA, entao repetir custa quase nada e calar custa uma tela errada.
+         */
+        await anunciarPresencaDeVoz(payload.roomId);
       });
     socket.on("voice:join", entrar);
     socket.on("call:join", entrar);
