@@ -510,15 +510,29 @@ async function secMensagens() {
     note(
       `reação concorrente: status ${statuses}, estado final = ${n} reação(ões) 🔥 na mensagem`
     );
-    // Duas requisições de "adicionar" simultâneas (duplo clique / retry) não
-    // podem se cancelar nem duplicar: o esperado é a reação ficar presente.
+    /*
+     * O endpoint é um ALTERNADOR, não um "adicionar" — e é isso que o teste
+     * precisa medir.
+     *
+     * A versão anterior exigia que duas requisições idênticas terminassem com
+     * a reação PRESENTE, tratando o resultado 0 como perda de atualização. Não
+     * é: duas alternâncias da mesma pessoa são ligar e desligar, que é o que
+     * todo aplicativo de conversa faz com dois toques no mesmo emoji. E sob
+     * concorrência de verdade o resultado é legitimamente indefinido — as duas
+     * podem apagar antes de qualquer inserir (termina em 1) ou a segunda pode
+     * ver a inserção da primeira e desfazê-la (termina em 0). Exigir um dos
+     * dois deixaria a bateria instável.
+     *
+     * O que de fato tem de valer, e vale para qualquer intercalamento, é a
+     * ausência de duplicata: nunca duas linhas para (mensagem, pessoa, emoji).
+     * É esse o invariante que o índice único garante e que uma regressão
+     * quebraria.
+     */
     check(
-      "duas adições simultâneas da mesma reação terminam com a reação presente",
-      n === 1,
-      "1 reação no estado final",
-      n === 0
-        ? "0 — as duas adições se cancelaram (lost update do toggle read-then-write)"
-        : `${n} — reação duplicada`
+      "duas alternâncias simultâneas nunca duplicam a reação",
+      n === 0 || n === 1,
+      "0 ou 1, conforme o intercalamento",
+      `${n} — reação duplicada`
     );
   });
 

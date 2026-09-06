@@ -108,15 +108,28 @@ export async function callRoutes(app: FastifyInstance) {
      * existir para quem chegar depois.
      *
      * A presença se prende às CONEXÕES da pessoa, não ao pedido HTTP, porque é
-     * o `disconnect` de cada conexão que vai desfazê-la. Sem nenhuma conexão
-     * aberta (um cliente que só fala HTTP), sobra o TTL como saída.
+     * o `disconnect` de cada conexão que vai desfazê-la.
+     *
+     * Sem nenhuma conexão aberta, não se registra nada — e isso é deliberado.
+     * A versão anterior inventava uma conexão `http:<userId>` para esse caso,
+     * e ela virava órfã: nenhum `disconnect` a desfazia, então a pessoa ficava
+     * na sala por 90 segundos depois de ter ido embora, e a entrada seguinte
+     * "não mudava a lista" e deixava de avisar a sala. Um fantasma na barra
+     * lateral é exatamente o defeito que esta funcionalidade existe para
+     * resolver. Quem conecta o socket depois entra pelo evento `voice:join`.
      */
     const conexoes = await socketIdsOfUser(user.id);
-    let mudou = false;
-    for (const socketId of conexoes.length > 0 ? conexoes : [`http:${user.id}`]) {
-      if (await entrarNaVoz(id, user.id, socketId)) mudou = true;
+    for (const socketId of conexoes) {
+      await entrarNaVoz(id, user.id, socketId);
     }
-    if (mudou) await anunciarPresencaDeVoz(id);
+    /*
+     * Anuncia sempre que houve conexao para prender, e nao so quando a lista
+     * mudou. O evento leva a lista INTEIRA, entao repetir e barato; ja o
+     * contrario e caro: quem pede o token de novo depois de reconectar nao
+     * mudaria a lista, ninguem seria avisado, e as telas ficariam com uma
+     * versao antiga sem nada que as corrigisse.
+     */
+    if (conexoes.length > 0) await anunciarPresencaDeVoz(id);
 
     return {
       url: env.LIVEKIT_URL,
