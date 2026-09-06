@@ -68,7 +68,8 @@
         "installMode": "currentUser",
         "languages": [
           "PortugueseBR",
-          "English"
+          "English",
+          "Spanish"
         ],
         "displayLanguageSelector": true,
         "compression": "lzma"

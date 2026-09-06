@@ -516,3 +516,84 @@ esbarrou em limite de requisições. Medir com o bundle real antes de aprovar.
    herdado do Tauri v1 no `vite.config.ts` foi removido.
 4. **T4 (avatares):** continua marcada como risco alto — a decisão de *onde*
    exibir (D9) não resolve a ausência de fonte de verdade da presença.
+
+---
+
+# Execução — o que só apareceu ao implementar
+
+A pesquisa decidiu *o quê*. Esta parte registra o que a implementação revelou e
+que nenhuma leitura de documentação teria antecipado.
+
+## D7 (temas) — a paleta clara não podia ser derivada por inversão
+
+A primeira tentativa foi inverter a luminosidade da paleta escura em OKLCH,
+preservando matiz e croma. O resultado estava **errado por princípio**: em tema
+escuro a hierarquia de profundidade vem da luminosidade (quanto mais à frente,
+mais claro), e em tema claro ela vem de sombra, com a superfície de conteúdo
+praticamente branca — a regra do Material 3 e o que WhatsApp e Discord fazem.
+Invertida, a inversão deixaria o painel de conversas cinza e a caixa de texto
+branca, exatamente ao contrário do esperado.
+
+O que ficou: cinzas derivados da **matiz** do cinza-azulado da paleta escura
+(`#202c33`) em OKLCH, com o croma caindo perto do branco — sem essa queda o
+cinza vira azul-bebê, o que a primeira derivação produziu (`#ecf8ff`). Só um
+valor foi copiado: `#d9fdd3`, o verde do balão de saída, por ser assinatura do
+WhatsApp. Fonte do verde: <https://www.wwebcustomizer.com/blog/how-to-change-whatsapp-web-colors-2026>.
+
+Os neutros claros do WhatsApp **não** foram encontrados em fonte citável — a
+busca só confirmou o verde, e `web.whatsapp.com` não serve CSS sem sessão. Em
+vez de copiar hexes de memória, a paleta foi derivada por regra reproduzível e
+validada por **contraste WCAG medido**: 24 pares texto/fundo por tema, no teste,
+lendo o CSS de verdade.
+
+**Sub-decisão: a chamada continua escura no tema claro.** É o que o Discord faz.
+Moldura clara em volta de vídeo cria halo e atrapalha a leitura da imagem, e os
+ladrilhos de quem está com a câmera desligada são escuros de qualquer jeito.
+
+**Duas regressões que já existiam e só o tema claro expôs:**
+
+1. `.btn-primary:disabled` usava `opacity: .55`. Sobre painel escuro o verde
+   esmaece e lê como desabilitado; sobre painel branco vira um verde-menta que
+   continua parecendo clicável. Trocado por cinza explícito.
+2. A pintura do tema tem de ser **bloqueante no `index.html`**. Feita no
+   `main.tsx`, quem escolheu claro veria a tela escura por um quadro a cada
+   abertura.
+
+E uma pendência que virou fato: eram **47 cores literais fora do `:root`**, não
+45. Nenhuma delas trocaria junto com o tema — a troca produziria uma tela meio
+clara e meio escura. Hoje são zero, e um teste falha se voltar a aparecer uma.
+
+## D8 (i18n) — duas falhas silenciosas
+
+Ambas custaram tempo porque **não davam erro**:
+
+1. **Lingui v6 não funciona no Node 22.12** (um LTS). A extração sai com código
+   0, sem nenhuma saída e sem escrever catálogo. Causa: o v6 troca a biblioteca
+   `glob` pelo `fs.globSync` experimental do Node, cujo `exclude` só aceita array
+   em versões posteriores. Fixado no 5.9.5.
+2. **Passar o `t` como parâmetro de função quebra a extração.** O macro só
+   reconhece o `t` que vem do próprio `useLingui`; um `t` recebido por argumento
+   faz a mensagem sumir do catálogo sem aviso. Foi o que aconteceu com as tabelas
+   de rótulo — 18 mensagens sumiram. A forma correta para tabela é `msg` +
+   `i18n._()`.
+
+Registro os dois porque o modo de falhar é pior que a falha: um CLI que devolve 0
+e não escreve nada leva a procurar erro no próprio código por um bom tempo.
+
+## D2 (erros da API) — implementado, com um ponto fraco declarado
+
+O contrato ficou `{ error, code, params }`: `error` continua no corpo, então
+nenhum cliente antigo quebra e um `curl` segue legível. A tradução acontece
+**dentro do `api.ts`, no momento em que o erro é lançado** — e não em cada
+`catch`. É isso que faz as dezenas de telas que já mostram `err.message` passarem
+a falar três idiomas sem uma linha de mudança.
+
+**Ponto fraco:** as mensagens de validação do zod chegam ao `send` como texto
+solto, porque o `safeParse` monta a frase a partir do schema e o código não viaja
+junto. Uma tabela faz o caminho de volta, e o preço é ficar preso ao texto —
+mudar a frase no schema sem mudar a tabela derrubaria a tradução em silêncio.
+Por isso existe um teste que compara as duas listas, e outro que compara a união
+de códigos da API com o mapa do cliente: nada no TypeScript liga um ao outro.
+
+Verificado em produção: a API responde com `code`, os 227 testes de integração
+seguem passando, e um erro real de login aparece em português na tela.
