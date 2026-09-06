@@ -1,0 +1,1137 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-09-06 04:08-0300\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: pt\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#: src/ui/Call.tsx
+#: src/ui/Call.tsx
+msgid "(you)"
+msgstr "(você)"
+
+#. placeholder {0}: voicePresence[room.id]?.length ?? 0
+#: src/ui/Chat.tsx
+msgid "{0, plural, one {# connected} other {# connected}}"
+msgstr "{0, plural, one {# conectado} other {# conectados}}"
+
+#. placeholder {0}: room.memberCount
+#: src/ui/Chat.tsx
+msgid "{0, plural, one {# member} other {# members}}"
+msgstr "{0, plural, one {# membro} other {# membros}}"
+
+#. placeholder {0}: typing.length
+#: src/ui/Chat.tsx
+msgid "{0, plural, one {# person is typing…} other {# people are typing…}}"
+msgstr "{0, plural, one {# pessoa digitando…} other {# pessoas digitando…}}"
+
+#. placeholder {0}: chosen.length
+#: src/ui/Invites.tsx
+msgid "{0, plural, one {# person was added.} other {# people were added.}}"
+msgstr "{0, plural, one {# pessoa foi adicionada.} other {# pessoas foram adicionadas.}}"
+
+#: src/ui/Sidebar.tsx
+msgid "{inVoice, plural, one {# connected} other {# connected}}"
+msgstr "{inVoice, plural, one {# conectado} other {# conectados}}"
+
+#: src/ui/Invites.tsx
+msgid "{quem} was added."
+msgstr "{quem} foi adicionado."
+
+#: src/ui/Call.tsx
+msgid "{total, plural, one {# person connected} other {# people connected}}"
+msgstr "{total, plural, one {# pessoa conectada} other {# pessoas conectadas}}"
+
+#: src/ui/Settings.tsx
+msgid "A dark background all day."
+msgstr "Fundo escuro o dia todo."
+
+#: src/ui/Call.tsx
+msgid "A microphone or camera could not be opened — another app may be holding it."
+msgstr "Não foi possível abrir um microfone ou câmera — outro aplicativo pode estar usando."
+
+#: src/ui/Modals.tsx
+msgid "A space holds text channels and voice rooms, and everyone you invite sees all of them."
+msgstr "Um espaço reúne canais de texto e salas de voz, e todo mundo que você convidar vê todos eles."
+
+#: src/ui/Settings.tsx
+msgid "A white background all day."
+msgstr "Fundo branco o dia todo."
+
+#: src/ui/Settings.tsx
+msgid "About you"
+msgstr "Sobre você"
+
+#: src/ui/Settings.tsx
+msgid "Account"
+msgstr "Conta"
+
+#: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
+msgid "Add"
+msgstr "Adicionar"
+
+#. placeholder {0}: chosen.length
+#: src/ui/Invites.tsx
+msgid "Add {0}"
+msgstr "Adicionar {0}"
+
+#: src/ui/Sidebar.tsx
+msgid "Add a channel"
+msgstr "Adicionar um canal"
+
+#: src/ui/Invites.tsx
+msgid "Add people"
+msgstr "Adicionar pessoas"
+
+#: src/ui/Invites.tsx
+msgid "Adding…"
+msgstr "Adicionando…"
+
+#: src/ui/Sidebar.tsx
+msgid "All"
+msgstr "Todas"
+
+#: src/ui/DevicePicker.tsx
+msgid "Allow access above to choose a specific one."
+msgstr "Permita o acesso acima para escolher um específico."
+
+#: src/ui/DevicePicker.tsx
+msgid "Allow microphone and camera"
+msgstr "Permitir microfone e câmera"
+
+#: src/ui/DevicePicker.tsx
+#: src/ui/QuickDeviceMenu.tsx
+msgid "Allow the camera"
+msgstr "Permitir a câmera"
+
+#: src/ui/DevicePicker.tsx
+#: src/ui/QuickDeviceMenu.tsx
+msgid "Allow the microphone"
+msgstr "Permitir o microfone"
+
+#: src/ui/Auth.tsx
+msgid "Already have one? "
+msgstr "Já tem uma conta? "
+
+#: src/ui/Invites.tsx
+msgid "announcements"
+msgstr "avisos"
+
+#: src/ui/Invites.tsx
+msgid "Anyone with this link can join. Opening it signs them straight into the space — in the desktop app if they have it installed, in the browser if they do not."
+msgstr "Qualquer pessoa com este link pode entrar. Abrir o link já leva direto para o espaço — no aplicativo, se estiver instalado, ou no navegador, se não estiver."
+
+#: src/ui/Settings.tsx
+#: src/ui/Settings.tsx
+#: src/ui/Settings.tsx
+msgid "App"
+msgstr "Aplicativo"
+
+#: src/ui/Settings.tsx
+msgid "Appearance"
+msgstr "Aparência"
+
+#: src/ui/Auth.tsx
+msgid "at least 8 characters"
+msgstr "pelo menos 8 caracteres"
+
+#: src/ui/Chat.tsx
+msgid "Attach a file"
+msgstr "Anexar um arquivo"
+
+#: src/ui/Chat.tsx
+#: src/ui/Sidebar.tsx
+msgid "Attachment"
+msgstr "Anexo"
+
+#: src/ui/Sidebar.tsx
+msgid "Audio"
+msgstr "Áudio"
+
+#: src/ui/Call.tsx
+msgid "Audio and video"
+msgstr "Áudio e vídeo"
+
+#: src/ui/Call.tsx
+msgid "Audio and video devices"
+msgstr "Dispositivos de áudio e vídeo"
+
+#: src/ui/Call.tsx
+msgid "away"
+msgstr "fora"
+
+#: src/ui/Settings.tsx
+msgid "Back"
+msgstr "Voltar"
+
+#: src/ui/Chat.tsx
+msgid "Back to conversations"
+msgstr "Voltar para as conversas"
+
+#: src/ui/Call.tsx
+msgid "Call"
+msgstr "Chamada"
+
+#: src/ui/DevicePicker.tsx
+#: src/ui/QuickDeviceMenu.tsx
+#: src/ui/QuickDeviceMenu.tsx
+msgid "Camera"
+msgstr "Câmera"
+
+#: src/ui/Call.tsx
+#: src/ui/Call.tsx
+msgid "Camera options"
+msgstr "Opções de câmera"
+
+#: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
+#: src/ui/Modals.tsx
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: src/ui/Chat.tsx
+msgid "Cancel reply"
+msgstr "Cancelar resposta"
+
+#: src/ui/Settings.tsx
+msgid "Categories"
+msgstr "Categorias"
+
+#: src/ui/Settings.tsx
+msgid "Change"
+msgstr "Trocar"
+
+#: src/ui/Settings.tsx
+#: src/ui/Settings.tsx
+msgid "Change your photo"
+msgstr "Trocar sua foto"
+
+#: src/ui/Invites.tsx
+msgid "Channel {nome} created."
+msgstr "Canal {nome} criado."
+
+#: src/ui/Sidebar.tsx
+msgid "Chats"
+msgstr "Conversas"
+
+#: src/ui/Call.tsx
+#: src/ui/Modals.tsx
+#: src/ui/Settings.tsx
+#: src/ui/Settings.tsx
+msgid "Close"
+msgstr "Fechar"
+
+#: src/ui/Call.tsx
+msgid "Close devices"
+msgstr "Fechar dispositivos"
+
+#: src/ui/Chat.tsx
+msgid "Close search"
+msgstr "Fechar a busca"
+
+#: src/ui/Call.tsx
+msgid "Connecting…"
+msgstr "Conectando…"
+
+#: src/ui/InviteGate.tsx
+msgid "Continue in the browser"
+msgstr "Continuar no navegador"
+
+#: src/ui/Chat.tsx
+#: src/ui/Sidebar.tsx
+msgid "Conversation"
+msgstr "Conversa"
+
+#: src/ui/Chat.tsx
+msgid "Conversation muted."
+msgstr "Conversa silenciada."
+
+#: src/ui/Sidebar.tsx
+msgid "Conversations"
+msgstr "Conversas"
+
+#: src/ui/Invites.tsx
+msgid "Copied."
+msgstr "Copiado."
+
+#: src/ui/Invites.tsx
+msgid "Copy"
+msgstr "Copiar"
+
+#: src/ui/Call.tsx
+msgid "Could not connect"
+msgstr "Não foi possível conectar"
+
+#: src/ui/Invites.tsx
+msgid "Create"
+msgstr "Criar"
+
+#: src/ui/Sidebar.tsx
+msgid "Create a group"
+msgstr "Criar um grupo"
+
+#: src/ui/Auth.tsx
+msgid "Create account"
+msgstr "Criar conta"
+
+#: src/ui/Auth.tsx
+msgid "Create an account to get started."
+msgstr "Crie uma conta para começar."
+
+#: src/ui/Auth.tsx
+msgid "Create one"
+msgstr "Criar uma"
+
+#: src/ui/Sidebar.tsx
+msgid "Create or join a space"
+msgstr "Criar ou entrar num espaço"
+
+#: src/ui/Modals.tsx
+msgid "Create space"
+msgstr "Criar espaço"
+
+#. placeholder {0}: chosen.length
+#: src/ui/Invites.tsx
+msgid "Create with {0}"
+msgstr "Criar com {0}"
+
+#: src/ui/Settings.tsx
+msgid "Dark"
+msgstr "Escuro"
+
+#: src/ui/Modals.tsx
+msgid "Design team"
+msgstr "Time de design"
+
+#: src/ui/Call.tsx
+msgid "Devices"
+msgstr "Dispositivos"
+
+#: src/ui/Toasts.tsx
+msgid "Dismiss"
+msgstr "Dispensar"
+
+#: src/ui/Settings.tsx
+msgid "Display name"
+msgstr "Nome de exibição"
+
+#: src/ui/Sidebar.tsx
+msgid "Document"
+msgstr "Documento"
+
+#: src/ui/InviteGate.tsx
+msgid "Don't have the desktop app yet? <0>Download it for Windows</0>"
+msgstr "Ainda não tem o aplicativo? <0>Baixe para Windows</0>"
+
+#: src/ui/Invites.tsx
+msgid "Done"
+msgstr "Pronto"
+
+#: src/ui/Chat.tsx
+msgid "edited"
+msgstr "editada"
+
+#: src/ui/Auth.tsx
+msgid "Email"
+msgstr "E-mail"
+
+#: src/ui/Auth.tsx
+msgid "Email or username"
+msgstr "E-mail ou nome de usuário"
+
+#: src/ui/EmojiPicker.tsx
+msgid "Faces"
+msgstr "Rostos"
+
+#: src/ui/Chat.tsx
+#: src/ui/Chat.tsx
+msgid "Find in this conversation"
+msgstr "Buscar nesta conversa"
+
+#: src/ui/Settings.tsx
+msgid "Follows the light or dark mode of your system."
+msgstr "Acompanha o modo claro ou escuro do sistema."
+
+#: src/ui/Invites.tsx
+msgid "Group {grupo} created."
+msgstr "Grupo {grupo} criado."
+
+#: src/ui/Invites.tsx
+msgid "Group name"
+msgstr "Nome do grupo"
+
+#: src/ui/EmojiPicker.tsx
+msgid "Hands"
+msgstr "Mãos"
+
+#: src/ui/Modals.tsx
+msgid "Have an invite code?"
+msgstr "Tem um código de convite?"
+
+#: src/ui/Call.tsx
+msgid "Hold on while the connection is set up."
+msgstr "Aguarde enquanto a conexão é estabelecida."
+
+#: src/ui/Chat.tsx
+msgid "How to invite people"
+msgstr "Como convidar pessoas"
+
+#: src/ui/QuickDeviceMenu.tsx
+msgid "Input device"
+msgstr "Dispositivo de entrada"
+
+#: src/ui/DevicePicker.tsx
+msgid "Input level"
+msgstr "Nível de entrada"
+
+#: src/ui/Chat.tsx
+msgid "Insert an emoji"
+msgstr "Inserir um emoji"
+
+#: src/ui/Invites.tsx
+msgid "Invite code"
+msgstr "Código de convite"
+
+#: src/ui/Invites.tsx
+msgid "Invite link"
+msgstr "Link de convite"
+
+#: src/ui/Sidebar.tsx
+msgid "Invite people and add channels"
+msgstr "Convidar pessoas e adicionar canais"
+
+#: src/ui/Sidebar.tsx
+msgid "Invite people to this space"
+msgstr "Convide pessoas para este espaço"
+
+#: src/ui/Modals.tsx
+msgid "Join that space"
+msgstr "Entrar nesse espaço"
+
+#: src/ui/Settings.tsx
+#: src/ui/Settings.tsx
+msgid "Language"
+msgstr "Idioma"
+
+#: src/ui/Call.tsx
+msgid "Leave"
+msgstr "Sair"
+
+#: src/ui/Call.tsx
+msgid "Leave the call"
+msgstr "Sair da chamada"
+
+#: src/ui/Chat.tsx
+msgid "Leave this group"
+msgstr "Sair deste grupo"
+
+#: src/ui/Invites.tsx
+msgid "Leave this space"
+msgstr "Sair deste espaço"
+
+#. placeholder {0}: space.name
+#: src/ui/Invites.tsx
+msgid "Leaving takes you out of every channel in <0>{0}</0>. What you have written stays where it is, and you can come back with the invite code."
+msgstr "Sair tira você de todos os canais de <0>{0}</0>. O que você escreveu continua onde está, e dá para voltar com o código de convite."
+
+#: src/ui/Invites.tsx
+msgid "Leaving…"
+msgstr "Saindo…"
+
+#: src/ui/Settings.tsx
+msgid "Light"
+msgstr "Claro"
+
+#: src/ui/Chat.tsx
+msgid "Loading earlier messages…"
+msgstr "Carregando mensagens anteriores…"
+
+#: src/ui/Invites.tsx
+msgid "Lounge"
+msgstr "Sala de estar"
+
+#: src/ui/Auth.tsx
+msgid "lowercase, no spaces"
+msgstr "minúsculas, sem espaços"
+
+#: src/ui/Invites.tsx
+msgid "Members"
+msgstr "Membros"
+
+#: src/ui/Chat.tsx
+msgid "Message deleted"
+msgstr "Mensagem apagada"
+
+#: src/ui/Sidebar.tsx
+msgid "Message someone"
+msgstr "Conversar com alguém"
+
+#: src/ui/Chat.tsx
+msgid "Message this voice room"
+msgstr "Escrever nesta sala de voz"
+
+#: src/ui/Chat.tsx
+msgid "Messages travel over an encrypted connection. Calls run through your own LiveKit server."
+msgstr "As mensagens trafegam por uma conexão criptografada. As chamadas passam pelo seu próprio servidor LiveKit."
+
+#: src/ui/DevicePicker.tsx
+#: src/ui/QuickDeviceMenu.tsx
+msgid "Microphone"
+msgstr "Microfone"
+
+#: src/ui/Call.tsx
+#: src/ui/Call.tsx
+msgid "Microphone off"
+msgstr "Microfone desligado"
+
+#: src/ui/Call.tsx
+msgid "Microphone on"
+msgstr "Microfone ligado"
+
+#: src/ui/Call.tsx
+#: src/ui/Call.tsx
+msgid "Microphone options"
+msgstr "Opções de microfone"
+
+#: src/ui/Call.tsx
+msgid "Minimise — the call keeps running and you go back to the messages"
+msgstr "Minimizar — a chamada continua e você volta para as mensagens"
+
+#: src/ui/Chat.tsx
+msgid "More options"
+msgstr "Mais opções"
+
+#: src/ui/Call.tsx
+msgid "Mute"
+msgstr "Silenciar"
+
+#: src/ui/Chat.tsx
+msgid "Mute notifications"
+msgstr "Silenciar notificações"
+
+#: src/ui/Sidebar.tsx
+msgid "Muted"
+msgstr "Silenciada"
+
+#: src/ui/Settings.tsx
+msgid "My account"
+msgstr "Minha conta"
+
+#: src/ui/Modals.tsx
+msgid "Name"
+msgstr "Nome"
+
+#: src/ui/Invites.tsx
+msgid "New channel"
+msgstr "Novo canal"
+
+#: src/ui/Modals.tsx
+msgid "New chat"
+msgstr "Nova conversa"
+
+#: src/ui/Invites.tsx
+msgid "New group"
+msgstr "Novo grupo"
+
+#: src/ui/Modals.tsx
+msgid "New space"
+msgstr "Novo espaço"
+
+#: src/ui/Auth.tsx
+msgid "No account yet? "
+msgstr "Ainda não tem conta? "
+
+#: src/ui/Call.tsx
+msgid "No camera found. You joined with audio only."
+msgstr "Nenhuma câmera encontrada. Você entrou só com áudio."
+
+#: src/ui/DevicePicker.tsx
+#: src/ui/QuickDeviceMenu.tsx
+msgid "No camera was found — the system default will be used."
+msgstr "Nenhuma câmera foi encontrada — será usada a padrão do sistema."
+
+#: src/ui/Sidebar.tsx
+msgid "No conversations yet."
+msgstr "Nenhuma conversa ainda."
+
+#: src/ui/Sidebar.tsx
+msgid "No messages yet"
+msgstr "Nenhuma mensagem ainda"
+
+#: src/ui/Call.tsx
+msgid "No microphone found. You can hear everyone, but they cannot hear you."
+msgstr "Nenhum microfone encontrado. Você ouve todo mundo, mas ninguém ouve você."
+
+#: src/ui/DevicePicker.tsx
+#: src/ui/QuickDeviceMenu.tsx
+msgid "No microphone was found — the system default will be used."
+msgstr "Nenhum microfone foi encontrado — será usado o padrão do sistema."
+
+#: src/ui/DevicePicker.tsx
+msgid "No speaker was found — the system default will be used."
+msgstr "Nenhuma saída de som foi encontrada — será usada a padrão do sistema."
+
+#: src/ui/Call.tsx
+msgid "Nobody else has joined yet. They will see this call in the conversation."
+msgstr "Ninguém mais entrou ainda. As pessoas vão ver esta chamada na conversa."
+
+#: src/ui/Invites.tsx
+#: src/ui/Modals.tsx
+msgid "Nobody here goes by that."
+msgstr "Ninguém aqui atende por esse nome."
+
+#: src/ui/Sidebar.tsx
+msgid "Nobody here right now"
+msgstr "Ninguém aqui agora"
+
+#: src/ui/Call.tsx
+msgid "Not in the call"
+msgstr "Fora da chamada"
+
+#: src/ui/Chat.tsx
+msgid "Not sent. Check your connection."
+msgstr "Não enviada. Verifique sua conexão."
+
+#: src/ui/InviteGate.tsx
+msgid "Nothing happened? The app is probably not installed on this machine — use the browser below, or install it first."
+msgstr "Não aconteceu nada? O aplicativo provavelmente não está instalado nesta máquina — use o navegador abaixo, ou instale-o antes."
+
+#: src/ui/Sidebar.tsx
+msgid "Nothing here matches that."
+msgstr "Nada aqui corresponde a isso."
+
+#: src/ui/Chat.tsx
+msgid "Notifications turned back on."
+msgstr "Notificações religadas."
+
+#: src/ui/Chat.tsx
+msgid "offline"
+msgstr "offline"
+
+#: src/ui/Auth.tsx
+#: src/ui/Invites.tsx
+#: src/ui/Modals.tsx
+msgid "One moment…"
+msgstr "Um momento…"
+
+#: src/ui/Chat.tsx
+msgid "online"
+msgstr "online"
+
+#: src/ui/InviteGate.tsx
+msgid "Open in the WhatsCord app"
+msgstr "Abrir no aplicativo WhatsCord"
+
+#: src/ui/Call.tsx
+msgid "Open the call"
+msgstr "Abrir a chamada"
+
+#: src/ui/Chat.tsx
+msgid "Open the space from the left rail to invite people."
+msgstr "Abra o espaço na barra da esquerda para convidar pessoas."
+
+#: src/App.tsx
+msgid "Opening the call…"
+msgstr "Abrindo a chamada…"
+
+#: src/App.tsx
+msgid "Opening WhatsCord…"
+msgstr "Abrindo o WhatsCord…"
+
+#: src/ui/Settings.tsx
+msgid "Optional"
+msgstr "Opcional"
+
+#: src/ui/Invites.tsx
+msgid "Or send just the code, for someone who would rather type it under <0>New space → Have an invite code?</0>"
+msgstr "Ou mande só o código, para quem preferir digitá-lo em <0>Novo espaço → Tem um código de convite?</0>"
+
+#: src/ui/Auth.tsx
+#: src/ui/Auth.tsx
+msgid "Password"
+msgstr "Senha"
+
+#: src/ui/Sidebar.tsx
+msgid "Photo"
+msgstr "Foto"
+
+#: src/ui/Settings.tsx
+msgid "Photo removed."
+msgstr "Foto removida."
+
+#: src/ui/Settings.tsx
+msgid "Photo updated."
+msgstr "Foto atualizada."
+
+#: src/ui/Chat.tsx
+msgid "Pick a conversation on the left, or start one. Voice rooms sit in the same list — open one and press the call button in the header to join whoever is there."
+msgstr "Escolha uma conversa à esquerda, ou comece uma. As salas de voz ficam na mesma lista — abra uma e toque no botão de chamada no topo para entrar com quem estiver lá."
+
+#: src/ui/Sidebar.tsx
+msgid "Places"
+msgstr "Lugares"
+
+#: src/ui/DevicePicker.tsx
+msgid "Play a sound when someone joins or leaves a call"
+msgstr "Tocar um som quando alguém entrar ou sair de uma chamada"
+
+#: src/ui/DevicePicker.tsx
+msgid "Play a test sound"
+msgstr "Tocar um som de teste"
+
+#: src/ui/Settings.tsx
+msgid "Profile saved."
+msgstr "Perfil salvo."
+
+#: src/ui/Chat.tsx
+msgid "React"
+msgstr "Reagir"
+
+#: src/ui/Chat.tsx
+msgid "React to this message"
+msgstr "Reagir a esta mensagem"
+
+#: src/ui/EmojiPicker.tsx
+msgid "React with {e}"
+msgstr "Reagir com {e}"
+
+#: src/ui/EmojiPicker.tsx
+msgid "Reactions"
+msgstr "Reações"
+
+#: src/ui/Call.tsx
+msgid "Reconnecting…"
+msgstr "Reconectando…"
+
+#: src/ui/Chat.tsx
+#: src/ui/Invites.tsx
+msgid "Remove"
+msgstr "Remover"
+
+#: src/ui/Settings.tsx
+msgid "Remove photo"
+msgstr "Remover foto"
+
+#: src/ui/Chat.tsx
+msgid "Remove your reaction"
+msgstr "Remover sua reação"
+
+#: src/ui/Chat.tsx
+msgid "Reply to this message"
+msgstr "Responder a esta mensagem"
+
+#: src/ui/Settings.tsx
+#: src/ui/Settings.tsx
+msgid "Same as device"
+msgstr "Igual ao dispositivo"
+
+#: src/ui/Settings.tsx
+msgid "Save changes"
+msgstr "Salvar alterações"
+
+#: src/ui/Settings.tsx
+#: src/ui/Settings.tsx
+msgid "Saving…"
+msgstr "Salvando…"
+
+#: src/ui/Call.tsx
+msgid "screen"
+msgstr "tela"
+
+#: src/ui/Call.tsx
+msgid "Screen sharing"
+msgstr "Compartilhamento de tela"
+
+#: src/ui/Call.tsx
+msgid "Screen sharing could not start."
+msgstr "Não foi possível começar a compartilhar a tela."
+
+#: src/ui/Call.tsx
+msgid "Screen sharing is not available on this device — Android's WebView cannot capture the screen."
+msgstr "Compartilhar a tela não está disponível neste aparelho — a WebView do Android não consegue capturar a tela."
+
+#: src/ui/Invites.tsx
+#: src/ui/Modals.tsx
+msgid "Search by name or username"
+msgstr "Buscar por nome ou nome de usuário"
+
+#: src/ui/Sidebar.tsx
+#: src/ui/Sidebar.tsx
+msgid "Search conversations"
+msgstr "Buscar conversas"
+
+#: src/ui/Chat.tsx
+msgid "Search in this conversation"
+msgstr "Buscar nesta conversa"
+
+#: src/ui/Invites.tsx
+#: src/ui/Modals.tsx
+msgid "Search people"
+msgstr "Buscar pessoas"
+
+#: src/ui/Chat.tsx
+msgid "Send"
+msgstr "Enviar"
+
+#: src/ui/Settings.tsx
+msgid "Settings"
+msgstr "Configurações"
+
+#: src/ui/Call.tsx
+msgid "Share screen"
+msgstr "Compartilhar tela"
+
+#: src/ui/Call.tsx
+msgid "Sharing without sound. To include it, share again and tick “Also share tab audio” (or “Share system audio”) in the browser's dialog — Chrome on Windows only offers it for a tab or a whole screen, not a single window."
+msgstr "Compartilhando sem som. Para incluí-lo, compartilhe de novo e marque “Compartilhar áudio da guia” (ou “Compartilhar áudio do sistema”) na janela do navegador — no Windows o Chrome só oferece isso para uma guia ou a tela inteira, não para uma única janela."
+
+#: src/ui/Call.tsx
+msgid "Sharpest for code, documents and spreadsheets. 15 frames per second."
+msgstr "Mais nítido para código, documentos e planilhas. 15 quadros por segundo."
+
+#: src/ui/Auth.tsx
+#: src/ui/Auth.tsx
+msgid "Sign in"
+msgstr "Entrar"
+
+#: src/ui/Auth.tsx
+msgid "Sign in to pick up where you left off."
+msgstr "Entre para continuar de onde parou."
+
+#: src/ui/Settings.tsx
+msgid "Sign out"
+msgstr "Sair da conta"
+
+#: src/ui/Settings.tsx
+msgid "Signed out."
+msgstr "Sessão encerrada."
+
+#: src/ui/Settings.tsx
+msgid "Signing out clears this session on this device. Anything you sent stays where it is."
+msgstr "Sair da conta encerra esta sessão neste aparelho. O que você enviou continua onde está."
+
+#: src/ui/Call.tsx
+msgid "Smoother for video and games, at the cost of some sharpness. 30 frames per second."
+msgstr "Mais fluido para vídeo e jogos, com alguma perda de nitidez. 30 quadros por segundo."
+
+#: src/ui/Call.tsx
+#: src/ui/Call.tsx
+#: src/ui/Chat.tsx
+msgid "Someone"
+msgstr "Alguém"
+
+#: src/ui/Sidebar.tsx
+msgid "Space"
+msgstr "Espaço"
+
+#: src/ui/DevicePicker.tsx
+msgid "Speak — the bar should move."
+msgstr "Fale — a barra deve se mexer."
+
+#: src/ui/DevicePicker.tsx
+msgid "Speaker"
+msgstr "Saída de som"
+
+#: src/ui/Chat.tsx
+msgid "Start a video call"
+msgstr "Iniciar uma chamada de vídeo"
+
+#: src/ui/Chat.tsx
+msgid "Start a voice call"
+msgstr "Iniciar uma chamada de voz"
+
+#: src/ui/Sidebar.tsx
+msgid "Start something new"
+msgstr "Começar algo novo"
+
+#: src/ui/Call.tsx
+msgid "Start video"
+msgstr "Ligar vídeo"
+
+#: src/ui/Call.tsx
+msgid "Stop sharing"
+msgstr "Parar de compartilhar"
+
+#: src/ui/DevicePicker.tsx
+msgid "Stop test"
+msgstr "Parar o teste"
+
+#: src/ui/Call.tsx
+msgid "Stop video"
+msgstr "Desligar vídeo"
+
+#: src/ui/DevicePicker.tsx
+#: src/ui/QuickDeviceMenu.tsx
+msgid "System default"
+msgstr "Padrão do sistema"
+
+#: src/ui/DevicePicker.tsx
+msgid "Test microphone"
+msgstr "Testar microfone"
+
+#: src/ui/Invites.tsx
+msgid "Text"
+msgstr "Texto"
+
+#: src/ui/Call.tsx
+msgid "Text and detail"
+msgstr "Texto e detalhe"
+
+#: src/ui/Sidebar.tsx
+msgid "Text channels"
+msgstr "Canais de texto"
+
+#: src/ui/Invites.tsx
+msgid "That channel could not be created."
+msgstr "Não foi possível criar esse canal."
+
+#: src/ui/Chat.tsx
+msgid "That could not be changed."
+msgstr "Não foi possível alterar isso."
+
+#: src/ui/Settings.tsx
+msgid "That could not be saved."
+msgstr "Não foi possível salvar isso."
+
+#: src/ui/DevicePicker.tsx
+#: src/ui/QuickDeviceMenu.tsx
+msgid "That device could not be opened — it may be in use by another app."
+msgstr "Não foi possível abrir esse dispositivo — outro aplicativo pode estar usando."
+
+#: src/ui/Modals.tsx
+msgid "That did not work."
+msgstr "Isso não funcionou."
+
+#: src/ui/Auth.tsx
+msgid "That did not work. Try again."
+msgstr "Isso não funcionou. Tente de novo."
+
+#: src/ui/Chat.tsx
+msgid "That file could not be uploaded."
+msgstr "Não foi possível enviar esse arquivo."
+
+#: src/ui/Invites.tsx
+msgid "That group could not be created."
+msgstr "Não foi possível criar esse grupo."
+
+#: src/App.tsx
+#: src/ui/Modals.tsx
+msgid "That invite did not work."
+msgstr "Esse convite não funcionou."
+
+#: src/ui/Settings.tsx
+msgid "That photo could not be removed."
+msgstr "Não foi possível remover essa foto."
+
+#: src/ui/Settings.tsx
+msgid "That photo could not be saved."
+msgstr "Não foi possível salvar essa foto."
+
+#: src/ui/DevicePicker.tsx
+msgid "That speaker could not be used. The call is still on the previous one."
+msgstr "Não foi possível usar essa saída de som. A chamada continua na anterior."
+
+#: src/ui/Call.tsx
+msgid "The browser blocked your microphone or camera. Allow it in the address bar, then try again."
+msgstr "O navegador bloqueou seu microfone ou câmera. Permita na barra de endereços e tente de novo."
+
+#: src/ui/QuickDeviceMenu.tsx
+msgid "The browser has not given access yet, so the devices have no names."
+msgstr "O navegador ainda não deu acesso, então os dispositivos aparecem sem nome."
+
+#: src/ui/DevicePicker.tsx
+msgid "The browser hides your microphones and cameras until it has been given access once."
+msgstr "O navegador esconde seus microfones e câmeras até receber permissão uma vez."
+
+#: src/ui/Call.tsx
+msgid "The call could not connect. Check that the server is reachable."
+msgstr "A chamada não conseguiu conectar. Verifique se o servidor está acessível."
+
+#: src/ui/Call.tsx
+msgid "The device you picked is not there any more. Choose another under Devices."
+msgstr "O dispositivo escolhido não está mais aí. Escolha outro em Dispositivos."
+
+#: src/ui/Call.tsx
+msgid "The new setting applies the next time you start sharing."
+msgstr "A nova configuração vale a partir do próximo compartilhamento."
+
+#: src/ui/Settings.tsx
+#: src/ui/Settings.tsx
+msgid "Theme"
+msgstr "Tema"
+
+#: src/ui/Invites.tsx
+msgid "They could not be added."
+msgstr "Não foi possível adicioná-las."
+
+#: src/ui/EmojiPicker.tsx
+msgid "Things"
+msgstr "Coisas"
+
+#: src/ui/DevicePicker.tsx
+msgid "This browser always uses the system's default speaker; change it in the operating system's sound settings."
+msgstr "Este navegador sempre usa a saída de som padrão do sistema; troque nas configurações de som do sistema operacional."
+
+#: src/ui/Chat.tsx
+msgid "This is the start of the conversation"
+msgstr "Este é o começo da conversa"
+
+#: src/ui/Chat.tsx
+msgid "This message was deleted"
+msgstr "Esta mensagem foi apagada"
+
+#: src/ui/Sidebar.tsx
+msgid "This space has no channels yet."
+msgstr "Este espaço ainda não tem canais."
+
+#: src/ui/Chat.tsx
+msgid "Type a message"
+msgstr "Escreva uma mensagem"
+
+#: src/ui/Chat.tsx
+#: src/ui/Chat.tsx
+msgid "typing…"
+msgstr "digitando…"
+
+#: src/ui/Call.tsx
+msgid "Unmute"
+msgstr "Reativar som"
+
+#: src/ui/Chat.tsx
+msgid "Unmute notifications"
+msgstr "Reativar notificações"
+
+#: src/ui/Sidebar.tsx
+msgid "Unread"
+msgstr "Não lidas"
+
+#: src/ui/Auth.tsx
+msgid "Username"
+msgstr "Nome de usuário"
+
+#: src/ui/Sidebar.tsx
+msgid "Video"
+msgstr "Vídeo"
+
+#: src/ui/Call.tsx
+msgid "Video and motion"
+msgstr "Vídeo e movimento"
+
+#: src/ui/QuickDeviceMenu.tsx
+msgid "Video settings"
+msgstr "Configurações de vídeo"
+
+#: src/ui/Invites.tsx
+msgid "Voice"
+msgstr "Voz"
+
+#: src/ui/Settings.tsx
+msgid "Voice and video"
+msgstr "Voz e vídeo"
+
+#: src/ui/Sidebar.tsx
+msgid "Voice channels"
+msgstr "Canais de voz"
+
+#: src/ui/Chat.tsx
+msgid "Voice room — press the call button above to join"
+msgstr "Sala de voz — toque no botão de chamada acima para entrar"
+
+#: src/ui/Invites.tsx
+msgid "Voice room {nome} created."
+msgstr "Sala de voz {nome} criada."
+
+#: src/ui/QuickDeviceMenu.tsx
+msgid "Voice settings"
+msgstr "Configurações de voz"
+
+#: src/ui/Call.tsx
+msgid "Weak connection"
+msgstr "Conexão fraca"
+
+#: src/ui/Invites.tsx
+msgid "Weekend plans"
+msgstr "Planos do fim de semana"
+
+#: src/ui/Call.tsx
+msgid "Who is on the call"
+msgstr "Quem está na chamada"
+
+#: src/ui/Chat.tsx
+msgid "Write something first"
+msgstr "Escreva algo primeiro"
+
+#: src/ui/Invites.tsx
+msgid "Yes, leave"
+msgstr "Sim, sair"
+
+#: src/ui/Call.tsx
+msgid "You"
+msgstr "Você"
+
+#: src/ui/Call.tsx
+msgid "You are connected."
+msgstr "Você está conectado."
+
+#: src/ui/Call.tsx
+msgid "You are the only one here"
+msgstr "Você é a única pessoa aqui"
+
+#: src/ui/Chat.tsx
+msgid "You could not leave that conversation."
+msgstr "Não foi possível sair dessa conversa."
+
+#: src/ui/Invites.tsx
+msgid "You could not leave that space."
+msgstr "Não foi possível sair desse espaço."
+
+#: src/ui/InviteGate.tsx
+msgid "You have been invited to a space."
+msgstr "Você foi convidado para um espaço."
+
+#. placeholder {0}: space.name
+#: src/ui/Invites.tsx
+msgid "You left {0}."
+msgstr "Você saiu de {0}."
+
+#. placeholder {0}: space.name
+#: src/ui/Invites.tsx
+msgid "You left {0}. Nobody was left, so the space is gone."
+msgstr "Você saiu de {0}. Não sobrou ninguém, então o espaço deixou de existir."
+
+#: src/ui/Auth.tsx
+msgid "You were invited to a space. Create your account and you will be taken straight in."
+msgstr "Você foi convidado para um espaço. Crie sua conta e você entra direto."
+
+#: src/ui/Auth.tsx
+msgid "You were invited to a space. Sign in and you will be taken straight in."
+msgstr "Você foi convidado para um espaço. Entre e você vai direto para lá."
+
+#: src/ui/Call.tsx
+msgid "Your camera could not be turned on. Check the browser's permission."
+msgstr "Não foi possível ligar sua câmera. Verifique a permissão do navegador."
+
+#: src/ui/DevicePicker.tsx
+msgid "Your cameras are visible, but the microphone still needs permission — until then it cannot be picked."
+msgstr "Suas câmeras estão visíveis, mas o microfone ainda precisa de permissão — até lá não dá para escolhê-lo."
+
+#: src/ui/Call.tsx
+msgid "Your microphone could not be turned on. Check the browser's permission."
+msgstr "Não foi possível ligar seu microfone. Verifique a permissão do navegador."
+
+#: src/ui/DevicePicker.tsx
+msgid "Your microphones are visible, but the camera still needs permission — until then it cannot be picked."
+msgstr "Seus microfones estão visíveis, mas a câmera ainda precisa de permissão — até lá não dá para escolhê-la."
+
+#: src/ui/Auth.tsx
+msgid "Your name"
+msgstr "Seu nome"

@@ -180,6 +180,43 @@ fn deliver_deep_links<R: tauri::Runtime>(app: &tauri::AppHandle<R>, urls: Vec<St
 // ---------------------------------------------------------------------------
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+/**
+ * Entrega o idioma do SISTEMA para a pagina, antes de qualquer script dela.
+ *
+ * Dentro da WebView2 do Windows, `navigator.language` NAO reflete de forma
+ * confiavel a configuracao do sistema (wry#442). Sem perguntar ao SO pelo lado
+ * nativo, o app instalado numa maquina em portugues pode abrir em ingles — e
+ * essa e a primeira impressao do produto.
+ *
+ * Precisa ser `js_init_script` e nao um comando: um comando so responde depois
+ * que a pagina carregou, e ai a primeira tela ja saiu no idioma errado e
+ * trocaria no quadro seguinte. O script de inicializacao roda ANTES do HTML,
+ * entao quando o `main.tsx` for decidir o idioma o valor ja esta la.
+ *
+ * Se o SO nao souber dizer, nada e injetado e a pagina cai sozinha para
+ * `navigator.languages` — a cascata do lado do cliente ja trata a ausencia.
+ */
+/*
+ * Concreto em `Wry` de proposito, e nao generico sobre `R: Runtime`. Generico,
+ * o `R` so era inferivel no desktop: no Android o bloco `#[cfg(desktop)]` some,
+ * o `builder` deixa de ser reatribuido e a inferencia perde a ancora — o build
+ * para Android quebrava com E0283. `Wry` e o unico runtime que este app usa.
+ */
+fn locale_do_sistema() -> tauri::plugin::TauriPlugin<tauri::Wry> {
+    let mut builder = tauri::plugin::Builder::new("wc-locale");
+
+    if let Some(tag) = sys_locale::get_locale() {
+        // `serde_json` escapa a etiqueta antes de ela virar codigo. Uma etiqueta
+        // BCP 47 nao deveria conter aspas, mas ela vem do SISTEMA OPERACIONAL e
+        // nao de nos; interpolar direto seria confiar num valor externo dentro
+        // de um script.
+        let literal = serde_json::to_string(&tag).unwrap_or_else(|_| "null".into());
+        builder = builder.js_init_script(format!("window.__WC_LOCALE__ = {literal};"));
+    }
+
+    builder.build()
+}
+
 pub fn run() {
     let mut builder = tauri::Builder::default();
 
@@ -214,6 +251,7 @@ pub fn run() {
     }
 
     builder
+        .plugin(locale_do_sistema())
         .plugin(tauri_plugin_deep_link::init())
         .setup(|_app| {
             /*

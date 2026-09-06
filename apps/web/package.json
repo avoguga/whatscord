@@ -6,9 +6,13 @@
   "scripts": {
     "dev": "vite --port 5173 --strictPort",
     "build": "tsc -b && vite build",
-    "preview": "vite preview --port 4173"
+    "preview": "vite preview --port 4173",
+    "extract": "lingui extract",
+    "compile": "lingui compile"
   },
   "dependencies": {
+    "@lingui/core": "~5.9.5",
+    "@lingui/react": "~5.9.5",
     "@tanstack/react-virtual": "^3.11.2",
     "livekit-client": "^2.9.0",
     "react": "^19.0.0",
@@ -17,6 +21,10 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@lingui/babel-plugin-lingui-macro": "~5.9.5",
+    "@lingui/cli": "~5.9.5",
+    "@lingui/format-po": "~5.9.5",
+    "@lingui/vite-plugin": "~5.9.5",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.3.4",

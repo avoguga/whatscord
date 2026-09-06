@@ -5,6 +5,8 @@ import { useStore, type User } from "../store";
 import { Avatar } from "./Avatar";
 import { IconSearch, IconCopy, IconCheck, IconClose } from "./icons";
 import { Scrim } from "./Scrim";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { plural } from "@lingui/core/macro";
 
 /*
  * Getting people in.
@@ -17,6 +19,7 @@ import { Scrim } from "./Scrim";
 
 /** Copies to the clipboard and confirms in place, the way a copy button should. */
 function CopyField({ value, label }: { value: string; label: string }) {
+  const { t } = useLingui();
   const [copied, setCopied] = useState(false);
   const id = `copy-${label.replace(/\s+/g, "-").toLowerCase()}`;
 
@@ -45,14 +48,16 @@ function CopyField({ value, label }: { value: string; label: string }) {
         <button
           className="icon-btn accent"
           onClick={copy}
-          title="Copy"
+          title={t`Copy`}
           style={{ flex: "0 0 auto", borderRadius: 8, width: 44 }}
         >
           {copied ? <IconCheck size={18} /> : <IconCopy />}
         </button>
       </div>
       {copied && (
-        <p style={{ color: "var(--accent-bright)", fontSize: 12.5, margin: "6px 0 0" }}>Copied.</p>
+        <p style={{ color: "var(--accent-bright)", fontSize: 12.5, margin: "6px 0 0" }}>
+          <Trans>Copied.</Trans>
+        </p>
       )}
     </div>
   );
@@ -60,6 +65,7 @@ function CopyField({ value, label }: { value: string; label: string }) {
 
 /** A space's door: the invite code, who is already in, and a way to add channels. */
 export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () => void }) {
+  const { t } = useLingui();
   const spaces = useStore((s) => s.spaces);
   const refreshSpaces = useStore((s) => s.refreshSpaces);
   const refreshRooms = useStore((s) => s.refreshRooms);
@@ -94,9 +100,17 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
       });
       setChannelName("");
       await Promise.all([refreshSpaces(), refreshRooms()]);
-      notify(`${channelKind === "VOICE" ? "Voice room" : "Channel"} ${channelName.trim()} created.`);
+      /*
+        Frase inteira por tipo, e não "{tipo} {nome} criado": em português e
+        espanhol "sala de voz criada" e "canal criado" mudam a concordância, e
+        montar o tipo por fora obriga a tradução a errar um dos dois.
+      */
+      const nome = channelName.trim();
+      notify(
+        channelKind === "VOICE" ? t`Voice room ${nome} created.` : t`Channel ${nome} created.`
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "That channel could not be created.");
+      setError(err instanceof Error ? err.message : t`That channel could not be created.`);
     } finally {
       setBusy(false);
     }
@@ -109,23 +123,27 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
         {error && <div className="form-error">{error}</div>}
 
         <p style={{ color: "var(--text-dim)", fontSize: 13.5, margin: "0 0 14px" }}>
-          Anyone with this link can join. Opening it signs them straight into the space — in the
-          desktop app if they have it installed, in the browser if they do not.
+          <Trans>
+            Anyone with this link can join. Opening it signs them straight into the space — in the
+            desktop app if they have it installed, in the browser if they do not.
+          </Trans>
         </p>
 
-        <CopyField value={inviteLink(space.inviteCode)} label="Invite link" />
+        <CopyField value={inviteLink(space.inviteCode)} label={t`Invite link`} />
 
         <p style={{ color: "var(--text-faint)", fontSize: 12.5, margin: "14px 0 8px" }}>
-          Or send just the code, for someone who would rather type it under{" "}
-          <b style={{ color: "var(--text-dim)" }}>New space → Have an invite code?</b>
+          <Trans>
+            Or send just the code, for someone who would rather type it under{" "}
+            <b style={{ color: "var(--text-dim)" }}>New space → Have an invite code?</b>
+          </Trans>
         </p>
 
-        <CopyField value={space.inviteCode} label="Invite code" />
+        <CopyField value={space.inviteCode} label={t`Invite code`} />
 
         <div style={{ height: 1, background: "var(--divider)", margin: "20px 0" }} />
 
         <p className="section-label" style={{ padding: 0, marginBottom: 8 }}>
-          Members · {members.length}
+          <Trans>Members</Trans> · {members.length}
         </p>
         {members.map((m) => (
           <div key={m.id} className="row" style={{ height: 56, padding: 0 }}>
@@ -142,7 +160,7 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
         <div style={{ height: 1, background: "var(--divider)", margin: "20px 0" }} />
 
         <p className="section-label" style={{ padding: 0, marginBottom: 8 }}>
-          New channel
+          <Trans>New channel</Trans>
         </p>
         <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
           <button
@@ -150,14 +168,14 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
             aria-pressed={channelKind === "TEXT"}
             onClick={() => setChannelKind("TEXT")}
           >
-            Text
+            <Trans>Text</Trans>
           </button>
           <button
             className="chip"
             aria-pressed={channelKind === "VOICE"}
             onClick={() => setChannelKind("VOICE")}
           >
-            Voice
+            <Trans>Voice</Trans>
           </button>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -165,7 +183,7 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
             value={channelName}
             onChange={(e) => setChannelName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addChannel()}
-            placeholder={channelKind === "TEXT" ? "announcements" : "Lounge"}
+            placeholder={channelKind === "TEXT" ? t`announcements` : t`Lounge`}
             style={{
               flex: 1,
               background: "var(--input)",
@@ -176,7 +194,7 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
             }}
           />
           <button className="btn-ghost" disabled={busy || !channelName.trim()} onClick={addChannel}>
-            Add
+            <Trans>Add</Trans>
           </button>
         </div>
         <div style={{ height: 1, background: "var(--divider)", margin: "20px 0" }} />
@@ -189,8 +207,10 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
         {confirmarSaida ? (
           <div className="leave-confirm">
             <p>
-              Leaving takes you out of every channel in <b>{space.name}</b>. What you have written
-              stays where it is, and you can come back with the invite code.
+              <Trans>
+                Leaving takes you out of every channel in <b>{space.name}</b>. What you have
+                written stays where it is, and you can come back with the invite code.
+              </Trans>
             </p>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn-ghost" onClick={() => setConfirmarSaida(false)}>
@@ -205,29 +225,29 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
                     const { spaceDeleted } = await leaveSpace(spaceId);
                     notify(
                       spaceDeleted
-                        ? `You left ${space.name}. Nobody was left, so the space is gone.`
-                        : `You left ${space.name}.`
+                        ? t`You left ${space.name}. Nobody was left, so the space is gone.`
+                        : t`You left ${space.name}.`
                     );
                     onClose();
                   } catch (err) {
-                    setError(err instanceof Error ? err.message : "You could not leave that space.");
+                    setError(err instanceof Error ? err.message : t`You could not leave that space.`);
                     setBusy(false);
                   }
                 }}
               >
-                {busy ? "Leaving…" : "Yes, leave"}
+                {busy ? <Trans>Leaving…</Trans> : <Trans>Yes, leave</Trans>}
               </button>
             </div>
           </div>
         ) : (
           <button className="btn-outline danger" onClick={() => setConfirmarSaida(true)}>
-            Leave this space
+            <Trans>Leave this space</Trans>
           </button>
         )}
       </div>
       <footer>
         <button className="btn-ghost" onClick={onClose}>
-          Done
+          <Trans>Done</Trans>
         </button>
       </footer>
     </Scrim>
@@ -236,6 +256,7 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
 
 /** Search, tick, done. Shared by "new group" and "add people". */
 function PeoplePicker({ chosen, onToggle }: { chosen: User[]; onToggle: (u: User) => void }) {
+  const { t } = useLingui();
   const [term, setTerm] = useState("");
   const [results, setResults] = useState<User[]>([]);
 
@@ -262,7 +283,7 @@ function PeoplePicker({ chosen, onToggle }: { chosen: User[]; onToggle: (u: User
       {chosen.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
           {chosen.map((u) => (
-            <button key={u.id} className="upload-pill" onClick={() => onToggle(u)} title="Remove">
+            <button key={u.id} className="upload-pill" onClick={() => onToggle(u)} title={t`Remove`}>
               {u.displayName}
               <IconClose size={13} />
             </button>
@@ -276,13 +297,15 @@ function PeoplePicker({ chosen, onToggle }: { chosen: User[]; onToggle: (u: User
           autoFocus
           value={term}
           onChange={(e) => setTerm(e.target.value)}
-          placeholder="Search by name or username"
-          aria-label="Search people"
+          placeholder={t`Search by name or username`}
+          aria-label={t`Search people`}
         />
       </div>
 
       {term.trim() && results.length === 0 && (
-        <p style={{ color: "var(--text-dim)", fontSize: 13.5 }}>Nobody here goes by that.</p>
+        <p style={{ color: "var(--text-dim)", fontSize: 13.5 }}>
+          <Trans>Nobody here goes by that.</Trans>
+        </p>
       )}
 
       {results.map((u) => {
@@ -315,6 +338,7 @@ function PeoplePicker({ chosen, onToggle }: { chosen: User[]; onToggle: (u: User
 }
 
 export function NewGroupModal({ onClose }: { onClose: () => void }) {
+  const { t } = useLingui();
   const [name, setName] = useState("");
   const [chosen, setChosen] = useState<User[]>([]);
   const [busy, setBusy] = useState(false);
@@ -339,10 +363,13 @@ export function NewGroupModal({ onClose }: { onClose: () => void }) {
       });
       await refreshRooms();
       await openRoom(res.room.id);
-      notify(`Group ${name.trim()} created.`);
+      {
+        const grupo = name.trim();
+        notify(t`Group ${grupo} created.`);
+      }
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "That group could not be created.");
+      setError(err instanceof Error ? err.message : t`That group could not be created.`);
     } finally {
       setBusy(false);
     }
@@ -350,26 +377,36 @@ export function NewGroupModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Scrim onClose={onClose}>
-      <header>New group</header>
+      <header>
+        <Trans>New group</Trans>
+      </header>
       <div className="modal-body">
         {error && <div className="form-error">{error}</div>}
         <div className="field">
-          <label htmlFor="group-name">Group name</label>
+          <label htmlFor="group-name">
+            <Trans>Group name</Trans>
+          </label>
           <input
             id="group-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Weekend plans"
+            placeholder={t`Weekend plans`}
           />
         </div>
         <PeoplePicker chosen={chosen} onToggle={toggle} />
       </div>
       <footer>
         <button className="btn-ghost" onClick={onClose}>
-          Cancel
+          <Trans>Cancel</Trans>
         </button>
         <button className="btn-ghost" disabled={busy || !name.trim()} onClick={create}>
-          {busy ? "One moment…" : `Create${chosen.length ? ` with ${chosen.length}` : ""}`}
+          {busy ? (
+            <Trans>One moment…</Trans>
+          ) : chosen.length ? (
+            <Trans>Create with {chosen.length}</Trans>
+          ) : (
+            <Trans>Create</Trans>
+          )}
         </button>
       </footer>
     </Scrim>
@@ -377,6 +414,7 @@ export function NewGroupModal({ onClose }: { onClose: () => void }) {
 }
 
 export function AddPeopleModal({ roomId, onClose }: { roomId: string; onClose: () => void }) {
+  const { t } = useLingui();
   const [chosen, setChosen] = useState<User[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -395,10 +433,17 @@ export function AddPeopleModal({ roomId, onClose }: { roomId: string; onClose: (
     try {
       await api.post(`/rooms/${roomId}/members`, { userIds: chosen.map((c) => c.id) });
       await refreshRooms();
-      notify(chosen.length === 1 ? `${chosen[0].displayName} was added.` : `${chosen.length} people were added.`);
+      {
+        const quem = chosen[0].displayName;
+        notify(
+          chosen.length === 1
+            ? t`${quem} was added.`
+            : plural(chosen.length, { one: "# person was added.", other: "# people were added." })
+        );
+      }
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "They could not be added.");
+      setError(err instanceof Error ? err.message : t`They could not be added.`);
     } finally {
       setBusy(false);
     }
@@ -406,17 +451,25 @@ export function AddPeopleModal({ roomId, onClose }: { roomId: string; onClose: (
 
   return (
     <Scrim onClose={onClose}>
-      <header>Add people</header>
+      <header>
+        <Trans>Add people</Trans>
+      </header>
       <div className="modal-body">
         {error && <div className="form-error">{error}</div>}
         <PeoplePicker chosen={chosen} onToggle={toggle} />
       </div>
       <footer>
         <button className="btn-ghost" onClick={onClose}>
-          Cancel
+          <Trans>Cancel</Trans>
         </button>
         <button className="btn-ghost" disabled={busy || chosen.length === 0} onClick={add}>
-          {busy ? "Adding…" : `Add ${chosen.length || ""}`}
+          {busy ? (
+            <Trans>Adding…</Trans>
+          ) : chosen.length ? (
+            <Trans>Add {chosen.length}</Trans>
+          ) : (
+            <Trans>Add</Trans>
+          )}
         </button>
       </footer>
     </Scrim>

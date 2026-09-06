@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   canChooseOutput,
   deviceLabel,
@@ -95,6 +96,7 @@ export function DevicePicker({
 }) {
   const { microphones, cameras, speakers, micBlocked, camBlocked, unsupported, prefs, error, reveal, choose } =
     useDevices();
+  const { t } = useLingui();
   const [sounds, setSounds] = useState(() => callSoundsEnabled());
   const [busy, setBusy] = useState<DeviceKind | null>(null);
   const [probe, setProbe] = useState<MediaStream | null>(null);
@@ -125,8 +127,8 @@ export function DevicePicker({
     } catch {
       onNotice?.(
         kind === "audiooutput"
-          ? "That speaker could not be used. The call is still on the previous one."
-          : "That device could not be opened — it may be in use by another app."
+          ? t`That speaker could not be used. The call is still on the previous one.`
+          : t`That device could not be opened — it may be in use by another app.`
       );
     } finally {
       setBusy(null);
@@ -169,24 +171,25 @@ export function DevicePicker({
         <div className="device-reveal">
           <p>
             {micBlocked && camBlocked
-              ? "The browser hides your microphones and cameras until it has been given access once."
+              ? t`The browser hides your microphones and cameras until it has been given access once.`
               : micBlocked
-                ? "Your cameras are visible, but the microphone still needs permission — until then it cannot be picked."
-                : "Your microphones are visible, but the camera still needs permission — until then it cannot be picked."}
+                ? t`Your cameras are visible, but the microphone still needs permission — until then it cannot be picked.`
+                : t`Your microphones are visible, but the camera still needs permission — until then it cannot be picked.`}
           </p>
           <button className="btn-outline" onClick={() => void reveal()}>
             {micBlocked && camBlocked
-              ? "Allow microphone and camera"
+              ? t`Allow microphone and camera`
               : micBlocked
-                ? "Allow the microphone"
-                : "Allow the camera"}
+                ? t`Allow the microphone`
+                : t`Allow the camera`}
           </button>
         </div>
       )}
 
       <Row
         icon={<IconMic size={16} />}
-        label="Microphone"
+        label={t`Microphone`}
+        vazio={t`No microphone was found — the system default will be used.`}
         kind="audioinput"
         devices={microphones}
         value={prefs.audioinput}
@@ -196,26 +199,31 @@ export function DevicePicker({
       />
 
       <div className="device-level" aria-hidden={!liveMic && !testing}>
-        <span className="device-level-label">Input level</span>
+        <span className="device-level-label">
+          <Trans>Input level</Trans>
+        </span>
         <div className="level-track">
           <div className="level-fill" style={{ width: `${Math.round(level * 100)}%` }} />
         </div>
         {liveMic ? (
-          <span className="device-hint">Speak — the bar should move.</span>
+          <span className="device-hint">
+            <Trans>Speak — the bar should move.</Trans>
+          </span>
         ) : testing ? (
           <button className="btn-ghost small" onClick={stopProbe}>
-            Stop test
+            <Trans>Stop test</Trans>
           </button>
         ) : (
           <button className="btn-ghost small" onClick={() => void startProbe()}>
-            Test microphone
+            <Trans>Test microphone</Trans>
           </button>
         )}
       </div>
 
       <Row
         icon={<IconVideo size={16} />}
-        label="Camera"
+        label={t`Camera`}
+        vazio={t`No camera was found — the system default will be used.`}
         kind="videoinput"
         devices={cameras}
         value={prefs.videoinput}
@@ -228,7 +236,8 @@ export function DevicePicker({
         <>
           <Row
             icon={<IconSpeaker size={16} />}
-            label="Speaker"
+            label={t`Speaker`}
+            vazio={t`No speaker was found — the system default will be used.`}
             kind="audiooutput"
             devices={speakers}
             value={prefs.audiooutput}
@@ -240,13 +249,15 @@ export function DevicePicker({
             className="btn-ghost small"
             onClick={() => void playCue("join", resolveDeviceId(prefs.audiooutput, speakers), true)}
           >
-            Play a test sound
+            <Trans>Play a test sound</Trans>
           </button>
         </>
       ) : (
         <p className="device-note">
-          This browser always uses the system's default speaker; change it in the operating
-          system's sound settings.
+          <Trans>
+            This browser always uses the system's default speaker; change it in the operating
+            system's sound settings.
+          </Trans>
         </p>
       )}
 
@@ -259,7 +270,9 @@ export function DevicePicker({
             setCallSounds(e.target.checked);
           }}
         />
-        <span>Play a sound when someone joins or leaves a call</span>
+        <span>
+          <Trans>Play a sound when someone joins or leaves a call</Trans>
+        </span>
       </label>
     </div>
   );
@@ -268,6 +281,7 @@ export function DevicePicker({
 function Row({
   icon,
   label,
+  vazio,
   kind,
   devices,
   value,
@@ -277,6 +291,8 @@ function Row({
 }: {
   icon: React.ReactNode;
   label: string;
+  /** A frase de "nenhum encontrado", já traduzida e por extenso. */
+  vazio: string;
   kind: DeviceKind;
   devices: MediaDeviceInfo[];
   value: string | undefined;
@@ -285,6 +301,7 @@ function Row({
   blocked: boolean;
   onPick: (kind: DeviceKind, deviceId: string) => void | Promise<void>;
 }) {
+  const { t } = useLingui();
   const id = `dev-${kind}`;
   /*
    * A saved id can point at hardware that is no longer here. Resolving it back
@@ -312,7 +329,7 @@ function Row({
         disabled={busy}
         onChange={(e) => void onPick(kind, e.target.value)}
       >
-        <option value="">System default</option>
+        <option value="">{t`System default`}</option>
         {devices.map((d, i) => (
           <option key={d.deviceId} value={d.deviceId}>
             {deviceLabel(d, i)}
@@ -322,9 +339,13 @@ function Row({
 
       {devices.length === 0 && (
         <p className="device-hint">
-          {blocked
-            ? "Allow access above to choose a specific one."
-            : `No ${label.toLowerCase()} was found — the system default will be used.`}
+          {/*
+            A frase de "não encontrei nenhum" vem PRONTA de cima, e não montada
+            com o rótulo em minúscula. "No microphone"/"No camera" têm gênero
+            diferente em português e espanhol, e `No ${label}` obrigaria a
+            tradução a escolher um só e errar o outro.
+          */}
+          {blocked ? t`Allow access above to choose a specific one.` : vazio}
         </p>
       )}
     </div>

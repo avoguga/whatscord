@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { appLink } from "../lib/deeplink";
+import { Trans } from "@lingui/react/macro";
 
 /**
  * A escolha que aparece quando alguém abre um link de convite no navegador.
@@ -34,7 +35,9 @@ export function InviteGate({
     <div className="auth">
       <div className="auth-card invite-gate">
         <h1>WhatsCord</h1>
-        <p className="sub">You have been invited to a space.</p>
+        <p className="sub">
+          <Trans>You have been invited to a space.</Trans>
+        </p>
 
         <button
           className="btn-primary"
@@ -46,29 +49,38 @@ export function InviteGate({
             window.location.href = appLink(code);
           }}
         >
-          Open in the WhatsCord app
+          <Trans>Open in the WhatsCord app</Trans>
         </button>
 
         {tentou && (
           <p className="gate-note">
-            Nothing happened? The app is probably not installed on this machine — use the browser
-            below, or install it first.
+            <Trans>
+              Nothing happened? The app is probably not installed on this machine — use the browser
+              below, or install it first.
+            </Trans>
           </p>
         )}
 
         <button className="btn-outline" onClick={onBrowser}>
-          Continue in the browser
+          <Trans>Continue in the browser</Trans>
         </button>
 
         <p className="gate-foot">
-          Don't have the desktop app yet?{" "}
-          <a
-            href="https://github.com/avoguga/whatscord/releases/latest"
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            Download it for Windows
-          </a>
+          {/*
+            O link vai DENTRO da frase traduzida, e não colado depois dela: em
+            português e espanhol o "baixe para Windows" não cai no fim da frase,
+            e um link costurado por fora não teria como se mover junto.
+          */}
+          <Trans>
+            Don't have the desktop app yet?{" "}
+            <a
+              href="https://github.com/avoguga/whatscord/releases/latest"
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              Download it for Windows
+            </a>
+          </Trans>
         </p>
       </div>
     </div>

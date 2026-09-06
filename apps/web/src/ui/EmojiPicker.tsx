@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
 
 /**
  * A small, deliberate set rather than a full emoji keyboard.
@@ -9,11 +11,16 @@ import { useEffect, useRef } from "react";
  */
 export const REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
-const GROUPS: { label: string; emoji: string[] }[] = [
-  { label: "Reactions", emoji: REACTIONS },
-  { label: "Faces", emoji: ["😀", "😅", "😉", "🙂", "😍", "🤔", "😴", "😭", "😡", "🥳", "😎", "🤝"] },
-  { label: "Hands", emoji: ["👋", "👌", "✌️", "🤞", "💪", "👏", "🙌", "🫡"] },
-  { label: "Things", emoji: ["🔥", "✅", "❌", "⚠️", "⭐", "🎉", "☕", "🚀", "💡", "📌", "🐛", "📎"] }
+/*
+ * `msg` guarda a mensagem sem traduzir; o `i18n._()` traduz na hora de
+ * desenhar. Uma lista de rótulos já traduzidos aqui em cima seria avaliada na
+ * importação, antes de o catálogo carregar, e ficaria congelada.
+ */
+const GRUPOS = [
+  { label: msg`Reactions`, emoji: REACTIONS },
+  { label: msg`Faces`, emoji: ["😀", "😅", "😉", "🙂", "😍", "🤔", "😴", "😭", "😡", "🥳", "😎", "🤝"] },
+  { label: msg`Hands`, emoji: ["👋", "👌", "✌️", "🤞", "💪", "👏", "🙌", "🫡"] },
+  { label: msg`Things`, emoji: ["🔥", "✅", "❌", "⚠️", "⭐", "🎉", "☕", "🚀", "💡", "📌", "🐛", "📎"] }
 ];
 
 export function EmojiPicker({
@@ -27,6 +34,7 @@ export function EmojiPicker({
   compact?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const { t, i18n } = useLingui();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -47,7 +55,7 @@ export function EmojiPicker({
     return (
       <div className="emoji-pop compact" ref={ref}>
         {REACTIONS.map((e) => (
-          <button key={e} className="emoji-cell" onClick={() => onPick(e)} title={`React with ${e}`}>
+          <button key={e} className="emoji-cell" onClick={() => onPick(e)} title={t`React with ${e}`}>
             {e}
           </button>
         ))}
@@ -57,9 +65,9 @@ export function EmojiPicker({
 
   return (
     <div className="emoji-pop" ref={ref}>
-      {GROUPS.map((g) => (
-        <div key={g.label} className="emoji-group">
-          <p className="emoji-label">{g.label}</p>
+      {GRUPOS.map((g) => (
+        <div key={g.label.id ?? g.label.message} className="emoji-group">
+          <p className="emoji-label">{i18n._(g.label)}</p>
           <div className="emoji-grid">
             {g.emoji.map((e) => (
               <button key={e} className="emoji-cell" onClick={() => onPick(e)} title={e}>

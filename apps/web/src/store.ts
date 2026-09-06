@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { api, clearTokens, loadTokens, saveTokens } from "./lib/api";
 import { saveTheme, storedTheme, type Theme } from "./lib/theme";
+import { preferenciaSalva, salvarIdioma, type PreferenciaIdioma } from "./lib/i18n";
 
 /**
  * Collapses a message list to one entry per message and keeps it in time order.
@@ -137,6 +138,8 @@ type State = {
   toasts: Toast[];
   /** Claro, escuro ou igual ao dispositivo. Pintado no `<html>`. */
   theme: Theme;
+  /** Inglês, português, espanhol ou igual ao dispositivo. */
+  locale: PreferenciaIdioma;
 
   bootstrap: () => Promise<void>;
   signIn: (identifier: string, password: string) => Promise<void>;
@@ -165,6 +168,7 @@ type State = {
   setActiveSpace: (id: string | null) => void;
   notify: (text: string, kind?: "ok" | "bad") => void;
   setTheme: (t: Theme) => void;
+  setLocale: (l: PreferenciaIdioma) => Promise<void>;
   dismissToast: (id: string) => void;
 
   ingestMessage: (m: Message) => void;
@@ -210,6 +214,7 @@ export const useStore = create<State>((set, get) => ({
    * tela de configurações marcar a opção errada.
    */
   theme: storedTheme(),
+  locale: preferenciaSalva(),
   ...blankSession,
 
   async bootstrap() {
@@ -438,6 +443,16 @@ export const useStore = create<State>((set, get) => ({
   setTheme(t) {
     saveTheme(t);
     set({ theme: t });
+  },
+
+  /*
+   * Assíncrono, ao contrário do tema: trocar de idioma baixa um catálogo. O
+   * estado só muda DEPOIS que o catálogo está ativo — mudar antes deixaria a
+   * opção marcada com a tela ainda no idioma anterior.
+   */
+  async setLocale(l) {
+    await salvarIdioma(l);
+    set({ locale: l });
   },
 
   notify(text, kind = "ok") {

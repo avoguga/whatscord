@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   deviceLabel,
   resolveDeviceId,
@@ -62,6 +63,8 @@ export function QuickDeviceMenu({
     };
   }, [onClose]);
 
+  const { t } = useLingui();
+
   async function pick(deviceId: string) {
     const id = deviceId || undefined;
     choose(kind, id);
@@ -69,19 +72,21 @@ export function QuickDeviceMenu({
     try {
       await onSwitch(kind, id);
     } catch {
-      onNotice?.("That device could not be opened — it may be in use by another app.");
+      onNotice?.(t`That device could not be opened — it may be in use by another app.`);
     }
   }
 
   return (
-    <div className="quick-menu" ref={ref} role="menu" aria-label={isMic ? "Microphone" : "Camera"}>
-      <p className="quick-head">{isMic ? "Input device" : "Camera"}</p>
+    <div className="quick-menu" ref={ref} role="menu" aria-label={isMic ? t`Microphone` : t`Camera`}>
+      <p className="quick-head">{isMic ? <Trans>Input device</Trans> : <Trans>Camera</Trans>}</p>
 
       {blocked ? (
         <div className="quick-blocked">
-          <p>The browser has not given access yet, so the devices have no names.</p>
+          <p>
+            <Trans>The browser has not given access yet, so the devices have no names.</Trans>
+          </p>
           <button className="btn-ghost small" onClick={() => void reveal()}>
-            {isMic ? "Allow the microphone" : "Allow the camera"}
+            {isMic ? <Trans>Allow the microphone</Trans> : <Trans>Allow the camera</Trans>}
           </button>
         </div>
       ) : (
@@ -92,7 +97,7 @@ export function QuickDeviceMenu({
             aria-checked={current === ""}
             onClick={() => void pick("")}
           >
-            System default
+            <Trans>System default</Trans>
           </button>
           {devices.map((d, i) => (
             <button
@@ -106,15 +111,22 @@ export function QuickDeviceMenu({
             </button>
           ))}
           {devices.length === 0 && (
+            /* Frase inteira por ramo: "nenhum microfone" e "nenhuma câmera"
+               têm gênero diferente em português e espanhol, e costurar a
+               palavra no meio da frase forçaria uma concordância errada. */
             <p className="quick-empty">
-              No {isMic ? "microphone" : "camera"} was found — the system default will be used.
+              {isMic ? (
+                <Trans>No microphone was found — the system default will be used.</Trans>
+              ) : (
+                <Trans>No camera was found — the system default will be used.</Trans>
+              )}
             </p>
           )}
         </div>
       )}
 
       <button className="quick-full" onClick={onFullSettings}>
-        {isMic ? "Voice settings" : "Video settings"}
+        {isMic ? <Trans>Voice settings</Trans> : <Trans>Video settings</Trans>}
       </button>
     </div>
   );

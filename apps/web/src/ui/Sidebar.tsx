@@ -9,8 +9,13 @@ import {
 import { NewChatModal, NewSpaceModal } from "./Modals";
 import { SpaceModal, NewGroupModal, AddPeopleModal } from "./Invites";
 import { SettingsModal } from "./Settings";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import type { I18n } from "@lingui/core";
+import { plural } from "@lingui/core/macro";
 
 export function Sidebar() {
+  const { t } = useLingui();
   const me = useStore((s) => s.me);
   const rooms = useStore((s) => s.rooms);
   const spaces = useStore((s) => s.spaces);
@@ -69,7 +74,7 @@ export function Sidebar() {
         at all — half of the first thing a new person sees was inert, which
         reads as the app being broken rather than as a feature not being ready.
       */}
-      <nav className="rail" aria-label="Places">
+      <nav className="rail" aria-label={t`Places`}>
         <button
           className="rail-btn"
           data-tip="Chats"
@@ -120,15 +125,15 @@ export function Sidebar() {
         </button>
       </nav>
 
-      <section className="list-panel" aria-label="Conversations">
+      <section className="list-panel" aria-label={t`Conversations`}>
         <header className="list-header">
-          <h1>{activeSpaceId ? (activeSpace?.name ?? "Space") : "Chats"}</h1>
+          <h1>{activeSpaceId ? (activeSpace?.name ?? t`Space`) : t`Chats`}</h1>
           <div className="header-actions" style={{ position: "relative" }}>
             {activeSpaceId ? (
               <button
                 className="icon-btn accent"
                 onClick={() => setModal("spaceInfo")}
-                title="Invite people and add channels"
+                title={t`Invite people and add channels`}
               >
                 <IconUserPlus />
               </button>
@@ -136,7 +141,7 @@ export function Sidebar() {
               <button
                 className="icon-btn accent"
                 onClick={() => setNewMenuOpen((v) => !v)}
-                title="Start something new"
+                title={t`Start something new`}
               >
                 <IconNewChat />
               </button>
@@ -162,7 +167,9 @@ export function Sidebar() {
           <button className="invite-strip" onClick={() => setModal("spaceInfo")}>
             <IconUserPlus size={19} />
             <span>
-              <b>Invite people to this space</b>
+              <b>
+                <Trans>Invite people to this space</Trans>
+              </b>
               <em>Code {activeSpace?.inviteCode ?? "…"}</em>
             </span>
           </button>
@@ -183,16 +190,19 @@ export function Sidebar() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search conversations"
-              aria-label="Search conversations"
+              placeholder={t`Search conversations`}
+              aria-label={t`Search conversations`}
             />
           </div>
         </div>
 
         <div className="filters">
-          <button className="chip" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>All</button>
+          <button className="chip" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>
+            <Trans>All</Trans>
+          </button>
           <button className="chip" aria-pressed={filter === "unread"} onClick={() => setFilter("unread")}>
-            Unread{unreadTotal ? ` ${unreadTotal}` : ""}
+            <Trans>Unread</Trans>
+            {unreadTotal ? ` ${unreadTotal}` : ""}
           </button>
         </div>
 
@@ -210,9 +220,17 @@ export function Sidebar() {
 
           {activeSpaceId ? (
             <>
-              {textChannels.length > 0 && <p className="section-label">Text channels</p>}
+              {textChannels.length > 0 && (
+                <p className="section-label">
+                  <Trans>Text channels</Trans>
+                </p>
+              )}
               {textChannels.map(row)}
-              {voiceChannels.length > 0 && <p className="section-label">Voice channels</p>}
+              {voiceChannels.length > 0 && (
+                <p className="section-label">
+                  <Trans>Voice channels</Trans>
+                </p>
+              )}
               {voiceChannels.map(row)}
             </>
           ) : (
@@ -244,22 +262,38 @@ function EmptyList({
   onNewSpace: () => void; onInvite: () => void;
 }) {
   if (searching) {
-    return <p className="list-empty">Nothing here matches that.</p>;
+    return (
+      <p className="list-empty">
+        <Trans>Nothing here matches that.</Trans>
+      </p>
+    );
   }
   if (inSpace) {
     return (
       <div className="list-empty">
-        <p>This space has no channels yet.</p>
-        <button className="btn-primary" onClick={onInvite}>Add a channel</button>
+        <p>
+          <Trans>This space has no channels yet.</Trans>
+        </p>
+        <button className="btn-primary" onClick={onInvite}>
+          <Trans>Add a channel</Trans>
+        </button>
       </div>
     );
   }
   return (
     <div className="list-empty">
-      <p>No conversations yet.</p>
-      <button className="btn-primary" onClick={onNewChat}>Message someone</button>
-      <button className="btn-outline" onClick={onNewGroup}>Create a group</button>
-      <button className="btn-outline" onClick={onNewSpace}>Create or join a space</button>
+      <p>
+        <Trans>No conversations yet.</Trans>
+      </p>
+      <button className="btn-primary" onClick={onNewChat}>
+        <Trans>Message someone</Trans>
+      </button>
+      <button className="btn-outline" onClick={onNewGroup}>
+        <Trans>Create a group</Trans>
+      </button>
+      <button className="btn-outline" onClick={onNewSpace}>
+        <Trans>Create or join a space</Trans>
+      </button>
     </div>
   );
 }
@@ -270,20 +304,26 @@ function RoomRow({
   room: Room; selected: boolean; onOpen: () => void;
   online: boolean; inVoice: number; meId: string;
 }) {
+  const { t, i18n } = useLingui();
   const isVoice = room.kind === "VOICE";
   const isChannel = room.kind === "TEXT";
-  const label = room.name ?? room.counterpart?.displayName ?? "Conversation";
+  const label = room.name ?? room.counterpart?.displayName ?? t`Conversation`;
   const last = room.lastMessage;
 
   const preview = isVoice
     ? inVoice > 0
-      ? `${inVoice} connected`
-      : "Nobody here right now"
+      ? /*
+         * Plural de verdade, não `${n} connected`. Em português "1 conectado" e
+         * "2 conectados" mudam a palavra, e em espanhol também — concatenar o
+         * número obrigaria a tradução a escolher uma forma só e errar a outra.
+         */
+        plural(inVoice, { one: "# connected", other: "# connected" })
+      : t`Nobody here right now`
     : last
       ? last.attachmentCount > 0 && !last.content
-        ? attachmentLabel(last.attachmentMime)
+        ? attachmentLabel(last.attachmentMime, i18n)
         : last.content || " "
-      : "No messages yet";
+      : t`No messages yet`;
 
   return (
     <button className="row" aria-selected={selected} onClick={onOpen}>
@@ -324,7 +364,7 @@ function RoomRow({
             {preview}
           </span>
           <span className="row-badges">
-            {room.muted && <span className="muted-icon" title="Muted"><IconMute /></span>}
+            {room.muted && <span className="muted-icon" title={t`Muted`}><IconMute /></span>}
             {room.unread > 0 && <span className="badge">{room.unread > 99 ? "99+" : room.unread}</span>}
           </span>
         </div>
@@ -333,10 +373,18 @@ function RoomRow({
   );
 }
 
-function attachmentLabel(mime: string | null) {
-  if (!mime) return "Attachment";
-  if (mime.startsWith("image/")) return "Photo";
-  if (mime.startsWith("video/")) return "Video";
-  if (mime.startsWith("audio/")) return "Audio";
-  return "Document";
+/*
+ * As mensagens ficam em `msg` e a tradução acontece com o `i18n` recebido, que
+ * vem do hook e portanto acompanha a troca de idioma.
+ *
+ * O `i18n` é parâmetro, mas as MENSAGENS não: o macro só reconhece um `t` que
+ * venha do próprio `useLingui`, e um `t` recebido por parâmetro faria a
+ * extração pular estas cinco linhas em silêncio.
+ */
+function attachmentLabel(mime: string | null, i18n: I18n) {
+  if (!mime) return i18n._(msg`Attachment`);
+  if (mime.startsWith("image/")) return i18n._(msg`Photo`);
+  if (mime.startsWith("video/")) return i18n._(msg`Video`);
+  if (mime.startsWith("audio/")) return i18n._(msg`Audio`);
+  return i18n._(msg`Document`);
 }

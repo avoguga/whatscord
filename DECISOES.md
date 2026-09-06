@@ -23,7 +23,7 @@ Data: **06/09/2026**.
 | D5 | Tela esticada | **não decidível por pesquisa** → protocolo de medição |
 | D6 | Drag and drop | `@dnd-kit/react` (reescrita 2026) |
 | D7 | Temas | claro, escuro, igual ao dispositivo |
-| D8 | i18n | Lingui v6 + locale do SO via Rust |
+| D8 | i18n | Lingui v5 + locale do SO via Rust (v6 quebra no Node 22.12) |
 | D9 | Avatares da chamada | abaixo do canal de voz na barra lateral |
 | D10 | Quem troca o ícone | OWNER e ADMIN |
 | D11 | Remoção de membros | OWNER e ADMIN; mensagens ficam; respeita hierarquia |
@@ -343,7 +343,8 @@ própria.
   confiável** o idioma do sistema em WebView2. Issue aberta no próprio wry:
   <https://github.com/tauri-apps/wry/issues/442>
 
-**Decisão — Lingui v6.** E, para o idioma padrão:
+**Decisão — Lingui v5** (a pesquisa apontava v6; ver a correção logo abaixo).
+E, para o idioma padrão:
 - **Na web:** cascata `localStorage` → `navigator.languages` (comparando prefixo)
   → **inglês**.
 - **No app desktop e Android:** o locale vem do **sistema operacional via Rust**
@@ -358,6 +359,25 @@ reimplementar plural e ICU para economizar 3,8 KB não se paga.
 
 O detalhe do locale via Rust não é preciosismo: sem ele, o app instalado pode
 abrir no idioma errado, e essa é a primeira impressão do produto.
+
+**Correção durante a execução — v6 não funciona neste ambiente.** A pesquisa
+comparou versões pelo tamanho publicado e apontou v6. Ao instalar, a extração de
+mensagens falhou **em silêncio**: código de saída 0, nenhuma saída, nenhum
+catálogo escrito. Chamando a API diretamente, o erro aparece:
+
+    The "options.exclude" property must be of type function.
+    Received an instance of Array
+        at get sourcePaths (@lingui/cli/dist/api/catalog.js:224)
+
+O v6 troca a biblioteca `glob` pelo `fs.globSync` **experimental** do Node, cujo
+`exclude` só passou a aceitar array depois do Node 22.12 — que é o Node desta
+máquina e uma versão LTS. O v5 usa a biblioteca `glob` e extrai normalmente.
+Fixado em `5.9.5`, com o intervalo preso ao 5.x para o `npm install` não subir
+sozinho. O runtime é o mesmo ICU e o tamanho é equivalente; o que se perde é
+apenas a versão maior.
+
+Vale registrar que o modo de falhar é pior que a falha: um CLI que devolve 0 e
+não escreve nada leva a procurar erro no próprio código por um bom tempo.
 
 **Não encontrado:** como o Discord escolhe o idioma no primeiro acesso. A cascata
 acima é a prática recomendada da plataforma, não uma cópia do Discord.

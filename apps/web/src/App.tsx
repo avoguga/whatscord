@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useStore } from "./store";
 import { connectSocket, disconnectSocket } from "./lib/socket";
 import { watchSystemTheme } from "./lib/theme";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
   inviteFromLocation,
   onDeepLink,
@@ -23,6 +24,7 @@ import { InviteGate } from "./ui/InviteGate";
 const CallSheet = lazy(() => import("./ui/Call").then((m) => ({ default: m.CallSheet })));
 
 export default function App() {
+  const { t } = useLingui();
   const me = useStore((s) => s.me);
   const booting = useStore((s) => s.booting);
   const bootstrap = useStore((s) => s.bootstrap);
@@ -61,7 +63,7 @@ export default function App() {
         const space = await joinSpaceByCode(code);
         notify(`You joined ${space.name}.`);
       } catch (err) {
-        notify(err instanceof Error ? err.message : "That invite did not work.", "bad");
+        notify(err instanceof Error ? err.message : t`That invite did not work.`, "bad");
       }
     },
     [joinSpaceByCode, notify]
@@ -130,7 +132,9 @@ export default function App() {
   if (booting) {
     return (
       <div className="auth">
-        <p style={{ color: "var(--text-dim)" }}>Opening WhatsCord…</p>
+        <p style={{ color: "var(--text-dim)" }}>
+          <Trans>Opening WhatsCord…</Trans>
+        </p>
       </div>
     );
   }
@@ -145,7 +149,13 @@ export default function App() {
       <Sidebar />
       <Chat onStartCall={(video) => activeRoomId && setCall({ roomId: activeRoomId, video })} />
       {call && (
-        <Suspense fallback={<div className="call-sheet call-loading">Opening the call…</div>}>
+        <Suspense
+          fallback={
+            <div className="call-sheet call-loading">
+              <Trans>Opening the call…</Trans>
+            </div>
+          }
+        >
           <CallSheet roomId={call.roomId} withVideo={call.video} onClose={() => setCall(null)} />
         </Suspense>
       )}

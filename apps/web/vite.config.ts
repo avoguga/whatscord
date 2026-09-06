@@ -1,8 +1,17 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { lingui } from "@lingui/vite-plugin";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    /*
+     * O macro do Lingui roda no Babel, dentro do plugin do React. É ele que
+     * transforma `<Trans>` e `` t`...` `` em mensagens ICU em tempo de build —
+     * por isso o runtime é pequeno: nada de análise de mensagem no navegador.
+     */
+    react({ babel: { plugins: ["@lingui/babel-plugin-lingui-macro"] } }),
+    lingui()
+  ],
   /*
    * Absoluta, e nao "./".
    *

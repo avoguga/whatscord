@@ -4,6 +4,8 @@ import { api, fileUrl, uploadFile } from "../lib/api";
 import { clock, daySeparator, fileSize, initials, isImage, isVideo, sameDay } from "../lib/format";
 import { signalTyping, stopTyping } from "../lib/socket";
 import { EmojiPicker } from "./EmojiPicker";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { plural } from "@lingui/core/macro";
 import {
   IconAttach, IconEmoji, IconSend, IconSearch, IconMenu, IconPhone,
   IconVideo, IconChecks, IconCheck, IconClock, IconReply, IconClose, IconFile,
@@ -11,6 +13,7 @@ import {
 } from "./icons";
 
 export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void }) {
+  const { t } = useLingui();
   const activeRoomId = useStore((s) => s.activeRoomId);
   const rooms = useStore((s) => s.rooms);
   const messages = useStore((s) => (activeRoomId ? s.messages[activeRoomId] : undefined));
@@ -70,16 +73,18 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
 
   const isVoiceRoom = room.kind === "VOICE";
   const isChannel = room.kind === "TEXT";
-  const title = room.name ?? room.counterpart?.displayName ?? "Conversation";
+  const title = room.name ?? room.counterpart?.displayName ?? t`Conversation`;
   const counterpartOnline = room.counterpart ? online.has(room.counterpart.id) : false;
 
   const subtitle = isVoiceRoom
-    ? `${voicePresence[room.id]?.length ?? 0} connected`
+    ? plural(voicePresence[room.id]?.length ?? 0, { one: "# connected", other: "# connected" })
     : typing && typing.length > 0
-      ? "typing…"
+      ? t`typing…`
       : room.kind === "DM"
-        ? counterpartOnline ? "online" : "offline"
-        : room.topic || `${room.memberCount} members`;
+        ? counterpartOnline
+          ? t`online`
+          : t`offline`
+        : room.topic || plural(room.memberCount, { one: "# member", other: "# members" });
 
   async function onFilesPicked(files: FileList | null) {
     if (!files?.length) return;
@@ -98,7 +103,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
         );
       } catch (err) {
         setPendingFiles((prev) => prev.filter((_, i) => i !== index));
-        notify(err instanceof Error ? err.message : "That file could not be uploaded.", "bad");
+        notify(err instanceof Error ? err.message : t`That file could not be uploaded.`, "bad");
       }
     }
   }
@@ -131,9 +136,9 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
     try {
       await api.patch(`/rooms/${activeRoomId}/mute`, { muted: !room!.muted });
       await refreshRooms();
-      notify(room!.muted ? "Notifications turned back on." : "Conversation muted.");
+      notify(room!.muted ? t`Notifications turned back on.` : t`Conversation muted.`);
     } catch {
-      notify("That could not be changed.", "bad");
+      notify(t`That could not be changed.`, "bad");
     }
   }
 
@@ -145,7 +150,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
       closeRoom();
       notify(`You left ${title}.`);
     } catch {
-      notify("You could not leave that conversation.", "bad");
+      notify(t`You could not leave that conversation.`, "bad");
     }
   }
 
@@ -154,7 +159,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
   return (
     <section className="chat">
       <header className="chat-header">
-        <button className="icon-btn back-btn" onClick={closeRoom} title="Back to conversations">
+        <button className="icon-btn back-btn" onClick={closeRoom} title={t`Back to conversations`}>
           <IconBack />
         </button>
         <div className={`avatar${isVoiceRoom ? " voice" : ""}${isChannel ? " channel" : ""}`}>
@@ -174,37 +179,38 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
         </div>
 
         <div className="header-actions" style={{ position: "relative" }}>
-          <button className="icon-btn" title="Start a video call" onClick={() => onStartCall(true)}>
+          <button className="icon-btn" title={t`Start a video call`} onClick={() => onStartCall(true)}>
             <IconVideo />
           </button>
-          <button className="icon-btn" title="Start a voice call" onClick={() => onStartCall(false)}>
+          <button className="icon-btn" title={t`Start a voice call`} onClick={() => onStartCall(false)}>
             <IconPhone />
           </button>
           <button
             className="icon-btn"
-            title="Search in this conversation"
+            title={t`Search in this conversation`}
             aria-pressed={findOpen}
             onClick={() => { setFindOpen((v) => !v); setFindTerm(""); }}
           >
             <IconSearch size={22} />
           </button>
-          <button className="icon-btn" title="More options" onClick={() => setMenuOpen((v) => !v)}>
+          <button className="icon-btn" title={t`More options`} onClick={() => setMenuOpen((v) => !v)}>
             <IconMenu size={22} />
           </button>
 
           {menuOpen && (
             <div className="pop-menu right">
               <button onClick={toggleMute}>
-                <IconMute size={17} /> {room.muted ? "Unmute notifications" : "Mute notifications"}
+                <IconMute size={17} />{" "}
+                {room.muted ? <Trans>Unmute notifications</Trans> : <Trans>Mute notifications</Trans>}
               </button>
               {room.kind === "GROUP" && (
                 <button onClick={leaveRoom} className="danger">
-                  <IconClose size={17} /> Leave this group
+                  <IconClose size={17} /> <Trans>Leave this group</Trans>
                 </button>
               )}
               {room.space && (
-                <button onClick={() => { setMenuOpen(false); notify("Open the space from the left rail to invite people."); }}>
-                  <IconUserPlus size={17} /> How to invite people
+                <button onClick={() => { setMenuOpen(false); notify(t`Open the space from the left rail to invite people.`); }}>
+                  <IconUserPlus size={17} /> <Trans>How to invite people</Trans>
                 </button>
               )}
             </div>
@@ -219,13 +225,13 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
             autoFocus
             value={findTerm}
             onChange={(e) => setFindTerm(e.target.value)}
-            placeholder="Find in this conversation"
-            aria-label="Find in this conversation"
+            placeholder={t`Find in this conversation`}
+            aria-label={t`Find in this conversation`}
           />
           <span className="find-count">
             {findTerm.trim() ? `${list.length} found` : `${all.length} loaded`}
           </span>
-          <button className="icon-btn" onClick={() => { setFindOpen(false); setFindTerm(""); }} title="Close search">
+          <button className="icon-btn" onClick={() => { setFindOpen(false); setFindTerm(""); }} title={t`Close search`}>
             <IconClose size={18} />
           </button>
         </div>
@@ -250,12 +256,24 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
         {findTerm.trim() && list.length === 0 && (
           <div className="day-sep"><span>Nothing loaded matches “{findTerm.trim()}”</span></div>
         )}
-        {!findTerm && cursor && <div className="day-sep"><span>Loading earlier messages…</span></div>}
+        {!findTerm && cursor && <div className="day-sep">
+            <span>
+              <Trans>Loading earlier messages…</Trans>
+            </span>
+          </div>}
         {!findTerm && !cursor && all.length > 0 && (
-          <div className="day-sep"><span>This is the start of the conversation</span></div>
+          <div className="day-sep">
+            <span>
+              <Trans>This is the start of the conversation</Trans>
+            </span>
+          </div>
         )}
         {isVoiceRoom && all.length === 0 && (
-          <div className="day-sep"><span>Voice room — press the call button above to join</span></div>
+          <div className="day-sep">
+            <span>
+              <Trans>Voice room — press the call button above to join</Trans>
+            </span>
+          </div>
         )}
 
         {list.map((message, i) => {
@@ -278,7 +296,12 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
 
         {typing && typing.length > 0 && (
           <div className="typing-line">
-            {typing.length === 1 ? "typing…" : `${typing.length} people are typing…`}
+            {typing.length === 1
+              ? t`typing…`
+              : plural(typing.length, {
+                  one: "# person is typing…",
+                  other: "# people are typing…"
+                })}
           </div>
         )}
       </div>
@@ -289,7 +312,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
             <b>{replyTo.author.displayName}</b>
             <span>{replyTo.content || "Attachment"}</span>
           </div>
-          <button className="icon-btn" onClick={() => setReplyTo(null)} title="Cancel reply">
+          <button className="icon-btn" onClick={() => setReplyTo(null)} title={t`Cancel reply`}>
             <IconClose />
           </button>
         </div>
@@ -306,7 +329,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
               </span>
               <button
                 onClick={() => setPendingFiles((prev) => prev.filter((_, j) => j !== i))}
-                title="Remove"
+                title={t`Remove`}
                 style={{ display: "grid", placeItems: "center" }}
               >
                 <IconClose size={14} />
@@ -320,7 +343,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
         <div style={{ position: "relative" }}>
           <button
             className="icon-btn"
-            title="Insert an emoji"
+            title={t`Insert an emoji`}
             aria-pressed={emojiOpen}
             onClick={() => setEmojiOpen((v) => !v)}
           >
@@ -333,7 +356,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
           )}
         </div>
 
-        <button className="icon-btn" title="Attach a file" onClick={() => fileInput.current?.click()}>
+        <button className="icon-btn" title={t`Attach a file`} onClick={() => fileInput.current?.click()}>
           <IconAttach />
         </button>
         <input
@@ -349,7 +372,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
           className="composer-input"
           rows={1}
           value={draft}
-          placeholder={isVoiceRoom ? "Message this voice room" : "Type a message"}
+          placeholder={isVoiceRoom ? t`Message this voice room` : t`Type a message`}
           onChange={(e) => {
             setDraft(e.target.value);
             e.target.style.height = "auto";
@@ -367,7 +390,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
           className="icon-btn accent"
           onClick={submit}
           disabled={!canSend}
-          title={canSend ? "Send" : "Write something first"}
+          title={canSend ? t`Send` : t`Write something first`}
         >
           <IconSend size={20} />
         </button>
@@ -397,6 +420,13 @@ const Bubble = memo(function Bubble({
   const react = useStore((s) => s.react);
   const me = useStore((s) => s.me);
   const [pickerOpen, setPickerOpen] = useState(false);
+  /*
+   * `useLingui` dentro do `memo` não é redundante: é ele que assina a troca de
+   * idioma. Sem isso o balão está memoizado por `message`, que não muda quando
+   * o idioma muda — e "editado" e "mensagem apagada" ficariam no idioma antigo
+   * até a mensagem ser reescrita.
+   */
+  const { t } = useLingui();
 
   return (
     <div
@@ -411,8 +441,10 @@ const Bubble = memo(function Bubble({
 
         {message.replyTo && (
           <div className="reply-quote">
-            <b>{message.replyTo.author.displayName ?? "Someone"}</b>
-            <span>{message.replyTo.deleted ? "Message deleted" : message.replyTo.content || "Attachment"}</span>
+            <b>{message.replyTo.author.displayName ?? t`Someone`}</b>
+            <span>
+              {message.replyTo.deleted ? t`Message deleted` : message.replyTo.content || t`Attachment`}
+            </span>
           </div>
         )}
 
@@ -434,7 +466,9 @@ const Bubble = memo(function Bubble({
         )}
 
         {message.deleted ? (
-          <div className="bubble-text deleted">This message was deleted</div>
+          <div className="bubble-text deleted">
+            <Trans>This message was deleted</Trans>
+          </div>
         ) : (
           message.content && <div className="bubble-text">{message.content}</div>
         )}
@@ -447,7 +481,7 @@ const Bubble = memo(function Bubble({
                 className="reaction"
                 aria-pressed={me ? r.userIds.includes(me.id) : false}
                 onClick={() => react(message.id, r.emoji)}
-                title={r.userIds.includes(me?.id ?? "") ? "Remove your reaction" : "React"}
+                title={r.userIds.includes(me?.id ?? "") ? t`Remove your reaction` : t`React`}
               >
                 {r.emoji} {r.userIds.length}
               </button>
@@ -456,7 +490,11 @@ const Bubble = memo(function Bubble({
         )}
 
         <span className="bubble-meta">
-          {message.editedAt && <span>edited</span>}
+          {message.editedAt && (
+            <span>
+              <Trans>edited</Trans>
+            </span>
+          )}
           {clock(message.createdAt)}
           {mine && (
             <span className="ticks">
@@ -467,7 +505,7 @@ const Bubble = memo(function Bubble({
 
         {message.failed && (
           <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 4 }}>
-            Not sent. Check your connection.
+            <Trans>Not sent. Check your connection.</Trans>
           </div>
         )}
       </div>
@@ -476,14 +514,14 @@ const Bubble = memo(function Bubble({
           Rendering it conditionally made the bubble jump sideways. */}
       {!message.deleted && (
         <div className="msg-actions">
-          <button className="icon-btn" onClick={() => onReply(message)} title="Reply to this message">
+          <button className="icon-btn" onClick={() => onReply(message)} title={t`Reply to this message`}>
             <IconReply size={16} />
           </button>
           <div style={{ position: "relative" }}>
             <button
               className="icon-btn"
               onClick={() => setPickerOpen((v) => !v)}
-              title="React to this message"
+              title={t`React to this message`}
             >
               <IconEmoji size={16} />
             </button>
@@ -510,12 +548,16 @@ function EmptyState() {
       <div className="empty-inner">
         <h2>WhatsCord</h2>
         <p>
-          Pick a conversation on the left, or start one. Voice rooms sit in the same
-          list — open one and press the call button in the header to join whoever is there.
+          <Trans>
+            Pick a conversation on the left, or start one. Voice rooms sit in the same list — open
+            one and press the call button in the header to join whoever is there.
+          </Trans>
         </p>
         <div className="rule" />
         <p style={{ fontSize: 13 }}>
-          Messages travel over an encrypted connection. Calls run through your own LiveKit server.
+          <Trans>
+            Messages travel over an encrypted connection. Calls run through your own LiveKit server.
+          </Trans>
         </p>
       </div>
     </div>

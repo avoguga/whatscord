@@ -3,6 +3,15 @@ import { api, uploadFile } from "../lib/api";
 import { useStore, type User } from "../store";
 import { ImageError, squareThumbnail } from "../lib/image";
 import { resolveTheme, type Theme } from "../lib/theme";
+import {
+  IDIOMAS,
+  NOMES_DE_IDIOMA,
+  resolverIdioma,
+  type PreferenciaIdioma
+} from "../lib/i18n";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { msg } from "@lingui/core/macro";
+import type { MessageDescriptor } from "@lingui/core";
 import { Avatar } from "./Avatar";
 import { Scrim } from "./Scrim";
 import { DevicePicker } from "./DevicePicker";
@@ -26,45 +35,63 @@ import { DevicePicker } from "./DevicePicker";
  * dizer "ainda ninguém escolheu, mostre a primeira".
  */
 
-type SecaoId = "conta" | "voz" | "aparencia";
+type SecaoId = "conta" | "voz" | "aparencia" | "idioma";
 
-const SECOES: { id: SecaoId; titulo: string; grupo: string; icone: string }[] = [
-  { id: "conta", titulo: "Minha conta", grupo: "Conta", icone: "person" },
-  { id: "voz", titulo: "Voz e vídeo", grupo: "Aplicativo", icone: "mic" },
-  { id: "aparencia", titulo: "Aparência", grupo: "Aplicativo", icone: "palette" }
+/*
+ * `msg` guarda a mensagem SEM traduzir; quem traduz é o `i18n._()` na hora de
+ * desenhar. É o que uma tabela de rótulos precisa: uma lista de strings já
+ * traduzidas no topo do módulo é avaliada na importação, antes de o catálogo
+ * existir, e não reage à troca de idioma.
+ *
+ * Envolver numa função que recebe `t` — que foi a primeira tentativa aqui —
+ * resolve o segundo problema e cria um pior: o macro do Lingui só reconhece o
+ * `t` que vem do próprio `useLingui`, então um `t` recebido por parâmetro faz
+ * a extração ignorar a mensagem em silêncio. Ela some do catálogo sem erro
+ * nenhum, e a tela fica em inglês para sempre.
+ */
+const SECOES: { id: SecaoId; titulo: MessageDescriptor; grupo: MessageDescriptor; icone: string }[] = [
+  { id: "conta", titulo: msg`My account`, grupo: msg`Account`, icone: "person" },
+  { id: "voz", titulo: msg`Voice and video`, grupo: msg`App`, icone: "mic" },
+  { id: "aparencia", titulo: msg`Appearance`, grupo: msg`App`, icone: "palette" },
+  { id: "idioma", titulo: msg`Language`, grupo: msg`App`, icone: "globe" }
 ];
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
+  const { t, i18n } = useLingui();
   const me = useStore((s) => s.me);
   const [secao, setSecao] = useState<SecaoId | null>(null);
 
   // No desktop as duas colunas aparecem juntas, então sempre há uma seção
   // aberta; `null` só significa "a primeira".
   const atual = secao ?? "conta";
-  const titulo = SECOES.find((s) => s.id === atual)!.titulo;
+  const titulo = i18n._(SECOES.find((s) => s.id === atual)!.titulo);
 
   if (!me) return null;
 
-  const grupos = [...new Set(SECOES.map((s) => s.grupo))];
+  // Agrupado pela mensagem-fonte, não pela tradução: duas categorias do mesmo
+  // grupo têm de continuar juntas mesmo se o idioma mudar a palavra.
+  const grupos = [...new Set(SECOES.map((s) => s.grupo.id ?? s.grupo.message!))];
 
   return (
     <Scrim onClose={onClose} className="modal-wide">
       <div className="settings-shell" data-view={secao ? "detalhe" : "lista"}>
-        <nav className="settings-nav" aria-label="Categorias">
+        <nav className="settings-nav" aria-label={t`Categories`}>
           {/*
             Só visível no celular, onde esta coluna ocupa o diálogo inteiro e
             leva junto o "fechar" que mora no cabeçalho do detalhe.
           */}
           <div className="settings-list-head">
-            <h3>Configurações</h3>
-            <button className="settings-close" onClick={onClose} aria-label="Fechar">
+            <h3>
+              <Trans>Settings</Trans>
+            </h3>
+            <button className="settings-close" onClick={onClose} aria-label={t`Close`}>
               <Fechar />
             </button>
           </div>
           {grupos.map((g) => (
             <div key={g}>
-              <h4>{g}</h4>
-              {SECOES.filter((s) => s.grupo === g).map((s) => (
+              <h4>{i18n._(SECOES.find((s) => (s.grupo.id ?? s.grupo.message) === g)!.grupo)}</h4>
+              {SECOES.filter((s) => (s.grupo.id ?? s.grupo.message) === g).map((s) => (
                 <button
                   key={s.id}
                   className={`settings-tab${s.id === atual ? " on" : ""}`}
@@ -72,7 +99,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                   onClick={() => setSecao(s.id)}
                 >
                   <Icone nome={s.icone} />
-                  {s.titulo}
+                  {i18n._(s.titulo)}
                 </button>
               ))}
             </div>
@@ -85,13 +112,13 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
               Só aparece no celular, onde esta coluna cobre a lista. No desktop
               a lista está do lado e um "voltar" não teria para onde voltar.
             */}
-            <button className="settings-back" onClick={() => setSecao(null)} aria-label="Voltar">
+            <button className="settings-back" onClick={() => setSecao(null)} aria-label={t`Back`}>
               <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
                 <path fill="currentColor" d="M15.7 4.3 8 12l7.7 7.7 1.4-1.4L10.8 12l6.3-6.3z" />
               </svg>
             </button>
             <h3>{titulo}</h3>
-            <button className="settings-close" onClick={onClose} aria-label="Fechar">
+            <button className="settings-close" onClick={onClose} aria-label={t`Close`}>
               <Fechar />
             </button>
           </header>
@@ -100,6 +127,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             {atual === "conta" && <SecaoConta me={me} onClose={onClose} />}
             {atual === "voz" && <SecaoVoz />}
             {atual === "aparencia" && <SecaoAparencia />}
+            {atual === "idioma" && <SecaoIdioma />}
           </div>
         </section>
       </div>
@@ -123,6 +151,8 @@ function Icone({ nome }: { nome: string }) {
     person:
       "M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5Z",
     mic: "M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V22h2v-3.1A7 7 0 0 0 19 12h-2Z",
+    globe:
+      "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm6.9 9h-3a15.6 15.6 0 0 0-1-5.2A8 8 0 0 1 18.9 11ZM12 4.1c.7 1 1.5 2.9 1.8 6.9h-3.6c.3-4 1.1-5.9 1.8-6.9ZM5.1 11a8 8 0 0 1 4-5.2 15.6 15.6 0 0 0-1 5.2h-3Zm0 2h3c.1 2 .5 3.8 1 5.2A8 8 0 0 1 5.1 13Zm6.9 6.9c-.7-1-1.5-2.9-1.8-6.9h3.6c-.3 4-1.1 5.9-1.8 6.9Zm2.9-1.7c.5-1.4.9-3.2 1-5.2h3a8 8 0 0 1-4 5.2Z",
     palette:
       "M12 3a9 9 0 0 0 0 18c.8 0 1.5-.7 1.5-1.5 0-.4-.2-.8-.4-1-.3-.3-.4-.6-.4-1 0-.8.7-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.4-4-8-9-8Zm-4.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"
   };
@@ -136,6 +166,7 @@ function Icone({ nome }: { nome: string }) {
 /* ------------------------------------------------------------------ conta */
 
 function SecaoConta({ me, onClose }: { me: User; onClose: () => void }) {
+  const { t } = useLingui();
   const signOut = useStore((s) => s.signOut);
   const notify = useStore((s) => s.notify);
 
@@ -161,14 +192,14 @@ function SecaoConta({ me, onClose }: { me: User; onClose: () => void }) {
       const enviado = await uploadFile(pequena);
       const res = await api.patch<{ user: User }>("/users/me", { avatarUrl: enviado.url });
       useStore.setState({ me: res.user });
-      notify("Photo updated.");
+      notify(t`Photo updated.`);
     } catch (err) {
       setError(
         err instanceof ImageError
           ? err.message
           : err instanceof Error
             ? err.message
-            : "That photo could not be saved."
+            : t`That photo could not be saved.`
       );
     } finally {
       setEnviandoFoto(false);
@@ -182,9 +213,9 @@ function SecaoConta({ me, onClose }: { me: User; onClose: () => void }) {
     try {
       const res = await api.patch<{ user: User }>("/users/me", { avatarUrl: null });
       useStore.setState({ me: res.user });
-      notify("Photo removed.");
+      notify(t`Photo removed.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "That photo could not be removed.");
+      setError(err instanceof Error ? err.message : t`That photo could not be removed.`);
     } finally {
       setEnviandoFoto(false);
     }
@@ -202,10 +233,10 @@ function SecaoConta({ me, onClose }: { me: User; onClose: () => void }) {
         bio: bio.trim()
       });
       useStore.setState({ me: res.user });
-      notify("Profile saved.");
+      notify(t`Profile saved.`);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "That could not be saved.");
+      setError(err instanceof Error ? err.message : t`That could not be saved.`);
     } finally {
       setBusy(false);
     }
@@ -220,11 +251,11 @@ function SecaoConta({ me, onClose }: { me: User; onClose: () => void }) {
           className="avatar-edit"
           onClick={() => fileRef.current?.click()}
           disabled={enviandoFoto}
-          title="Change your photo"
-          aria-label="Change your photo"
+          title={t`Change your photo`}
+          aria-label={t`Change your photo`}
         >
           <Avatar name={me.displayName} url={me.avatarUrl} size={64} />
-          <span className="avatar-edit-hint">{enviandoFoto ? "Saving…" : "Change"}</span>
+          <span className="avatar-edit-hint">{enviandoFoto ? t`Saving…` : t`Change`}</span>
         </button>
         <input
           ref={fileRef}
@@ -241,14 +272,16 @@ function SecaoConta({ me, onClose }: { me: User; onClose: () => void }) {
           <span>@{me.username}</span>
           {me.avatarUrl && (
             <button className="btn-link" disabled={enviandoFoto} onClick={() => void removerFoto()}>
-              Remove photo
+              <Trans>Remove photo</Trans>
             </button>
           )}
         </div>
       </div>
 
       <div className="field">
-        <label htmlFor="set-name">Display name</label>
+        <label htmlFor="set-name">
+          <Trans>Display name</Trans>
+        </label>
         <input
           id="set-name"
           value={displayName}
@@ -258,13 +291,15 @@ function SecaoConta({ me, onClose }: { me: User; onClose: () => void }) {
       </div>
 
       <div className="field">
-        <label htmlFor="set-bio">About you</label>
+        <label htmlFor="set-bio">
+          <Trans>About you</Trans>
+        </label>
         <input
           id="set-bio"
           value={bio}
           onChange={(e) => setBio(e.target.value)}
           maxLength={300}
-          placeholder="Optional"
+          placeholder={t`Optional`}
         />
       </div>
 
@@ -273,22 +308,24 @@ function SecaoConta({ me, onClose }: { me: User; onClose: () => void }) {
         disabled={busy || !changed || !displayName.trim()}
         onClick={save}
       >
-        {busy ? "Saving…" : "Save changes"}
+        {busy ? <Trans>Saving…</Trans> : <Trans>Save changes</Trans>}
       </button>
 
       <div className="settings-rule" />
 
       <p className="settings-note">
-        Signing out clears this session on this device. Anything you sent stays where it is.
+        <Trans>
+          Signing out clears this session on this device. Anything you sent stays where it is.
+        </Trans>
       </p>
       <button
         className="btn-outline danger"
         onClick={async () => {
           await signOut();
-          notify("Signed out.");
+          notify(t`Signed out.`);
         }}
       >
-        Sign out
+        <Trans>Sign out</Trans>
       </button>
     </>
   );
@@ -312,24 +349,27 @@ function SecaoVoz() {
 
 /* -------------------------------------------------------------- aparência */
 
-const TEMAS: { id: Theme; titulo: string; descricao: string }[] = [
-  { id: "light", titulo: "Claro", descricao: "Fundo branco o dia todo." },
-  { id: "dark", titulo: "Escuro", descricao: "Fundo escuro o dia todo." },
+const TEMAS: { id: Theme; titulo: MessageDescriptor; descricao: MessageDescriptor }[] = [
+  { id: "light", titulo: msg`Light`, descricao: msg`A white background all day.` },
+  { id: "dark", titulo: msg`Dark`, descricao: msg`A dark background all day.` },
   {
     id: "system",
-    titulo: "Igual ao dispositivo",
-    descricao: "Acompanha o modo claro ou escuro do sistema."
+    titulo: msg`Same as device`,
+    descricao: msg`Follows the light or dark mode of your system.`
   }
 ];
 
 function SecaoAparencia() {
+  const { t, i18n } = useLingui();
   const theme = useStore((s) => s.theme);
   const setTheme = useStore((s) => s.setTheme);
 
   return (
     <>
-      <h4 className="settings-head">Tema</h4>
-      <div className="theme-choices" role="radiogroup" aria-label="Tema">
+      <h4 className="settings-head">
+        <Trans>Theme</Trans>
+      </h4>
+      <div className="theme-choices" role="radiogroup" aria-label={t`Theme`}>
         {TEMAS.map((t) => (
           <label key={t.id} className={`theme-choice${theme === t.id ? " on" : ""}`}>
             <input
@@ -349,8 +389,58 @@ function SecaoAparencia() {
               <span className="theme-swatch-bubble" />
             </span>
             <span className="theme-choice-text">
-              <strong>{t.titulo}</strong>
-              <small>{t.descricao}</small>
+              <strong>{i18n._(t.titulo)}</strong>
+              <small>{i18n._(t.descricao)}</small>
+            </span>
+          </label>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/* ---------------------------------------------------------------- idioma */
+
+function SecaoIdioma() {
+  const { t } = useLingui();
+  const locale = useStore((s) => s.locale);
+  const setLocale = useStore((s) => s.setLocale);
+
+  const opcoes: { id: PreferenciaIdioma; titulo: string; descricao?: string }[] = [
+    {
+      id: "system",
+      titulo: t`Same as device`,
+      /*
+       * Diz QUAL idioma isso significa agora. Sem essa linha, "igual ao
+       * dispositivo" é uma promessa sem resultado visível: a pessoa escolhe e
+       * não sabe se acertou até a tela inteira trocar.
+       */
+      descricao: NOMES_DE_IDIOMA[resolverIdioma("system")]
+    },
+    ...IDIOMAS.map((id) => ({ id: id as PreferenciaIdioma, titulo: NOMES_DE_IDIOMA[id] }))
+  ];
+
+  return (
+    <>
+      {/*
+        Sem título de seção aqui: o cabeçalho do painel já diz "Idioma", e em
+        espanhol as duas palavras são idênticas — a tela mostrava "Idioma" duas
+        vezes seguidas. Em Aparência o título é "Tema" e não repete, por isso lá
+        ele fica.
+      */}
+      <div className="theme-choices" role="radiogroup" aria-label={t`Language`}>
+        {opcoes.map((o) => (
+          <label key={o.id} className={`theme-choice${locale === o.id ? " on" : ""}`}>
+            <input
+              type="radio"
+              name="idioma"
+              value={o.id}
+              checked={locale === o.id}
+              onChange={() => void setLocale(o.id)}
+            />
+            <span className="theme-choice-text">
+              <strong>{o.titulo}</strong>
+              {o.descricao && <small>{o.descricao}</small>}
             </span>
           </label>
         ))}

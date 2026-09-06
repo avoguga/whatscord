@@ -21,10 +21,12 @@ import {
   loadShareMode,
   publishOptions,
   saveShareMode,
-  SHARE_MODE_LABELS,
+  SHARE_MODES,
   type ShareMode
 } from "../lib/screenshare";
 import { Avatar } from "./Avatar";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { plural } from "@lingui/core/macro";
 import { DevicePicker } from "./DevicePicker";
 import { QuickDeviceMenu } from "./QuickDeviceMenu";
 import {
@@ -55,10 +57,11 @@ export function CallSheet({
   withVideo: boolean;
   onClose: () => void;
 }) {
+  const { t } = useLingui();
   const me = useStore((s) => s.me);
   const rooms = useStore((s) => s.rooms);
   const roomMeta = rooms.find((r) => r.id === roomId);
-  const callName = roomMeta?.name ?? roomMeta?.counterpart?.displayName ?? "Call";
+  const callName = roomMeta?.name ?? roomMeta?.counterpart?.displayName ?? t`Call`;
 
   /*
    * The room opens on the devices this machine already chose. Passing them as
@@ -120,7 +123,7 @@ export function CallSheet({
 
   const nameFor = useCallback((identity: string, fallback?: string) => {
     if (identity === meRef.current?.id) return meRef.current.displayName;
-    return rosterRef.current.find((u) => u.id === identity)?.displayName ?? fallback ?? "Someone";
+    return rosterRef.current.find((u) => u.id === identity)?.displayName ?? fallback ?? t`Someone`;
   }, []);
 
   const pushEvent = useCallback((text: string) => {
@@ -180,10 +183,10 @@ export function CallSheet({
           .on(RoomEvent.MediaDevicesError, (err: Error) => {
             setNotice(
               err.name === "NotAllowedError"
-                ? "The browser blocked your microphone or camera. Allow it in the address bar, then try again."
+                ? t`The browser blocked your microphone or camera. Allow it in the address bar, then try again.`
                 : err.name === "NotFoundError"
-                  ? "The device you picked is not there any more. Choose another under Devices."
-                  : "A microphone or camera could not be opened — another app may be holding it."
+                  ? t`The device you picked is not there any more. Choose another under Devices.`
+                  : t`A microphone or camera could not be opened — another app may be holding it.`
             );
           })
           .on(RoomEvent.ActiveSpeakersChanged, (list: Participant[]) =>
@@ -218,14 +221,14 @@ export function CallSheet({
           await room.localParticipant.setMicrophoneEnabled(true);
         } catch {
           setMicOn(false);
-          setNotice("No microphone found. You can hear everyone, but they cannot hear you.");
+          setNotice(t`No microphone found. You can hear everyone, but they cannot hear you.`);
         }
         if (withVideo) {
           try {
             await room.localParticipant.setCameraEnabled(true);
           } catch {
             setCamOn(false);
-            setNotice("No camera found. You joined with audio only.");
+            setNotice(t`No camera found. You joined with audio only.`);
           }
         }
         bump();
@@ -235,7 +238,7 @@ export function CallSheet({
         setError(
           err instanceof Error
             ? err.message
-            : "The call could not connect. Check that the server is reachable."
+            : t`The call could not connect. Check that the server is reachable.`
         );
       }
     })();
@@ -274,7 +277,7 @@ export function CallSheet({
   function nameOf(identity: string, fallback?: string) {
     if (identity === me?.id) return me.displayName;
     const known = roster.find((u) => u.id === identity);
-    return known?.displayName ?? fallback ?? "Someone";
+    return known?.displayName ?? fallback ?? t`Someone`;
   }
 
   const tiles = useMemo<Tile[]>(() => {
@@ -329,7 +332,7 @@ export function CallSheet({
       setMicOn(!micOn);
       setNotice(null);
     } catch {
-      setNotice("Your microphone could not be turned on. Check the browser's permission.");
+      setNotice(t`Your microphone could not be turned on. Check the browser's permission.`);
     }
     bump();
   }
@@ -340,7 +343,7 @@ export function CallSheet({
       setCamOn(!camOn);
       setNotice(null);
     } catch {
-      setNotice("Your camera could not be turned on. Check the browser's permission.");
+      setNotice(t`Your camera could not be turned on. Check the browser's permission.`);
     }
     bump();
   }
@@ -368,7 +371,7 @@ export function CallSheet({
         setNotice(
           comSom
             ? null
-            : "Sharing without sound. To include it, share again and tick “Also share tab audio” (or “Share system audio”) in the browser's dialog — Chrome on Windows only offers it for a tab or a whole screen, not a single window."
+            : t`Sharing without sound. To include it, share again and tick “Also share tab audio” (or “Share system audio”) in the browser's dialog — Chrome on Windows only offers it for a tab or a whole screen, not a single window.`
         );
       } else {
         setNotice(null);
@@ -376,17 +379,17 @@ export function CallSheet({
       bump();
     } catch (err) {
       if (err instanceof Error && err.name !== "NotAllowedError") {
-        setNotice("Screen sharing could not start.");
+        setNotice(t`Screen sharing could not start.`);
       }
     }
   }
 
   const statusLabel =
-    status === "connecting" ? "Connecting…"
-    : status === "reconnecting" ? "Reconnecting…"
-    : status === "failed" ? "Could not connect"
-    : total <= 1 ? "You are the only one here"
-    : `${total} people connected`;
+    status === "connecting" ? t`Connecting…`
+    : status === "reconnecting" ? t`Reconnecting…`
+    : status === "failed" ? t`Could not connect`
+    : total <= 1 ? t`You are the only one here`
+    : plural(total, { one: "# person connected", other: "# people connected" });
 
   if (minimized) {
     return (
@@ -398,7 +401,7 @@ export function CallSheet({
             <b>{callName}</b> · {statusLabel}
           </span>
           <button className="ribbon-open" onClick={() => setMinimized(false)}>
-            Open the call
+            <Trans>Open the call</Trans>
           </button>
           <button className="ribbon-hangup" onClick={onClose}>
             Leave
@@ -416,7 +419,7 @@ export function CallSheet({
         <button
           className="icon-btn"
           onClick={() => setMinimized(true)}
-          title="Minimise — the call keeps running and you go back to the messages"
+          title={t`Minimise — the call keeps running and you go back to the messages`}
         >
           <IconMinimize />
         </button>
@@ -424,7 +427,7 @@ export function CallSheet({
           <strong>{callName}</strong>
           <span className={status === "failed" ? "bad" : undefined}>{statusLabel}</span>
         </div>
-        <button className="call-leave-top" onClick={onClose} title="Leave the call">
+        <button className="call-leave-top" onClick={onClose} title={t`Leave the call`}>
           <IconHangup size={18} /> Leave
         </button>
       </header>
@@ -455,11 +458,11 @@ export function CallSheet({
           <div className="call-stage">
             <div className="call-empty">
               <Avatar name={me?.displayName ?? "?"} url={me?.avatarUrl} size={84} className="tile-avatar" />
-              <p>{status === "connected" ? "You are connected." : statusLabel}</p>
+              <p>{status === "connected" ? t`You are connected.` : statusLabel}</p>
               <p className="dim">
                 {status === "connected"
-                  ? "Nobody else has joined yet. They will see this call in the conversation."
-                  : "Hold on while the connection is set up."}
+                  ? t`Nobody else has joined yet. They will see this call in the conversation.`
+                  : t`Hold on while the connection is set up.`}
               </p>
             </div>
           </div>
@@ -494,11 +497,11 @@ export function CallSheet({
         )}
 
         {/* The roster is the answer to "who is here and who is not". */}
-        <aside className="call-roster" aria-label="Who is on the call">
+        <aside className="call-roster" aria-label={t`Who is on the call`}>
           <p className="roster-head">In the call · {inCall.length || (status === "connected" ? 1 : 0)}</p>
           {inCall.length === 0 && status === "connected" && (
             <RosterRow
-              name={me?.displayName ?? "You"}
+              name={me?.displayName ?? t`You`}
               avatarUrl={me?.avatarUrl}
               suffix="(you)"
               here
@@ -510,7 +513,7 @@ export function CallSheet({
               key={u.id}
               name={u.displayName}
               avatarUrl={u.avatarUrl}
-              suffix={u.id === me?.id ? "(you)" : undefined}
+              suffix={u.id === me?.id ? t`(you)` : undefined}
               here
               muted={
                 u.id === me?.id
@@ -523,7 +526,9 @@ export function CallSheet({
 
           {away.length > 0 && (
             <>
-              <p className="roster-head">Not in the call · {away.length}</p>
+              <p className="roster-head">
+                <Trans>Not in the call</Trans> · {away.length}
+              </p>
               {away.map((u) => (
                 <RosterRow key={u.id} name={u.displayName} avatarUrl={u.avatarUrl} />
               ))}
@@ -535,15 +540,15 @@ export function CallSheet({
       <div className="call-bar">
         <div className="call-ctl-group">
           <CallButton
-            label={micOn ? "Mute" : "Unmute"}
+            label={micOn ? t`Mute` : t`Unmute`}
             danger={!micOn}
             onClick={toggleMic}
             icon={micOn ? <IconMic /> : <IconMicOff />}
           />
           <button
             className="call-caret"
-            title="Microphone options"
-            aria-label="Microphone options"
+            title={t`Microphone options`}
+            aria-label={t`Microphone options`}
             aria-expanded={quick === "audioinput"}
             onClick={() => setQuick((q) => (q === "audioinput" ? null : "audioinput"))}
           >
@@ -565,15 +570,15 @@ export function CallSheet({
 
         <div className="call-ctl-group">
           <CallButton
-            label={camOn ? "Stop video" : "Start video"}
+            label={camOn ? t`Stop video` : t`Start video`}
             danger={!camOn}
             onClick={toggleCam}
             icon={camOn ? <IconVideo /> : <IconVideoOff />}
           />
           <button
             className="call-caret"
-            title="Camera options"
-            aria-label="Camera options"
+            title={t`Camera options`}
+            aria-label={t`Camera options`}
             aria-expanded={quick === "videoinput"}
             onClick={() => setQuick((q) => (q === "videoinput" ? null : "videoinput"))}
           >
@@ -593,35 +598,37 @@ export function CallSheet({
           )}
         </div>
         <CallButton
-          label={sharing ? "Stop sharing" : "Share screen"}
+          label={sharing ? t`Stop sharing` : t`Share screen`}
           active={sharing}
           onClick={toggleShare}
           disabled={!canShareScreen}
           title={
             canShareScreen
               ? undefined
-              : "Screen sharing is not available on this device — Android's WebView cannot capture the screen."
+              : t`Screen sharing is not available on this device — Android's WebView cannot capture the screen.`
           }
           icon={<IconScreen />}
         />
         <CallButton
-          label="Devices"
+          label={t`Devices`}
           active={showDevices}
           onClick={() => setShowDevices((v) => !v)}
           icon={<IconSettings />}
         />
-        <CallButton label="Leave" hangup onClick={onClose} icon={<IconHangup />} />
+        <CallButton label={t`Leave`} hangup onClick={onClose} icon={<IconHangup />} />
       </div>
 
       {showDevices && (
-        <aside className="call-devices" aria-label="Audio and video devices">
+        <aside className="call-devices" aria-label={t`Audio and video devices`}>
           <header>
-            <strong>Audio and video</strong>
+            <strong>
+              <Trans>Audio and video</Trans>
+            </strong>
             <button
               className="icon-btn"
               onClick={() => setShowDevices(false)}
-              title="Close"
-              aria-label="Close devices"
+              title={t`Close`}
+              aria-label={t`Close devices`}
             >
               <IconClose />
             </button>
@@ -640,8 +647,10 @@ export function CallSheet({
 
           {canShareScreen && (
           <div className="share-modes">
-            <p className="settings-head">Screen sharing</p>
-            {(Object.keys(SHARE_MODE_LABELS) as ShareMode[]).map((mode) => (
+            <p className="settings-head">
+              <Trans>Screen sharing</Trans>
+            </p>
+            {SHARE_MODES.map((mode) => (
               <label key={mode} className="share-mode">
                 <input
                   type="radio"
@@ -651,13 +660,22 @@ export function CallSheet({
                     setShareMode(mode);
                     saveShareMode(mode);
                     if (sharing) {
-                      setNotice("The new setting applies the next time you start sharing.");
+                      setNotice(t`The new setting applies the next time you start sharing.`);
                     }
                   }}
                 />
                 <span>
-                  <strong>{SHARE_MODE_LABELS[mode].title}</strong>
-                  <em>{SHARE_MODE_LABELS[mode].hint}</em>
+                  {/*
+                    Traduzido AQUI, dentro do render, e não numa tabela no topo
+                    do módulo: uma tabela de strings é avaliada na importação e
+                    ficaria congelada no idioma-fonte.
+                  */}
+                  <strong>{mode === "text" ? t`Text and detail` : t`Video and motion`}</strong>
+                  <em>
+                    {mode === "text"
+                      ? t`Sharpest for code, documents and spreadsheets. 15 frames per second.`
+                      : t`Smoother for video and games, at the cost of some sharpness. 30 frames per second.`}
+                  </em>
                 </span>
               </label>
             ))}
@@ -675,6 +693,7 @@ function RosterRow({
   name: string; avatarUrl?: string | null;
   suffix?: string; here?: boolean; muted?: boolean; speaking?: boolean;
 }) {
+  const { t } = useLingui();
   return (
     <div className={`roster-row${here ? " here" : ""}${speaking ? " speaking" : ""}`}>
       <Avatar name={name} url={avatarUrl} size={30} className="roster-avatar" />
@@ -683,12 +702,18 @@ function RosterRow({
       </span>
       {here ? (
         muted ? (
-          <span className="roster-state muted" title="Microphone off"><IconMicOff size={14} /></span>
+          <span className="roster-state muted" title={t`Microphone off`}>
+            <IconMicOff size={14} />
+          </span>
         ) : (
-          <span className="roster-state on" title="Microphone on"><IconMic size={14} /></span>
+          <span className="roster-state on" title={t`Microphone on`}>
+            <IconMic size={14} />
+          </span>
         )
       ) : (
-        <span className="roster-state away">away</span>
+        <span className="roster-state away">
+          <Trans>away</Trans>
+        </span>
       )}
     </div>
   );
@@ -766,6 +791,7 @@ function AudioSink({ track, sinkId }: { track: Track; sinkId?: string }) {
 }
 
 function VideoTile({ tile }: { tile: Tile }) {
+  const { t } = useLingui();
   const ref = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -790,17 +816,17 @@ function VideoTile({ tile }: { tile: Tile }) {
 
       <span className="tile-name">
         {tile.muted && !tile.isScreen && (
-          <span className="tile-muted" title="Microphone off">
+          <span className="tile-muted" title={t`Microphone off`}>
             <IconMicOff size={13} />
           </span>
         )}
         {tile.name}
-        {tile.isLocal && !tile.isScreen ? " (you)" : ""}
-        {tile.isScreen ? " — screen" : ""}
+        {tile.isLocal && !tile.isScreen ? ` ${t`(you)`}` : ""}
+        {tile.isScreen ? ` — ${t`screen`}` : ""}
       </span>
 
       {poor && !tile.isLocal && (
-        <span className="tile-quality" title="Weak connection">
+        <span className="tile-quality" title={t`Weak connection`}>
           <IconSignal size={14} />
         </span>
       )}

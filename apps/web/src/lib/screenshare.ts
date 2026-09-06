@@ -116,13 +116,12 @@ export function publishOptions(mode: ShareMode): SharePublishOptions {
       };
 }
 
-export const SHARE_MODE_LABELS: Record<ShareMode, { title: string; hint: string }> = {
-  text: {
-    title: "Text and detail",
-    hint: "Sharpest for code, documents and spreadsheets. 15 frames per second."
-  },
-  motion: {
-    title: "Video and motion",
-    hint: "Smoother for video and games, at the cost of some sharpness. 30 frames per second."
-  }
-};
+/**
+ * A ordem em que os modos aparecem na tela.
+ *
+ * Os rótulos saíram daqui: um objeto de strings no escopo do módulo é avaliado
+ * na importação, antes de o catálogo de tradução carregar, e não reavalia
+ * quando o idioma muda — ficaria congelado em inglês. Quem desenha a lista é
+ * quem traduz.
+ */
+export const SHARE_MODES: ShareMode[] = ["text", "motion"];

@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { useStore } from "../store";
 import { peekPendingInvite } from "../lib/deeplink";
 
 export function Auth() {
+  const { t } = useLingui();
   const [mode, setMode] = useState<"in" | "up">("in");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +37,7 @@ export function Auth() {
         });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "That did not work. Try again.");
+      setError(err instanceof Error ? err.message : t`That did not work. Try again.`);
     } finally {
       setBusy(false);
     }
@@ -46,15 +48,29 @@ export function Auth() {
       <form className="auth-card" onSubmit={submit}>
         <h1>WhatsCord</h1>
         <p className="sub">
-          {mode === "in" ? "Sign in to pick up where you left off." : "Create an account to get started."}
+          {mode === "in" ? (
+            <Trans>Sign in to pick up where you left off.</Trans>
+          ) : (
+            <Trans>Create an account to get started.</Trans>
+          )}
         </p>
 
         {/* Quem chegou por um link de convite precisa saber que ele não se
             perdeu no login — senão parece que o link simplesmente não fez nada. */}
         {peekPendingInvite() && (
           <div className="auth-invite">
-            You were invited to a space. {mode === "in" ? "Sign in" : "Create your account"} and you
-            will be taken straight in.
+            {/*
+              Frase inteira em cada ramo, e não costurada de pedaços: em
+              espanhol e português a ordem das palavras muda, e um pedaço solto
+              no meio impede o tradutor de reordenar.
+            */}
+            {mode === "in" ? (
+              <Trans>You were invited to a space. Sign in and you will be taken straight in.</Trans>
+            ) : (
+              <Trans>
+                You were invited to a space. Create your account and you will be taken straight in.
+              </Trans>
+            )}
           </div>
         )}
 
@@ -63,41 +79,47 @@ export function Auth() {
         {mode === "in" ? (
           <>
             <div className="field">
-              <label htmlFor="identifier">Email or username</label>
+              <label htmlFor="identifier"><Trans>Email or username</Trans></label>
               <input id="identifier" value={form.identifier} onChange={set("identifier")} autoFocus autoComplete="username" />
             </div>
             <div className="field">
-              <label htmlFor="password">Password</label>
+              <label htmlFor="password"><Trans>Password</Trans></label>
               <input id="password" type="password" value={form.password} onChange={set("password")} autoComplete="current-password" />
             </div>
           </>
         ) : (
           <>
             <div className="field">
-              <label htmlFor="displayName">Your name</label>
+              <label htmlFor="displayName"><Trans>Your name</Trans></label>
               <input id="displayName" value={form.displayName} onChange={set("displayName")} autoFocus />
             </div>
             <div className="field">
-              <label htmlFor="username">Username</label>
-              <input id="username" value={form.username} onChange={set("username")} placeholder="lowercase, no spaces" autoComplete="username" />
+              <label htmlFor="username"><Trans>Username</Trans></label>
+              <input id="username" value={form.username} onChange={set("username")} placeholder={t`lowercase, no spaces`} autoComplete="username" />
             </div>
             <div className="field">
-              <label htmlFor="email">Email</label>
+              <label htmlFor="email"><Trans>Email</Trans></label>
               <input id="email" type="email" value={form.email} onChange={set("email")} autoComplete="email" />
             </div>
             <div className="field">
-              <label htmlFor="new-password">Password</label>
-              <input id="new-password" type="password" value={form.password} onChange={set("password")} placeholder="at least 8 characters" autoComplete="new-password" />
+              <label htmlFor="new-password"><Trans>Password</Trans></label>
+              <input id="new-password" type="password" value={form.password} onChange={set("password")} placeholder={t`at least 8 characters`} autoComplete="new-password" />
             </div>
           </>
         )}
 
         <button className="btn-primary" type="submit" disabled={busy}>
-          {busy ? "One moment…" : mode === "in" ? "Sign in" : "Create account"}
+          {busy ? (
+            <Trans>One moment…</Trans>
+          ) : mode === "in" ? (
+            <Trans>Sign in</Trans>
+          ) : (
+            <Trans>Create account</Trans>
+          )}
         </button>
 
         <p className="auth-switch">
-          {mode === "in" ? "No account yet? " : "Already have one? "}
+          {mode === "in" ? <Trans>No account yet? </Trans> : <Trans>Already have one? </Trans>}
           <button
             type="button"
             onClick={() => {
@@ -105,7 +127,7 @@ export function Auth() {
               setError(null);
             }}
           >
-            {mode === "in" ? "Create one" : "Sign in"}
+            {mode === "in" ? <Trans>Create one</Trans> : <Trans>Sign in</Trans>}
           </button>
         </p>
       </form>

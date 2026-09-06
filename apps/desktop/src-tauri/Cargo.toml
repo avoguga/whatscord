@@ -25,6 +25,11 @@ tauri-plugin-store = "2.4.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-deep-link = "2.4.10"
+# O idioma do SISTEMA, perguntado ao SO e nao ao navegador. Dentro da WebView2
+# do Windows `navigator.language` nao reflete de forma confiavel a configuracao
+# do sistema (wry#442), entao o app instalado poderia abrir em ingles numa
+# maquina em portugues. 1 KB de crate resolve a primeira impressao do produto.
+sys-locale = "0.3"
 
 # single-instance is desktop-only: it has no mobile implementation and fails to
 # build for iOS/Android, so it is gated behind a target cfg (as the docs require).

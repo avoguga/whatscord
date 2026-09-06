@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useLingui } from "@lingui/react/macro";
 import { useStore } from "../store";
 import { IconCheck, IconClose } from "./icons";
 
@@ -32,6 +33,7 @@ function Toast({
   kind: "ok" | "bad";
   onDismiss: (id: string) => void;
 }) {
+  const { t } = useLingui();
   useEffect(() => {
     const timer = setTimeout(() => onDismiss(id), kind === "bad" ? 6000 : 3500);
     return () => clearTimeout(timer);
@@ -41,7 +43,7 @@ function Toast({
     <div className={`toast${kind === "bad" ? " bad" : ""}`}>
       {kind === "ok" && <IconCheck size={16} />}
       <span>{text}</span>
-      <button onClick={() => onDismiss(id)} title="Dismiss">
+      <button onClick={() => onDismiss(id)} title={t`Dismiss`}>
         <IconClose size={15} />
       </button>
     </div>
