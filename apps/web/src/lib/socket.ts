@@ -51,6 +51,12 @@ export function connectSocket() {
     store().refreshSpaces().catch(() => undefined);
     store().refreshRooms().catch(() => undefined);
   });
+  // Saiu de um espaco (possivelmente noutra aba ou noutro aparelho): as salas
+  // dele tem que sumir daqui tambem, senao ficam clicaveis e dao 403.
+  socket.on("space:left", () => {
+    store().refreshSpaces().catch(() => undefined);
+    store().refreshRooms().catch(() => undefined);
+  });
 
   socket.on("call:joined", (p: { roomId: string; userId: string }) => {
     const current = useStore.getState().voicePresence[p.roomId] ?? [];

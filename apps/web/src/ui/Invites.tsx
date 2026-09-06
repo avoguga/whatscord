@@ -63,8 +63,10 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
   const spaces = useStore((s) => s.spaces);
   const refreshSpaces = useStore((s) => s.refreshSpaces);
   const refreshRooms = useStore((s) => s.refreshRooms);
+  const leaveSpace = useStore((s) => s.leaveSpace);
   const notify = useStore((s) => s.notify);
   const space = spaces.find((s) => s.id === spaceId);
+  const [confirmarSaida, setConfirmarSaida] = useState(false);
 
   const [members, setMembers] = useState<User[]>([]);
   const [channelName, setChannelName] = useState("");
@@ -179,6 +181,51 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
             Add
           </button>
         </div>
+        <div style={{ height: 1, background: "var(--divider)", margin: "20px 0" }} />
+
+        {/*
+          Sair ficava impossível: dava para entrar num espaço e nunca mais sair
+          dele, nem pela interface nem pela API. A confirmação em dois passos
+          existe porque isto tira você de TODOS os canais de uma vez.
+        */}
+        {confirmarSaida ? (
+          <div className="leave-confirm">
+            <p>
+              Leaving takes you out of every channel in <b>{space.name}</b>. What you have written
+              stays where it is, and you can come back with the invite code.
+            </p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn-ghost" onClick={() => setConfirmarSaida(false)}>
+                Cancel
+              </button>
+              <button
+                className="btn-outline danger"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const { spaceDeleted } = await leaveSpace(spaceId);
+                    notify(
+                      spaceDeleted
+                        ? `You left ${space.name}. Nobody was left, so the space is gone.`
+                        : `You left ${space.name}.`
+                    );
+                    onClose();
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : "You could not leave that space.");
+                    setBusy(false);
+                  }
+                }}
+              >
+                {busy ? "Leaving…" : "Yes, leave"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button className="btn-outline danger" onClick={() => setConfirmarSaida(true)}>
+            Leave this space
+          </button>
+        )}
       </div>
       <footer>
         <button className="btn-ghost" onClick={onClose}>

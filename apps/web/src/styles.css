@@ -1215,3 +1215,36 @@ input, textarea { font: inherit; color: inherit; }
   font-size: 13.5px; line-height: 1.45;
   margin-bottom: var(--gap-3);
 }
+
+/* Confirmacao de sair de um espaco: sair tira de todos os canais de uma vez. */
+.leave-confirm {
+  background: rgba(241, 92, 109, 0.08);
+  border: 1px solid rgba(241, 92, 109, 0.3);
+  border-radius: 8px; padding: var(--gap-3);
+  display: flex; flex-direction: column; gap: var(--gap-3);
+}
+.leave-confirm p { margin: 0; font-size: 13.5px; color: var(--text-dim); line-height: 1.5; }
+.leave-confirm b { color: var(--text); }
+
+/* A dica fica ABAIXO do seletor, nunca dentro dele. */
+.device-field .device-hint { margin: 2px 0 0; }
+
+/* A escolha entre abrir no app ou seguir no navegador. */
+.invite-gate { display: flex; flex-direction: column; gap: var(--gap-3); }
+/* As duas saidas precisam PARECER dois botoes. A secundaria sem contorno
+   visivel virava um texto solto que ninguem clica. */
+.invite-gate .btn-primary,
+.invite-gate .btn-outline {
+  width: 100%; padding: 11px 14px; border-radius: 8px; font-size: 14.5px;
+}
+.invite-gate .btn-outline { border: 1px solid var(--text-faint); color: var(--text); }
+.invite-gate .btn-outline:hover { border-color: var(--accent); color: var(--accent-bright); }
+.invite-gate .sub { margin-bottom: var(--gap-2); }
+.gate-note {
+  margin: 0; font-size: 12.5px; line-height: 1.45;
+  color: var(--text-dim);
+  background: var(--overlay); border: 1px solid var(--divider);
+  border-radius: 8px; padding: 9px 11px;
+}
+.gate-foot { margin: var(--gap-2) 0 0; font-size: 12.5px; color: var(--text-faint); }
+.gate-foot a { color: var(--accent-bright); }

@@ -11,6 +11,7 @@ import { Auth } from "./ui/Auth";
 import { Sidebar } from "./ui/Sidebar";
 import { Chat } from "./ui/Chat";
 import { Toasts } from "./ui/Toasts";
+import { InviteGate } from "./ui/InviteGate";
 
 /*
  * A tela de chamada carrega sob demanda porque ela traz junto o livekit-client,
@@ -30,6 +31,8 @@ export default function App() {
   const notify = useStore((s) => s.notify);
 
   const [call, setCall] = useState<{ roomId: string; video: boolean } | null>(null);
+  /** Convite chegado pela web, esperando a pessoa escolher app ou navegador. */
+  const [gate, setGate] = useState<string | null>(null);
 
   useEffect(() => {
     bootstrap();
@@ -66,11 +69,17 @@ export default function App() {
   // Links entregues com o app já aberto.
   useEffect(() => onDeepLink((code) => void accept(code)), [accept]);
 
-  // O endereço com que a página abriu, uma vez só.
+  /*
+   * O endereço com que a página abriu, uma vez só.
+   *
+   * Aqui NÃO se entra direto: o navegador não sabe se o app está instalado, e
+   * quem tem o app espera que o link o abra. A escolha é da pessoa. Já um link
+   * entregue pelo próprio app (o efeito acima) entra direto — ela já está nele.
+   */
   useEffect(() => {
     const code = inviteFromLocation();
-    if (code) void accept(code);
-  }, [accept]);
+    if (code) setGate(code);
+  }, []);
 
   // E o convite que ficou esperando alguém entrar.
   useEffect(() => {
@@ -92,6 +101,19 @@ export default function App() {
   useEffect(() => {
     if (call && activeRoomId !== call.roomId) setCall(null);
   }, [activeRoomId, call]);
+
+  if (gate) {
+    return (
+      <InviteGate
+        code={gate}
+        onBrowser={() => {
+          const code = gate;
+          setGate(null);
+          void accept(code);
+        }}
+      />
+    );
+  }
 
   if (booting) {
     return (

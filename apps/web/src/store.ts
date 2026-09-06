@@ -148,6 +148,7 @@ type State = {
   refreshRooms: () => Promise<void>;
   refreshSpaces: () => Promise<void>;
   joinSpaceByCode: (code: string) => Promise<{ id: string; name: string }>;
+  leaveSpace: (spaceId: string) => Promise<{ spaceDeleted: boolean }>;
   openRoom: (roomId: string) => Promise<void>;
   closeRoom: () => void;
   loadOlder: (roomId: string) => Promise<void>;
@@ -260,6 +261,32 @@ export const useStore = create<State>((set, get) => ({
    * O código é escapado por vir de fora: de um link, ele chega do sistema
    * operacional e pode ser qualquer coisa.
    */
+  /**
+   * Sai de um espaço e limpa o que ficaria pendurado.
+   *
+   * Sair sem soltar `activeSpaceId` deixava a barra lateral filtrando por um
+   * espaço que não existe mais para esta conta — foi exatamente o sintoma de
+   * "entrei e a conversa sumiu" que já apareceu aqui antes, por outro caminho.
+   */
+  async leaveSpace(spaceId) {
+    const res = await api.del<{ ok: true; spaceDeleted: boolean }>(
+      `/spaces/${encodeURIComponent(spaceId)}/members/me`
+    );
+
+    const saiuDoAtivo = get().activeSpaceId === spaceId;
+    const salasDoEspaco = new Set(
+      get().rooms.filter((r) => r.space?.id === spaceId).map((r) => r.id)
+    );
+
+    set((s) => ({
+      activeSpaceId: saiuDoAtivo ? null : s.activeSpaceId,
+      activeRoomId: s.activeRoomId && salasDoEspaco.has(s.activeRoomId) ? null : s.activeRoomId
+    }));
+
+    await Promise.all([get().refreshSpaces(), get().refreshRooms()]);
+    return { spaceDeleted: res.spaceDeleted };
+  },
+
   async joinSpaceByCode(code) {
     const res = await api.post<{ space: { id: string; name: string } }>(
       `/spaces/join/${encodeURIComponent(code)}`

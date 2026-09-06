@@ -4,7 +4,7 @@ import crypto from "node:crypto";
 import { prisma } from "../lib/prisma.js";
 import { userSelect } from "../lib/shapes.js";
 import { authGuard } from "../plugins/auth.js";
-import { emitToRoom, emitToUsers, joinUserSockets } from "../realtime/bus.js";
+import { emitToRoom, emitToUsers, joinUserSockets, leaveUserSockets } from "../realtime/bus.js";
 
 const inviteCode = () => crypto.randomBytes(5).toString("hex");
 
@@ -162,6 +162,91 @@ export async function spaceRoutes(app: FastifyInstance) {
     }
 
     return { space: { id: space.id, name: space.name } };
+  });
+
+  /**
+   * Sair de um espaço.
+   *
+   * Entrar era possível desde sempre; sair, não — quem aceitava um convite
+   * ficava lá para sempre, sem nenhuma saída pela API nem pela interface.
+   *
+   * Duas decisões que valem estar escritas:
+   *
+   * As MENSAGENS FICAM. Apagar o que a pessoa escreveu ao sair arrancaria
+   * metade das conversas de todo mundo que continua, e ninguém espera isso ao
+   * clicar em "sair".
+   *
+   * O DONO PODE SAIR. Prender quem criou o espaço dentro dele é pior do que
+   * transferir: a posse passa para o membro mais antigo que restou. Se não
+   * restou ninguém, o espaço é apagado — e aí sim as mensagens vão junto, por
+   * cascata, porque não há mais quem as leia.
+   */
+  app.delete("/spaces/:id/members/me", async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const space = await prisma.space.findUnique({
+      where: { id },
+      include: { rooms: { select: { id: true } } }
+    });
+    if (!space) return reply.code(404).send({ error: "That space does not exist." });
+
+    const membership = await prisma.spaceMember.findUnique({
+      where: { spaceId_userId: { spaceId: id, userId: request.userId } }
+    });
+    if (!membership) return reply.code(404).send({ error: "You are not in that space." });
+
+    const roomIds = space.rooms.map((r) => r.id);
+
+    await prisma.$transaction([
+      prisma.spaceMember.delete({
+        where: { spaceId_userId: { spaceId: id, userId: request.userId } }
+      }),
+      prisma.roomMember.deleteMany({
+        where: { roomId: { in: roomIds }, userId: request.userId }
+      })
+    ]);
+
+    /*
+     * Tirar a linha do banco não basta: uma aba aberta continua inscrita nos
+     * canais e recebendo mensagem até alguém recarregar a página.
+     */
+    await Promise.all(roomIds.map((roomId) => leaveUserSockets(request.userId, roomId)));
+
+    const restantes = await prisma.spaceMember.findMany({
+      where: { spaceId: id },
+      orderBy: { joinedAt: "asc" },
+      select: { userId: true }
+    });
+
+    if (restantes.length === 0) {
+      // Ninguém restou: o espaço, seus canais e suas mensagens somem por cascata.
+      await prisma.space.delete({ where: { id } });
+      emitToUsers([request.userId], "space:left", { spaceId: id });
+      return reply.send({ ok: true, spaceDeleted: true });
+    }
+
+    if (space.ownerId === request.userId) {
+      const herdeiro = restantes[0].userId;
+      await prisma.$transaction([
+        prisma.space.update({ where: { id }, data: { ownerId: herdeiro } }),
+        prisma.spaceMember.update({
+          where: { spaceId_userId: { spaceId: id, userId: herdeiro } },
+          data: { role: "OWNER" }
+        })
+      ]);
+    }
+
+    emitToUsers([request.userId], "space:left", { spaceId: id });
+    emitToUsers(
+      restantes.map((m) => m.userId),
+      "space:members",
+      { spaceId: id }
+    );
+    for (const roomId of roomIds) {
+      emitToRoom(roomId, "room:members", { roomId });
+    }
+
+    return reply.send({ ok: true, spaceDeleted: false });
   });
 
   app.get("/spaces/:id/members", async (request, reply) => {

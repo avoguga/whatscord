@@ -175,7 +175,11 @@ export function DevicePicker({
                 : "Your microphones are visible, but the camera still needs permission — until then it cannot be picked."}
           </p>
           <button className="btn-outline" onClick={() => void reveal()}>
-            {micBlocked ? "Allow the microphone" : "Allow the camera"}
+            {micBlocked && camBlocked
+              ? "Allow microphone and camera"
+              : micBlocked
+                ? "Allow the microphone"
+                : "Allow the camera"}
           </button>
         </div>
       )}
@@ -295,25 +299,34 @@ function Row({
         <span className="device-icon">{icon}</span>
         {label}
       </label>
+      {/*
+        O seletor NUNCA fica desabilitado por não termos conseguido enumerar.
+        "System default" é uma escolha legítima — é exatamente o que o app usa
+        quando não há preferência — e desabilitar aqui produzia um controle
+        morto, sem nada que a pessoa pudesse fazer a respeito. O motivo de não
+        haver mais opções vai na linha de baixo, em texto, não dentro da caixa.
+      */}
       <select
         id={id}
         value={current}
-        disabled={busy || devices.length === 0}
+        disabled={busy}
         onChange={(e) => void onPick(kind, e.target.value)}
       >
-        <option value="">
-          {devices.length > 0
-            ? "System default"
-            : blocked
-              ? "Waiting for permission"
-              : `No ${label.toLowerCase()} found`}
-        </option>
+        <option value="">System default</option>
         {devices.map((d, i) => (
           <option key={d.deviceId} value={d.deviceId}>
             {deviceLabel(d, i)}
           </option>
         ))}
       </select>
+
+      {devices.length === 0 && (
+        <p className="device-hint">
+          {blocked
+            ? "Allow access above to choose a specific one."
+            : `No ${label.toLowerCase()} was found — the system default will be used.`}
+        </p>
+      )}
     </div>
   );
 }
