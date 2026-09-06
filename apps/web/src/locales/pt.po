@@ -54,6 +54,10 @@ msgstr "{total, plural, one {# pessoa conectada} other {# pessoas conectadas}}"
 msgid "A dark background all day."
 msgstr "Fundo escuro o dia todo."
 
+#: src/lib/erros.ts
+msgid "A direct message cannot take more people."
+msgstr "Uma conversa direta não comporta mais gente."
+
 #: src/ui/Call.tsx
 msgid "A microphone or camera could not be opened — another app may be holding it."
 msgstr "Não foi possível abrir um microfone ou câmera — outro aplicativo pode estar usando."
@@ -73,6 +77,10 @@ msgstr "Sobre você"
 #: src/ui/Settings.tsx
 msgid "Account"
 msgstr "Conta"
+
+#: src/lib/erros.ts
+msgid "Account not found."
+msgstr "Conta não encontrada."
 
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
@@ -122,6 +130,10 @@ msgstr "Permitir o microfone"
 msgid "Already have one? "
 msgstr "Já tem uma conta? "
 
+#: src/lib/erros.ts
+msgid "An account already uses that email."
+msgstr "Já existe uma conta com esse e-mail."
+
 #: src/ui/Invites.tsx
 msgid "announcements"
 msgstr "avisos"
@@ -147,6 +159,10 @@ msgstr "pelo menos 8 caracteres"
 #: src/ui/Chat.tsx
 msgid "Attach a file"
 msgstr "Anexar um arquivo"
+
+#: src/lib/erros.ts
+msgid "Attach a file to upload."
+msgstr "Anexe um arquivo para enviar."
 
 #: src/ui/Chat.tsx
 #: src/ui/Sidebar.tsx
@@ -177,9 +193,21 @@ msgstr "Voltar"
 msgid "Back to conversations"
 msgstr "Voltar para as conversas"
 
+#: src/lib/erros.ts
+msgid "Bad file reference."
+msgstr "Referência de arquivo inválida."
+
+#: src/lib/erros.ts
+msgid "Bad pagination values."
+msgstr "Valores de paginação inválidos."
+
 #: src/ui/Call.tsx
 msgid "Call"
 msgstr "Chamada"
+
+#: src/lib/erros.ts
+msgid "Calls are not set up on this server."
+msgstr "As chamadas não estão configuradas neste servidor."
 
 #: src/ui/DevicePicker.tsx
 #: src/ui/QuickDeviceMenu.tsx
@@ -348,9 +376,25 @@ msgstr "E-mail"
 msgid "Email or username"
 msgstr "E-mail ou nome de usuário"
 
+#: src/lib/erros.ts
+msgid "Enter a valid email address."
+msgstr "Digite um e-mail válido."
+
+#: src/lib/erros.ts
+msgid "Enter your email or username."
+msgstr "Digite seu e-mail ou nome de usuário."
+
+#: src/lib/erros.ts
+msgid "Enter your password."
+msgstr "Digite sua senha."
+
 #: src/ui/EmojiPicker.tsx
 msgid "Faces"
 msgstr "Rostos"
+
+#: src/lib/erros.ts
+msgid "Files have to be under {mb} MB."
+msgstr "Os arquivos precisam ter menos de {mb} MB."
 
 #: src/ui/Chat.tsx
 #: src/ui/Chat.tsx
@@ -360,6 +404,14 @@ msgstr "Buscar nesta conversa"
 #: src/ui/Settings.tsx
 msgid "Follows the light or dark mode of your system."
 msgstr "Acompanha o modo claro ou escuro do sistema."
+
+#: src/lib/erros.ts
+msgid "Give the group a name."
+msgstr "Dê um nome ao grupo."
+
+#: src/lib/erros.ts
+msgid "Give the space a name."
+msgstr "Dê um nome ao espaço."
 
 #: src/ui/Invites.tsx
 msgid "Group {grupo} created."
@@ -506,6 +558,10 @@ msgstr "Opções de microfone"
 msgid "Minimise — the call keeps running and you go back to the messages"
 msgstr "Minimizar — a chamada continua e você volta para as mensagens"
 
+#: src/lib/erros.ts
+msgid "Missing refresh token."
+msgstr "Falta o token de renovação."
+
 #: src/ui/Chat.tsx
 msgid "More options"
 msgstr "Mais opções"
@@ -593,6 +649,10 @@ msgstr "Ninguém aqui atende por esse nome."
 msgid "Nobody here right now"
 msgstr "Ninguém aqui agora"
 
+#: src/lib/erros.ts
+msgid "None of those accounts exist."
+msgstr "Nenhuma dessas contas existe."
+
 #: src/ui/Call.tsx
 msgid "Not in the call"
 msgstr "Fora da chamada"
@@ -627,6 +687,10 @@ msgstr "Um momento…"
 msgid "online"
 msgstr "online"
 
+#: src/lib/erros.ts
+msgid "Only admins can add channels."
+msgstr "Só administradores podem adicionar canais."
+
 #: src/ui/InviteGate.tsx
 msgid "Open in the WhatsCord app"
 msgstr "Abrir no aplicativo WhatsCord"
@@ -660,6 +724,10 @@ msgstr "Ou mande só o código, para quem preferir digitá-lo em <0>Novo espaço
 msgid "Password"
 msgstr "Senha"
 
+#: src/lib/erros.ts
+msgid "People join a channel by joining its space. Share the space invite code instead."
+msgstr "As pessoas entram num canal entrando no espaço dele. Compartilhe o código de convite do espaço."
+
 #: src/ui/Sidebar.tsx
 msgid "Photo"
 msgstr "Foto"
@@ -675,6 +743,18 @@ msgstr "Foto atualizada."
 #: src/ui/Chat.tsx
 msgid "Pick a conversation on the left, or start one. Voice rooms sit in the same list — open one and press the call button in the header to join whoever is there."
 msgstr "Escolha uma conversa à esquerda, ou comece uma. As salas de voz ficam na mesma lista — abra uma e toque no botão de chamada no topo para entrar com quem estiver lá."
+
+#: src/lib/erros.ts
+msgid "Pick an emoji."
+msgstr "Escolha um emoji."
+
+#: src/lib/erros.ts
+msgid "Pick someone to message."
+msgstr "Escolha alguém para conversar."
+
+#: src/lib/erros.ts
+msgid "Pick who to add."
+msgstr "Escolha quem adicionar."
 
 #: src/ui/Sidebar.tsx
 msgid "Places"
@@ -743,6 +823,10 @@ msgstr "Salvar alterações"
 msgid "Saving…"
 msgstr "Salvando…"
 
+#: src/lib/erros.ts
+msgid "Say whether to mute or unmute."
+msgstr "Diga se é para silenciar ou reativar."
+
 #: src/ui/Call.tsx
 msgid "screen"
 msgstr "tela"
@@ -803,6 +887,14 @@ msgstr "Mais nítido para código, documentos e planilhas. 15 quadros por segund
 msgid "Sign in"
 msgstr "Entrar"
 
+#: src/lib/erros.ts
+msgid "Sign in again."
+msgstr "Entre de novo."
+
+#: src/lib/erros.ts
+msgid "Sign in to continue."
+msgstr "Entre para continuar."
+
 #: src/ui/Auth.tsx
 msgid "Sign in to pick up where you left off."
 msgstr "Entre para continuar de onde parou."
@@ -828,6 +920,14 @@ msgstr "Mais fluido para vídeo e jogos, com alguma perda de nitidez. 30 quadros
 #: src/ui/Chat.tsx
 msgid "Someone"
 msgstr "Alguém"
+
+#: src/lib/erros.ts
+msgid "Something broke on our side. Try again."
+msgstr "Algo quebrou do nosso lado. Tente de novo."
+
+#: src/lib/api.ts
+msgid "Something went wrong. Try again."
+msgstr "Algo deu errado. Tente de novo."
 
 #: src/ui/Sidebar.tsx
 msgid "Space"
@@ -890,9 +990,25 @@ msgstr "Texto e detalhe"
 msgid "Text channels"
 msgstr "Canais de texto"
 
+#: src/lib/erros.ts
+msgid "That account does not exist."
+msgstr "Essa conta não existe."
+
+#: src/lib/erros.ts
+msgid "That attachment is no longer available. Upload it again."
+msgstr "Esse anexo não está mais disponível. Envie de novo."
+
+#: src/lib/erros.ts
+msgid "That attachment is not yours to send."
+msgstr "Esse anexo não é seu para enviar."
+
 #: src/ui/Invites.tsx
 msgid "That channel could not be created."
 msgstr "Não foi possível criar esse canal."
+
+#: src/lib/erros.ts
+msgid "That conversation no longer exists."
+msgstr "Essa conversa não existe mais."
 
 #: src/ui/Chat.tsx
 msgid "That could not be changed."
@@ -915,9 +1031,26 @@ msgstr "Isso não funcionou."
 msgid "That did not work. Try again."
 msgstr "Isso não funcionou. Tente de novo."
 
+#: src/lib/erros.ts
+msgid "That edit is not valid."
+msgstr "Essa edição não é válida."
+
+#: src/lib/erros.ts
+msgid "That email or password is not right."
+msgstr "Esse e-mail ou senha não está certo."
+
+#: src/lib/api.ts
 #: src/ui/Chat.tsx
 msgid "That file could not be uploaded."
 msgstr "Não foi possível enviar esse arquivo."
+
+#: src/lib/erros.ts
+msgid "That file is empty."
+msgstr "Esse arquivo está vazio."
+
+#: src/lib/erros.ts
+msgid "That file is no longer here."
+msgstr "Esse arquivo não está mais aqui."
 
 #: src/ui/Invites.tsx
 msgid "That group could not be created."
@@ -928,6 +1061,26 @@ msgstr "Não foi possível criar esse grupo."
 msgid "That invite did not work."
 msgstr "Esse convite não funcionou."
 
+#: src/lib/erros.ts
+msgid "That invite is not valid."
+msgstr "Esse convite não é válido."
+
+#: src/lib/erros.ts
+msgid "That is not a valid image."
+msgstr "Isso não é uma imagem válida."
+
+#: src/lib/erros.ts
+msgid "That message is gone."
+msgstr "Essa mensagem não existe mais."
+
+#: src/lib/erros.ts
+msgid "That pagination cursor is not valid."
+msgstr "Esse cursor de paginação não é válido."
+
+#: src/lib/erros.ts
+msgid "That person is not on WhatsCord."
+msgstr "Essa pessoa não está no WhatsCord."
+
 #: src/ui/Settings.tsx
 msgid "That photo could not be removed."
 msgstr "Não foi possível remover essa foto."
@@ -936,9 +1089,25 @@ msgstr "Não foi possível remover essa foto."
 msgid "That photo could not be saved."
 msgstr "Não foi possível salvar essa foto."
 
+#: src/lib/erros.ts
+msgid "That request could not be handled."
+msgstr "Não foi possível atender esse pedido."
+
+#: src/lib/erros.ts
+msgid "That send already exists in another conversation."
+msgstr "Esse envio já existe em outra conversa."
+
+#: src/lib/erros.ts
+msgid "That space does not exist."
+msgstr "Esse espaço não existe."
+
 #: src/ui/DevicePicker.tsx
 msgid "That speaker could not be used. The call is still on the previous one."
 msgstr "Não foi possível usar essa saída de som. A chamada continua na anterior."
+
+#: src/lib/erros.ts
+msgid "That username is taken."
+msgstr "Esse nome de usuário já está em uso."
 
 #: src/ui/Call.tsx
 msgid "The browser blocked your microphone or camera. Allow it in the address bar, then try again."
@@ -956,9 +1125,17 @@ msgstr "O navegador esconde seus microfones e câmeras até receber permissão u
 msgid "The call could not connect. Check that the server is reachable."
 msgstr "A chamada não conseguiu conectar. Verifique se o servidor está acessível."
 
+#: src/lib/api.ts
+msgid "The connection dropped during the upload."
+msgstr "A conexão caiu durante o envio."
+
 #: src/ui/Call.tsx
 msgid "The device you picked is not there any more. Choose another under Devices."
 msgstr "O dispositivo escolhido não está mais aí. Escolha outro em Dispositivos."
+
+#: src/lib/erros.ts
+msgid "The message cannot be empty."
+msgstr "A mensagem não pode ficar vazia."
 
 #: src/ui/Call.tsx
 msgid "The new setting applies the next time you start sharing."
@@ -1014,9 +1191,21 @@ msgstr "Reativar notificações"
 msgid "Unread"
 msgstr "Não lidas"
 
+#: src/lib/erros.ts
+msgid "Use at least 8 characters."
+msgstr "Use pelo menos 8 caracteres."
+
+#: src/lib/erros.ts
+msgid "Use lowercase letters, numbers, dots and underscores."
+msgstr "Use letras minúsculas, números, pontos e sublinhados."
+
 #: src/ui/Auth.tsx
 msgid "Username"
 msgstr "Nome de usuário"
+
+#: src/lib/erros.ts
+msgid "Usernames are at least 3 characters."
+msgstr "Nomes de usuário têm pelo menos 3 caracteres."
 
 #: src/ui/Sidebar.tsx
 msgid "Video"
@@ -1070,6 +1259,10 @@ msgstr "Quem está na chamada"
 msgid "Write something first"
 msgstr "Escreva algo primeiro"
 
+#: src/lib/erros.ts
+msgid "Write something or attach a file."
+msgstr "Escreva algo ou anexe um arquivo."
+
 #: src/ui/Invites.tsx
 msgid "Yes, leave"
 msgstr "Sim, sair"
@@ -1082,9 +1275,33 @@ msgstr "Você"
 msgid "You are connected."
 msgstr "Você está conectado."
 
+#: src/lib/erros.ts
+msgid "You are not in that conversation."
+msgstr "Você não está nessa conversa."
+
+#: src/lib/erros.ts
+msgid "You are not in that space."
+msgstr "Você não está nesse espaço."
+
 #: src/ui/Call.tsx
 msgid "You are the only one here"
 msgstr "Você é a única pessoa aqui"
+
+#: src/lib/erros.ts
+msgid "You can only delete your own messages."
+msgstr "Você só pode apagar as suas mensagens."
+
+#: src/lib/erros.ts
+msgid "You can only edit your own messages."
+msgstr "Você só pode editar as suas mensagens."
+
+#: src/lib/erros.ts
+msgid "You can only reply to a message in this conversation."
+msgstr "Você só pode responder a uma mensagem desta conversa."
+
+#: src/lib/erros.ts
+msgid "You cannot message yourself."
+msgstr "Você não pode conversar consigo mesmo."
 
 #: src/ui/Chat.tsx
 msgid "You could not leave that conversation."
@@ -1135,3 +1352,7 @@ msgstr "Seus microfones estão visíveis, mas a câmera ainda precisa de permiss
 #: src/ui/Auth.tsx
 msgid "Your name"
 msgstr "Seu nome"
+
+#: src/lib/erros.ts
+msgid "Your session expired. Sign in again."
+msgstr "Sua sessão expirou. Entre de novo."

@@ -4,6 +4,10 @@
  * about tokens.
  */
 
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
+import { traduzirErro } from "./erros";
+
 const DEFAULT_API = "https://api.whatscord.167.88.39.225.sslip.io";
 
 export const apiBase: string =
@@ -86,6 +90,30 @@ async function refreshAccess(): Promise<boolean> {
   return refreshing;
 }
 
+/**
+ * A mensagem de erro que a pessoa vai ler, no idioma da interface.
+ *
+ * A API responde `{ error, code, params }`: a frase em inglês, um identificador
+ * estável e os valores que ela usa. Traduzir AQUI, no ponto em que o erro é
+ * lançado, e não em cada `catch`, é o que faz as dezenas de telas que já
+ * mostram `err.message` falarem três idiomas sem uma linha de mudança — e é o
+ * que evita que a próxima tela esqueça.
+ *
+ * A ordem é deliberada: tradução, depois a frase em inglês que o servidor
+ * mandou, e só então um texto de reserva. Um código desconhecido — servidor
+ * mais novo que o app instalado — ainda diz algo útil; ficar mudo seria pior
+ * do que ficar em inglês.
+ */
+function lerFalha(corpo: unknown): string | null {
+  if (!corpo || typeof corpo !== "object") return null;
+  const { code, params, error } = corpo as {
+    code?: unknown;
+    params?: Record<string, string | number>;
+    error?: unknown;
+  };
+  return traduzirErro(code, params) ?? (typeof error === "string" ? error : null);
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -111,13 +139,16 @@ async function request<T>(
   }
 
   if (!res.ok) {
-    let message = "Something went wrong. Try again.";
+    let corpo: unknown = null;
     try {
-      message = (await res.json()).error ?? message;
+      corpo = await res.json();
     } catch {
-      /* keep the fallback */
+      /* corpo vazio ou ilegível: cai na reserva */
     }
-    throw new ApiError(res.status, message);
+    throw new ApiError(
+      res.status,
+      lerFalha(corpo) ?? i18n._(msg`Something went wrong. Try again.`)
+    );
   }
 
   if (res.status === 204) return undefined as T;
@@ -154,16 +185,22 @@ export async function uploadFile(file: File, onProgress?: (pct: number) => void)
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve(JSON.parse(xhr.responseText));
         } else {
-          let msg = "That file could not be uploaded.";
+          let corpo: unknown = null;
           try {
-            msg = JSON.parse(xhr.responseText).error ?? msg;
+            corpo = JSON.parse(xhr.responseText);
           } catch {
-            /* keep the fallback */
+            /* corpo ilegível: cai na reserva */
           }
-          reject(new ApiError(xhr.status, msg));
+          reject(
+            new ApiError(
+              xhr.status,
+              lerFalha(corpo) ?? i18n._(msg`That file could not be uploaded.`)
+            )
+          );
         }
       };
-      xhr.onerror = () => reject(new ApiError(0, "The connection dropped during the upload."));
+      xhr.onerror = () =>
+        reject(new ApiError(0, i18n._(msg`The connection dropped during the upload.`)));
       xhr.send(form);
     }
   );

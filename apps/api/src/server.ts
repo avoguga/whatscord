@@ -13,6 +13,7 @@ import { spaceRoutes } from "./routes/spaces.js";
 import { fileRoutes } from "./routes/files.js";
 import { callRoutes } from "./routes/calls.js";
 import { attachSocketServer } from "./realtime/socket.js";
+import { falha } from "./lib/falha.js";
 
 const app = Fastify({
   logger: {
@@ -38,12 +39,19 @@ async function main() {
     app.log.error(error);
     const detail = error as { statusCode?: number; message?: string };
     const status = detail.statusCode ?? 500;
-    reply.code(status).send({
-      error:
-        status >= 500
-          ? "Something broke on our side. Try again."
-          : (detail.message ?? "That request could not be handled.")
-    });
+    /*
+      O `code` acompanha ate aqui, no ultimo recurso: sem ele o cliente nao
+      teria como traduzir justamente o erro que ele mais mostra — o inesperado.
+    */
+    if (status >= 500) {
+      return falha(reply, status, "server.broke", "Something broke on our side. Try again.");
+    }
+    return falha(
+      reply,
+      status,
+      "server.bad_request",
+      detail.message ?? "That request could not be handled."
+    );
   });
 
   const origins = env.CORS_ORIGINS.split(",").map((o) => o.trim());

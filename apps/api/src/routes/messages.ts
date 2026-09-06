@@ -7,6 +7,7 @@ import { authGuard } from "../plugins/auth.js";
 import { HttpError, requireMembership } from "../lib/rooms.js";
 import { emitToRoom } from "../realtime/bus.js";
 import { deleteObject, objectExists, ownerOfKey } from "../lib/storage.js";
+import { falha, falhaDeValidacao } from "../lib/falha.js";
 
 const attachmentInput = z.object({
   key: z.string().min(1),
@@ -60,18 +61,18 @@ export async function messageRoutes(app: FastifyInstance) {
         limit: z.coerce.number().int().min(1).max(100).default(40)
       })
       .safeParse(request.query);
-    if (!query.success) return reply.code(400).send({ error: "Bad pagination values." });
+    if (!query.success) return falha(reply, 400, "messages.bad_pagination", "Bad pagination values.");
 
     const { before, limit } = query.data;
     const cursor = before ? decodeCursor(before) : null;
     if (before && !cursor) {
-      return reply.code(400).send({ error: "That pagination cursor is not valid." });
+      return falha(reply, 400, "messages.bad_cursor", "That pagination cursor is not valid.");
     }
 
     try {
       await requireMembership(id, request.userId);
     } catch (err) {
-      if (err instanceof HttpError) return reply.code(err.status).send({ error: err.message });
+      if (err instanceof HttpError) return falha(reply, err.status, err.code, err.message);
       throw err;
     }
 
@@ -110,17 +111,17 @@ export async function messageRoutes(app: FastifyInstance) {
         attachments: z.array(attachmentInput).max(10).default([])
       })
       .safeParse(request.body);
-    if (!body.success) return reply.code(400).send({ error: body.error.issues[0].message });
+    if (!body.success) return falhaDeValidacao(reply, body.error.issues[0].message);
 
     const { content, replyToId, clientMsgId, attachments } = body.data;
     if (!content.trim() && attachments.length === 0) {
-      return reply.code(400).send({ error: "Write something or attach a file." });
+      return falha(reply, 400, "messages.nothing_to_send", "Write something or attach a file.");
     }
 
     try {
       await requireMembership(id, request.userId);
     } catch (err) {
-      if (err instanceof HttpError) return reply.code(err.status).send({ error: err.message });
+      if (err instanceof HttpError) return falha(reply, err.status, err.code, err.message);
       throw err;
     }
 
@@ -135,7 +136,12 @@ export async function messageRoutes(app: FastifyInstance) {
         select: { roomId: true }
       });
       if (!parent || parent.roomId !== id) {
-        return reply.code(400).send({ error: "You can only reply to a message in this conversation." });
+        return falha(
+          reply,
+          400,
+          "messages.reply_other_room",
+          "You can only reply to a message in this conversation."
+        );
       }
     }
 
@@ -148,10 +154,15 @@ export async function messageRoutes(app: FastifyInstance) {
     for (const a of attachments) {
       const owner = ownerOfKey(a.key);
       if (owner !== request.userId) {
-        return reply.code(400).send({ error: "That attachment is not yours to send." });
+        return falha(reply, 400, "messages.attachment_not_yours", "That attachment is not yours to send.");
       }
       if (!(await objectExists(a.key))) {
-        return reply.code(400).send({ error: "That attachment is no longer available. Upload it again." });
+        return falha(
+          reply,
+          400,
+          "messages.attachment_gone",
+          "That attachment is no longer available. Upload it again."
+        );
       }
     }
 
@@ -164,7 +175,12 @@ export async function messageRoutes(app: FastifyInstance) {
       });
       if (already) {
         if (already.roomId !== id) {
-          return reply.code(409).send({ error: "That send already exists in another conversation." });
+          return falha(
+            reply,
+            409,
+            "messages.duplicate_send",
+            "That send already exists in another conversation."
+          );
         }
         return reply.code(200).send({ message: messageDTO(already) });
       }
@@ -222,26 +238,26 @@ export async function messageRoutes(app: FastifyInstance) {
   app.patch("/messages/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = z.object({ content: z.string().max(8000) }).safeParse(request.body);
-    if (!body.success) return reply.code(400).send({ error: "That edit is not valid." });
+    if (!body.success) return falha(reply, 400, "messages.bad_edit", "That edit is not valid.");
 
     // Validate what will actually be stored. `min(1)` before trimming let a
     // string of spaces through and left the message empty — the very state the
     // create route refuses.
     const content = body.data.content.trim();
-    if (!content) return reply.code(400).send({ error: "The message cannot be empty." });
+    if (!content) return falha(reply, 400, "messages.empty", "The message cannot be empty.");
 
     const existing = await prisma.message.findUnique({ where: { id } });
     if (!existing || existing.deletedAt) {
-      return reply.code(404).send({ error: "That message is gone." });
+      return falha(reply, 404, "messages.gone", "That message is gone.");
     }
     if (existing.authorId !== request.userId) {
-      return reply.code(403).send({ error: "You can only edit your own messages." });
+      return falha(reply, 403, "messages.edit_not_yours", "You can only edit your own messages.");
     }
 
     try {
       await requireMembership(existing.roomId, request.userId);
     } catch (err) {
-      if (err instanceof HttpError) return reply.code(err.status).send({ error: err.message });
+      if (err instanceof HttpError) return falha(reply, err.status, err.code, err.message);
       throw err;
     }
 
@@ -262,9 +278,9 @@ export async function messageRoutes(app: FastifyInstance) {
       where: { id },
       include: { attachments: true }
     });
-    if (!existing) return reply.code(404).send({ error: "That message is gone." });
+    if (!existing) return falha(reply, 404, "messages.gone", "That message is gone.");
     if (existing.authorId !== request.userId) {
-      return reply.code(403).send({ error: "You can only delete your own messages." });
+      return falha(reply, 403, "messages.delete_not_yours", "You can only delete your own messages.");
     }
 
     /*
@@ -292,15 +308,15 @@ export async function messageRoutes(app: FastifyInstance) {
   app.post("/messages/:id/reactions", async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = z.object({ emoji: z.string().min(1).max(24) }).safeParse(request.body);
-    if (!body.success) return reply.code(400).send({ error: "Pick an emoji." });
+    if (!body.success) return falha(reply, 400, "messages.pick_emoji", "Pick an emoji.");
 
     const message = await prisma.message.findUnique({ where: { id } });
-    if (!message) return reply.code(404).send({ error: "That message is gone." });
+    if (!message) return falha(reply, 404, "messages.gone", "That message is gone.");
 
     try {
       await requireMembership(message.roomId, request.userId);
     } catch (err) {
-      if (err instanceof HttpError) return reply.code(err.status).send({ error: err.message });
+      if (err instanceof HttpError) return falha(reply, err.status, err.code, err.message);
       throw err;
     }
 

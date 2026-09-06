@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { userSelect } from "../lib/shapes.js";
 import { authGuard } from "../plugins/auth.js";
+import { falha, falhaDeValidacao } from "../lib/falha.js";
 import {
   hashPassword,
   issueRefreshToken,
@@ -32,7 +33,7 @@ export async function authRoutes(app: FastifyInstance) {
   app.post("/auth/register", async (request, reply) => {
     const parsed = registerBody.safeParse(request.body);
     if (!parsed.success) {
-      return reply.code(400).send({ error: parsed.error.issues[0].message });
+      return falhaDeValidacao(reply, parsed.error.issues[0].message);
     }
     const { email, username, displayName, password } = parsed.data;
 
@@ -41,12 +42,9 @@ export async function authRoutes(app: FastifyInstance) {
       select: { email: true, username: true }
     });
     if (clash) {
-      return reply.code(409).send({
-        error:
-          clash.username === username
-            ? "That username is taken."
-            : "An account already uses that email."
-      });
+      return clash.username === username
+        ? falha(reply, 409, "auth.username_taken", "That username is taken.")
+        : falha(reply, 409, "auth.email_taken", "An account already uses that email.");
     }
 
     const user = await prisma.user.create({
@@ -70,7 +68,7 @@ export async function authRoutes(app: FastifyInstance) {
   app.post("/auth/login", async (request, reply) => {
     const parsed = loginBody.safeParse(request.body);
     if (!parsed.success) {
-      return reply.code(400).send({ error: parsed.error.issues[0].message });
+      return falhaDeValidacao(reply, parsed.error.issues[0].message);
     }
     const { identifier, password } = parsed.data;
 
@@ -80,7 +78,7 @@ export async function authRoutes(app: FastifyInstance) {
       }
     });
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
-      return reply.code(401).send({ error: "That email or password is not right." });
+      return falha(reply, 401, "auth.bad_credentials", "That email or password is not right.");
     }
 
     const refresh = await issueRefreshToken(user.id, request.headers["user-agent"]);
@@ -101,10 +99,10 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.post("/auth/refresh", async (request, reply) => {
     const body = z.object({ refreshToken: z.string().min(1) }).safeParse(request.body);
-    if (!body.success) return reply.code(400).send({ error: "Missing refresh token." });
+    if (!body.success) return falha(reply, 400, "auth.missing_refresh", "Missing refresh token.");
 
     const rotated = await rotateRefreshToken(body.data.refreshToken, request.headers["user-agent"]);
-    if (!rotated) return reply.code(401).send({ error: "Sign in again." });
+    if (!rotated) return falha(reply, 401, "auth.sign_in_again", "Sign in again.");
 
     return reply.send({
       accessToken: signAccessToken({
@@ -128,7 +126,7 @@ export async function authRoutes(app: FastifyInstance) {
       where: { id: request.userId },
       select: userSelect
     });
-    if (!user) return reply.code(404).send({ error: "Account not found." });
+    if (!user) return falha(reply, 404, "auth.account_missing", "Account not found.");
     return reply.send({ user });
   });
 }

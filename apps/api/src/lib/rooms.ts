@@ -1,4 +1,5 @@
 import { prisma } from "./prisma.js";
+import type { CodigoDeFalha } from "./falha.js";
 
 /** Two people can only ever have one DM, whichever of them opens it first. */
 export function dmKeyFor(a: string, b: string) {
@@ -6,7 +7,16 @@ export function dmKeyFor(a: string, b: string) {
 }
 
 export class HttpError extends Error {
-  constructor(public status: number, message: string) {
+  /*
+   * O `code` acompanha a mensagem porque quem captura este erro so tem a
+   * frase em maos, e a frase nao pode ser o identificador: mudar uma virgula
+   * no texto derrubaria a traducao no cliente sem aviso.
+   */
+  constructor(
+    public status: number,
+    message: string,
+    public code: CodigoDeFalha = "server.bad_request"
+  ) {
     super(message);
   }
 }
@@ -18,7 +28,11 @@ export async function requireMembership(roomId: string, userId: string) {
     include: { room: true }
   });
   if (!membership) {
-    throw new HttpError(404, "That conversation does not exist, or you are not in it.");
+    throw new HttpError(
+      404,
+      "That conversation does not exist, or you are not in it.",
+      "rooms.gone"
+    );
   }
   return membership;
 }

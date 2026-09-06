@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { userSelect } from "../lib/shapes.js";
 import { authGuard } from "../plugins/auth.js";
 import { onlineUserIds } from "../lib/redis.js";
+import { falha, falhaDeValidacao } from "../lib/falha.js";
 
 export async function userRoutes(app: FastifyInstance) {
   app.addHook("preHandler", authGuard);
@@ -35,7 +36,7 @@ export async function userRoutes(app: FastifyInstance) {
   app.get("/users/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const user = await prisma.user.findUnique({ where: { id }, select: userSelect });
-    if (!user) return reply.code(404).send({ error: "That account does not exist." });
+    if (!user) return falha(reply, 404, "users.missing", "That account does not exist.");
     const online = await onlineUserIds([id]);
     return { user: { ...user, online: online.has(id) } };
   });
@@ -68,7 +69,7 @@ export async function userRoutes(app: FastifyInstance) {
           .optional()
       })
       .safeParse(request.body);
-    if (!body.success) return reply.code(400).send({ error: body.error.issues[0].message });
+    if (!body.success) return falhaDeValidacao(reply, body.error.issues[0].message);
 
     const user = await prisma.user.update({
       where: { id: request.userId },

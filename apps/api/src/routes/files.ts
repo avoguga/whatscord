@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { env } from "../env.js";
 import { authGuard } from "../plugins/auth.js";
 import { getObjectStream, isServableKey, newObjectKey, putObject } from "../lib/storage.js";
+import { falha } from "../lib/falha.js";
 
 /**
  * Uploads go to whichever storage driver is configured; downloads are proxied
@@ -53,14 +54,26 @@ export async function fileRoutes(app: FastifyInstance) {
     const uploaded = await request.file({
       limits: { fileSize: env.MAX_UPLOAD_MB * 1024 * 1024 }
     });
-    if (!uploaded) return reply.code(400).send({ error: "Attach a file to upload." });
+    if (!uploaded) return falha(reply, 400, "files.none", "Attach a file to upload.");
 
     const buffer = await uploaded.toBuffer().catch(() => null);
     if (!buffer) {
-      return reply.code(413).send({ error: `Files have to be under ${env.MAX_UPLOAD_MB} MB.` });
+      /*
+       * O limite vai em `params`, e não colado na frase: em português a
+       * frase é "Os arquivos precisam ter menos de 25 MB", com o número no
+       * meio. Concatenar aqui obrigaria a tradução a manter a ordem do
+       * inglês.
+       */
+      return falha(
+        reply,
+        413,
+        "files.too_big",
+        `Files have to be under ${env.MAX_UPLOAD_MB} MB.`,
+        { mb: env.MAX_UPLOAD_MB }
+      );
     }
     if (buffer.length === 0) {
-      return reply.code(400).send({ error: "That file is empty." });
+      return falha(reply, 400, "files.empty", "That file is empty.");
     }
 
     const key = newObjectKey(uploaded.filename ?? "file.bin", request.userId);
@@ -87,7 +100,7 @@ export async function fileRoutes(app: FastifyInstance) {
     const key = decodeURIComponent((request.params as Record<string, string>)["*"] ?? "");
     // Also refuses the driver's internal `.type` sidecar, which is storage
     // metadata and never a file anyone uploaded.
-    if (!isServableKey(key)) return reply.code(400).send({ error: "Bad file reference." });
+    if (!isServableKey(key)) return falha(reply, 400, "files.bad_reference", "Bad file reference.");
 
     try {
       const object = await getObjectStream(key);
@@ -104,7 +117,7 @@ export async function fileRoutes(app: FastifyInstance) {
       reply.header("Cache-Control", "private, max-age=31536000, immutable");
       return reply.send(object.body);
     } catch {
-      return reply.code(404).send({ error: "That file is no longer here." });
+      return falha(reply, 404, "files.gone", "That file is no longer here.");
     }
   });
 }

@@ -326,6 +326,198 @@ for (const [nome, cat] of [
   );
 }
 
+
+// ---------------------------------------------------------------------------
+// OS ERROS DA API
+//
+// A API responde `{ error, code, params }` e o cliente traduz pelo `code`. Os
+// dois lados vivem em arquivos diferentes, em pastas diferentes, e nada no
+// TypeScript liga um ao outro: um codigo novo no servidor que ninguem mapeou no
+// cliente nao da erro em lugar nenhum — so faz a mensagem sair em ingles para
+// quem usa o app em portugues. E exatamente esse o buraco que este bloco fecha.
+//
+// A leitura e do CODIGO-FONTE, e nao por import: `erros.ts` usa o macro do
+// Lingui, que so existe depois do Babel, entao importa-lo aqui nao funciona.
+// ---------------------------------------------------------------------------
+
+section("erros da API — os dois lados falam da mesma lista");
+
+const fonteFalha = readFileSync(
+  new URL("../apps/api/src/lib/falha.ts", import.meta.url),
+  "utf8"
+);
+const fonteErros = readFileSync(
+  new URL("../apps/web/src/lib/erros.ts", import.meta.url),
+  "utf8"
+);
+
+/** Os codigos declarados na uniao `CodigoDeFalha`. */
+const declarados = (() => {
+  const bloco = fonteFalha.slice(
+    fonteFalha.indexOf("export type CodigoDeFalha"),
+    fonteFalha.indexOf(";", fonteFalha.indexOf("export type CodigoDeFalha"))
+  );
+  return [...bloco.matchAll(/"([a-z_]+\.[a-z_]+)"/g)].map((m) => m[1]);
+})();
+
+/** As chaves do mapa do cliente. */
+const mapeados = (() => {
+  const bloco = fonteErros.slice(
+    fonteErros.indexOf("const MENSAGENS"),
+    fonteErros.indexOf("CODIGOS_CONHECIDOS")
+  );
+  return [...bloco.matchAll(/^\s{2}"([a-z_]+\.[a-z_]+)":/gm)].map((m) => m[1]);
+})();
+
+check("a união de códigos da API foi lida", declarados.length > 30, "> 30", declarados.length);
+check("o mapa do cliente foi lido", mapeados.length > 30, "> 30", mapeados.length);
+check(
+  "nenhum código repetido na união da API",
+  new Set(declarados).size === declarados.length,
+  declarados.length,
+  new Set(declarados).size
+);
+
+const semTraducao = declarados.filter((c) => !mapeados.includes(c));
+check(
+  "todo código que a API emite tem mensagem no cliente",
+  semTraducao.length === 0,
+  [],
+  semTraducao
+);
+
+const orfaos = mapeados.filter((c) => !declarados.includes(c));
+check(
+  "o cliente não guarda mensagem para código que a API não emite",
+  orfaos.length === 0,
+  [],
+  orfaos
+);
+
+section("erros da API — códigos realmente usados nas rotas");
+
+/*
+ * A união pode declarar um código que nenhuma rota emite. Não quebra nada, mas
+ * é peso morto que envelhece: alguém lê a lista e acha que o caso existe.
+ */
+const fontesDaApi = [
+  "plugins/auth.ts",
+  "routes/auth.ts",
+  "routes/calls.ts",
+  "routes/files.ts",
+  "routes/messages.ts",
+  "routes/rooms.ts",
+  "routes/spaces.ts",
+  "routes/users.ts",
+  "lib/rooms.ts",
+  "lib/falha.ts",
+  "../../src/server.ts"
+].map((f) => {
+  try {
+    return readFileSync(new URL(`../apps/api/src/${f}`, import.meta.url), "utf8");
+  } catch {
+    return "";
+  }
+});
+const tudoDaApi = fontesDaApi.join("\n") + readFileSync(
+  new URL("../apps/api/src/server.ts", import.meta.url),
+  "utf8"
+);
+
+const naoUsados = declarados.filter((c) => {
+  // A declaração da união também casa; conta as ocorrências e desconta uma.
+  const vezes = tudoDaApi.split(`"${c}"`).length - 1;
+  return vezes < 1;
+});
+check(
+  "todo código declarado é emitido por alguma rota",
+  naoUsados.length === 0,
+  [],
+  naoUsados
+);
+
+section("erros da API — a ponte das mensagens do zod");
+
+/*
+ * As mensagens de validação chegam ao `send` como texto solto: o `safeParse`
+ * monta a frase a partir do schema e o código não viaja junto. Uma tabela faz o
+ * caminho de volta, e o preço é ficar preso ao texto — mudar a frase no schema
+ * sem mudar a tabela derruba a tradução em silêncio. É esse preço que o teste
+ * cobra.
+ */
+const mensagensDoZod = (() => {
+  const fontes = ["routes/auth.ts", "routes/rooms.ts", "routes/users.ts"].map((f) =>
+    readFileSync(new URL(`../apps/api/src/${f}`, import.meta.url), "utf8")
+  );
+  const achadas = new Set<string>();
+  for (const src of fontes) {
+    /*
+     * `[^\n]` e não `[^)]`: o padrão de um `.regex()` pode conter parênteses
+     * — o do avatar tem um `(?!` — e parar no primeiro `)` fazia a busca perder
+     * a mensagem justamente da validação mais delicada que existe aqui.
+     */
+    for (const m of src.matchAll(/\.(?:min|max|email|regex|refine|url)\([^\n]*?"([A-Z][^"]{6,}\.)"/g)) {
+      achadas.add(m[1]);
+    }
+  }
+  return [...achadas];
+})();
+
+const naTabela = (() => {
+  const bloco = fonteFalha.slice(
+    fonteFalha.indexOf("const POR_MENSAGEM"),
+    fonteFalha.indexOf("export function falhaDeValidacao")
+  );
+  return [...bloco.matchAll(/^\s{2}"([^"]+)":/gm)].map((m) => m[1]);
+})();
+
+check(
+  "as mensagens de validação dos schemas foram encontradas",
+  mensagensDoZod.length >= 6,
+  ">= 6",
+  mensagensDoZod.length
+);
+const foraDaTabela = mensagensDoZod.filter((m) => !naTabela.includes(m));
+check(
+  "toda mensagem de validação tem um código na tabela",
+  foraDaTabela.length === 0,
+  [],
+  foraDaTabela
+);
+const tabelaMorta = naTabela.filter((m) => !mensagensDoZod.includes(m));
+check(
+  "a tabela não guarda mensagem que nenhum schema emite",
+  tabelaMorta.length === 0,
+  [],
+  tabelaMorta
+);
+
+section("erros da API — as mensagens em inglês existem no catálogo");
+
+/*
+ * Cada `msg` do mapa de erros vira uma mensagem do catálogo. Se uma frase do
+ * cliente não bater com nenhuma msgid, ela nunca foi extraída — e sairia em
+ * inglês mesmo com o idioma trocado.
+ */
+const frasesDoCliente = [
+  ...fonteErros.matchAll(/msg`([^`]+)`/g),
+  ...fonteErros.matchAll(/msg\(\{ message: "([^"]+)" \}\)/g)
+].map((m) => m[1]);
+const idsDoCatalogo = new Set(en.map((e) => e.id));
+const foraDoCatalogo = frasesDoCliente.filter((f) => !idsDoCatalogo.has(f));
+check(
+  "toda mensagem de erro do cliente está no catálogo",
+  foraDoCatalogo.length === 0,
+  [],
+  foraDoCatalogo.slice(0, 6)
+);
+check(
+  "e são muitas (o mapa não ficou vazio por engano)",
+  frasesDoCliente.length > 40,
+  "> 40",
+  frasesDoCliente.length
+);
+
 // ---------------------------------------------------------------------------
 console.log(`\n${passed} passaram, ${failures.length} falharam`);
 if (failures.length) {

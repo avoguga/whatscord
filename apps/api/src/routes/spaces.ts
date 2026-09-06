@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma.js";
 import { userSelect } from "../lib/shapes.js";
 import { authGuard } from "../plugins/auth.js";
 import { emitToRoom, emitToUsers, joinUserSockets, leaveUserSockets } from "../realtime/bus.js";
+import { falha, falhaDeValidacao } from "../lib/falha.js";
 
 const inviteCode = () => crypto.randomBytes(5).toString("hex");
 
@@ -43,7 +44,7 @@ export async function spaceRoutes(app: FastifyInstance) {
   /** A new space always opens with one text channel and one voice channel. */
   app.post("/spaces", async (request, reply) => {
     const body = z.object({ name: z.string().min(1).max(60) }).safeParse(request.body);
-    if (!body.success) return reply.code(400).send({ error: "Give the space a name." });
+    if (!body.success) return falha(reply, 400, "spaces.needs_name", "Give the space a name.");
 
     const space = await prisma.space.create({
       data: {
@@ -85,14 +86,14 @@ export async function spaceRoutes(app: FastifyInstance) {
         topic: z.string().max(300).optional()
       })
       .safeParse(request.body);
-    if (!body.success) return reply.code(400).send({ error: body.error.issues[0].message });
+    if (!body.success) return falhaDeValidacao(reply, body.error.issues[0].message);
 
     const membership = await prisma.spaceMember.findUnique({
       where: { spaceId_userId: { spaceId: id, userId: request.userId } }
     });
-    if (!membership) return reply.code(404).send({ error: "You are not in that space." });
+    if (!membership) return falha(reply, 404, "spaces.not_member", "You are not in that space.");
     if (membership.role === "MEMBER") {
-      return reply.code(403).send({ error: "Only admins can add channels." });
+      return falha(reply, 403, "spaces.admin_only", "Only admins can add channels.");
     }
 
     const count = await prisma.room.count({ where: { spaceId: id } });
@@ -128,7 +129,7 @@ export async function spaceRoutes(app: FastifyInstance) {
       where: { inviteCode: code },
       include: { rooms: true }
     });
-    if (!space) return reply.code(404).send({ error: "That invite is not valid." });
+    if (!space) return falha(reply, 404, "spaces.bad_invite", "That invite is not valid.");
 
     await prisma.spaceMember.upsert({
       where: { spaceId_userId: { spaceId: space.id, userId: request.userId } },
@@ -188,12 +189,12 @@ export async function spaceRoutes(app: FastifyInstance) {
       where: { id },
       include: { rooms: { select: { id: true } } }
     });
-    if (!space) return reply.code(404).send({ error: "That space does not exist." });
+    if (!space) return falha(reply, 404, "spaces.missing", "That space does not exist.");
 
     const membership = await prisma.spaceMember.findUnique({
       where: { spaceId_userId: { spaceId: id, userId: request.userId } }
     });
-    if (!membership) return reply.code(404).send({ error: "You are not in that space." });
+    if (!membership) return falha(reply, 404, "spaces.not_member", "You are not in that space.");
 
     const roomIds = space.rooms.map((r) => r.id);
 
@@ -254,7 +255,7 @@ export async function spaceRoutes(app: FastifyInstance) {
     const membership = await prisma.spaceMember.findUnique({
       where: { spaceId_userId: { spaceId: id, userId: request.userId } }
     });
-    if (!membership) return reply.code(404).send({ error: "You are not in that space." });
+    if (!membership) return falha(reply, 404, "spaces.not_member", "You are not in that space.");
 
     const members = await prisma.spaceMember.findMany({
       where: { spaceId: id },

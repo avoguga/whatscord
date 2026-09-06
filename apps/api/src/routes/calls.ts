@@ -5,6 +5,7 @@ import { env, callsEnabled } from "../env.js";
 import { authGuard } from "../plugins/auth.js";
 import { HttpError, memberIdsOf, requireMembership } from "../lib/rooms.js";
 import { emitToRoom } from "../realtime/bus.js";
+import { falha } from "../lib/falha.js";
 
 /**
  * The API only mints tokens — media never touches it. The client takes the
@@ -19,14 +20,14 @@ export async function callRoutes(app: FastifyInstance) {
 
   app.post("/rooms/:id/call/token", { preHandler: authGuard }, async (request, reply) => {
     if (!callsEnabled) {
-      return reply.code(503).send({ error: "Calls are not set up on this server." });
+      return falha(reply, 503, "calls.disabled", "Calls are not set up on this server.");
     }
 
     const { id } = request.params as { id: string };
     try {
       await requireMembership(id, request.userId);
     } catch (err) {
-      if (err instanceof HttpError) return reply.code(err.status).send({ error: err.message });
+      if (err instanceof HttpError) return falha(reply, err.status, err.code, err.message);
       throw err;
     }
 
@@ -34,7 +35,7 @@ export async function callRoutes(app: FastifyInstance) {
       where: { id: request.userId },
       select: { id: true, displayName: true, username: true, avatarUrl: true }
     });
-    if (!user) return reply.code(404).send({ error: "Account not found." });
+    if (!user) return falha(reply, 404, "auth.account_missing", "Account not found.");
 
     const token = new AccessToken(env.LIVEKIT_API_KEY!, env.LIVEKIT_API_SECRET!, {
       identity: user.id,
@@ -75,7 +76,7 @@ export async function callRoutes(app: FastifyInstance) {
     try {
       await requireMembership(id, request.userId);
     } catch (err) {
-      if (err instanceof HttpError) return reply.code(err.status).send({ error: err.message });
+      if (err instanceof HttpError) return falha(reply, err.status, err.code, err.message);
       throw err;
     }
 

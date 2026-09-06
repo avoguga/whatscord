@@ -5,6 +5,7 @@ import { userSelect } from "../lib/shapes.js";
 import { authGuard } from "../plugins/auth.js";
 import { dmKeyFor, HttpError, requireMembership, memberIdsOf } from "../lib/rooms.js";
 import { emitToUsers, joinUserSockets, leaveUserSockets } from "../realtime/bus.js";
+import { falha, falhaDeValidacao } from "../lib/falha.js";
 
 export async function roomRoutes(app: FastifyInstance) {
   app.addHook("preHandler", authGuard);
@@ -99,7 +100,7 @@ export async function roomRoutes(app: FastifyInstance) {
     try {
       await requireMembership(id, request.userId);
     } catch (err) {
-      if (err instanceof HttpError) return reply.code(err.status).send({ error: err.message });
+      if (err instanceof HttpError) return falha(reply, err.status, err.code, err.message);
       throw err;
     }
 
@@ -110,7 +111,7 @@ export async function roomRoutes(app: FastifyInstance) {
         members: { include: { user: { select: userSelect } } }
       }
     });
-    if (!room) return reply.code(404).send({ error: "That conversation no longer exists." });
+    if (!room) return falha(reply, 404, "rooms.gone", "That conversation no longer exists.");
 
     return {
       room: {
@@ -128,15 +129,15 @@ export async function roomRoutes(app: FastifyInstance) {
   /** Opens the DM with someone, or returns the one that already exists. */
   app.post("/rooms/dm", async (request, reply) => {
     const body = z.object({ userId: z.string().min(1) }).safeParse(request.body);
-    if (!body.success) return reply.code(400).send({ error: "Pick someone to message." });
+    if (!body.success) return falha(reply, 400, "rooms.pick_someone", "Pick someone to message.");
 
     const otherId = body.data.userId;
     if (otherId === request.userId) {
-      return reply.code(400).send({ error: "You cannot message yourself." });
+      return falha(reply, 400, "rooms.self_dm", "You cannot message yourself.");
     }
 
     const other = await prisma.user.findUnique({ where: { id: otherId }, select: userSelect });
-    if (!other) return reply.code(404).send({ error: "That person is not on WhatsCord." });
+    if (!other) return falha(reply, 404, "rooms.person_missing", "That person is not on WhatsCord.");
 
     const key = dmKeyFor(request.userId, otherId);
     const existing = await prisma.room.findUnique({ where: { dmKey: key } });
@@ -166,7 +167,7 @@ export async function roomRoutes(app: FastifyInstance) {
         memberIds: z.array(z.string()).max(200).default([])
       })
       .safeParse(request.body);
-    if (!body.success) return reply.code(400).send({ error: body.error.issues[0].message });
+    if (!body.success) return falhaDeValidacao(reply, body.error.issues[0].message);
 
     const ids = [...new Set([request.userId, ...body.data.memberIds])];
     const room = await prisma.room.create({
@@ -190,12 +191,12 @@ export async function roomRoutes(app: FastifyInstance) {
   app.post("/rooms/:id/members", async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = z.object({ userIds: z.array(z.string()).min(1) }).safeParse(request.body);
-    if (!body.success) return reply.code(400).send({ error: "Pick who to add." });
+    if (!body.success) return falha(reply, 400, "rooms.pick_who", "Pick who to add.");
 
     try {
       const membership = await requireMembership(id, request.userId);
       if (membership.room.kind === "DM") {
-        return reply.code(400).send({ error: "A direct message cannot take more people." });
+        return falha(reply, 400, "rooms.dm_is_full", "A direct message cannot take more people.");
       }
       /*
        * Channels take their members from the space, and only from the space.
@@ -204,12 +205,15 @@ export async function roomRoutes(app: FastifyInstance) {
        * never appearing in the space's member list, with no way to remove them.
        */
       if (membership.room.spaceId) {
-        return reply.code(400).send({
-          error: "People join a channel by joining its space. Share the space invite code instead."
-        });
+        return falha(
+          reply,
+          400,
+          "rooms.channel_via_space",
+          "People join a channel by joining its space. Share the space invite code instead."
+        );
       }
     } catch (err) {
-      if (err instanceof HttpError) return reply.code(err.status).send({ error: err.message });
+      if (err instanceof HttpError) return falha(reply, err.status, err.code, err.message);
       throw err;
     }
 
@@ -219,7 +223,7 @@ export async function roomRoutes(app: FastifyInstance) {
       select: { id: true }
     });
     if (known.length === 0) {
-      return reply.code(400).send({ error: "None of those accounts exist." });
+      return falha(reply, 400, "rooms.no_such_accounts", "None of those accounts exist.");
     }
 
     await prisma.roomMember.createMany({
@@ -239,7 +243,7 @@ export async function roomRoutes(app: FastifyInstance) {
     // Saying "ok" to someone who was never in the room tells them the room
     // exists, and hides a genuine client bug behind a success.
     if (removed.count === 0) {
-      return reply.code(404).send({ error: "You are not in that conversation." });
+      return falha(reply, 404, "rooms.not_member", "You are not in that conversation.");
     }
 
     // Dropping the row is not enough — an open tab stays subscribed to the room
@@ -259,7 +263,7 @@ export async function roomRoutes(app: FastifyInstance) {
     try {
       await requireMembership(id, request.userId);
     } catch (err) {
-      if (err instanceof HttpError) return reply.code(err.status).send({ error: err.message });
+      if (err instanceof HttpError) return falha(reply, err.status, err.code, err.message);
       throw err;
     }
 
@@ -282,12 +286,12 @@ export async function roomRoutes(app: FastifyInstance) {
   app.patch("/rooms/:id/mute", async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = z.object({ muted: z.boolean() }).safeParse(request.body);
-    if (!body.success) return reply.code(400).send({ error: "Say whether to mute or unmute." });
+    if (!body.success) return falha(reply, 400, "rooms.mute_or_unmute", "Say whether to mute or unmute.");
 
     try {
       await requireMembership(id, request.userId);
     } catch (err) {
-      if (err instanceof HttpError) return reply.code(err.status).send({ error: err.message });
+      if (err instanceof HttpError) return falha(reply, err.status, err.code, err.message);
       throw err;
     }
 
