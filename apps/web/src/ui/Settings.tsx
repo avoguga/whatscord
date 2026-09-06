@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { api } from "../lib/api";
+import { useRef, useState } from "react";
+import { api, uploadFile } from "../lib/api";
 import { useStore, type User } from "../store";
-import { initials } from "../lib/format";
+import { ImageError, squareThumbnail } from "../lib/image";
+import { Avatar } from "./Avatar";
 import { Scrim } from "./Scrim";
 import { DevicePicker } from "./DevicePicker";
 
@@ -21,6 +22,52 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   const [bio, setBio] = useState(me?.bio ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * Troca a foto de perfil.
+   *
+   * Reduz para um quadrado de 256 px ANTES de subir. O upload é genérico e não
+   * redimensiona nada — sem isso, uma foto de 4 MB do celular seria baixada
+   * inteira em cada linha da lista de conversas.
+   */
+  async function trocarFoto(file: File) {
+    setEnviandoFoto(true);
+    setError(null);
+    try {
+      const pequena = await squareThumbnail(file);
+      const enviado = await uploadFile(pequena);
+      const res = await api.patch<{ user: User }>("/users/me", { avatarUrl: enviado.url });
+      useStore.setState({ me: res.user });
+      notify("Photo updated.");
+    } catch (err) {
+      setError(
+        err instanceof ImageError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "That photo could not be saved."
+      );
+    } finally {
+      setEnviandoFoto(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  async function removerFoto() {
+    setEnviandoFoto(true);
+    setError(null);
+    try {
+      const res = await api.patch<{ user: User }>("/users/me", { avatarUrl: null });
+      useStore.setState({ me: res.user });
+      notify("Photo removed.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "That photo could not be removed.");
+    } finally {
+      setEnviandoFoto(false);
+    }
+  }
 
   if (!me) return null;
   const changed = displayName.trim() !== me.displayName || (bio ?? "") !== (me.bio ?? "");
@@ -51,12 +98,34 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
         {error && <div className="form-error">{error}</div>}
 
         <div className="settings-id">
-          <span className="avatar" style={{ width: 56, height: 56, flexBasis: 56, fontSize: 19 }}>
-            {initials(me.displayName)}
-          </span>
+          <button
+            className="avatar-edit"
+            onClick={() => fileRef.current?.click()}
+            disabled={enviandoFoto}
+            title="Change your photo"
+            aria-label="Change your photo"
+          >
+            <Avatar name={me.displayName} url={me.avatarUrl} size={64} />
+            <span className="avatar-edit-hint">{enviandoFoto ? "Saving…" : "Change"}</span>
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void trocarFoto(f);
+            }}
+          />
           <div>
             <strong>{me.displayName}</strong>
             <span>@{me.username}</span>
+            {me.avatarUrl && (
+              <button className="btn-link" disabled={enviandoFoto} onClick={() => void removerFoto()}>
+                Remove photo
+              </button>
+            )}
           </div>
         </div>
 

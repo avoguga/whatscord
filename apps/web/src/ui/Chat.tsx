@@ -160,8 +160,11 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
         <div className={`avatar${isVoiceRoom ? " voice" : ""}${isChannel ? " channel" : ""}`}>
           {isVoiceRoom ? <IconVoiceRoom size={20} />
             : isChannel ? <IconHash size={19} />
-            : room.iconUrl ? <img src={fileUrl(room.iconUrl)} alt="" />
-            : initials(title)}
+            : (() => {
+                // Conversa direta mostra a pessoa; grupo e canal mostram o quarto.
+                const foto = room.kind === "DM" ? room.counterpart?.avatarUrl : room.iconUrl;
+                return foto ? <img src={fileUrl(foto)} alt="" /> : initials(title);
+              })()}
         </div>
         <div className="chat-title">
           <strong>{title}</strong>

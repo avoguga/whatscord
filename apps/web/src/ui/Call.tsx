@@ -13,7 +13,6 @@ import {
 import { api } from "../lib/api";
 import { useStore, type User } from "../store";
 import { getSocket } from "../lib/socket";
-import { initials } from "../lib/format";
 import { loadDevicePrefs } from "../lib/devices";
 import { playCue } from "../lib/sounds";
 import {
@@ -25,6 +24,7 @@ import {
   SHARE_MODE_LABELS,
   type ShareMode
 } from "../lib/screenshare";
+import { Avatar } from "./Avatar";
 import { DevicePicker } from "./DevicePicker";
 import { QuickDeviceMenu } from "./QuickDeviceMenu";
 import {
@@ -37,6 +37,7 @@ type Tile = {
   key: string;
   participantId: string;
   name: string;
+  avatarUrl: string | null;
   track: Track | null;
   isScreen: boolean;
   isLocal: boolean;
@@ -288,18 +289,22 @@ export function CallSheet({
       // LiveKit's `name` is empty until the server echoes it back, which is why
       // the local tile used to render as "?" for the first seconds.
       const name = nameOf(participant.identity, participant.name);
+      const avatarUrl =
+        (participant.identity === me?.id ? me?.avatarUrl : null) ??
+        roster.find((u) => u.id === participant.identity)?.avatarUrl ??
+        null;
       const speaking = speakers.has(participant.identity) && !muted;
 
       if (screen?.track) {
         out.push({
           key: `${participant.identity}-screen`, participantId: participant.identity,
-          name, track: screen.track, isScreen: true, isLocal, muted, speaking,
+          name, avatarUrl, track: screen.track, isScreen: true, isLocal, muted, speaking,
           quality: participant.connectionQuality
         });
       }
       out.push({
         key: `${participant.identity}-cam`, participantId: participant.identity,
-        name, track: cam?.track ?? null, isScreen: false, isLocal, muted, speaking,
+        name, avatarUrl, track: cam?.track ?? null, isScreen: false, isLocal, muted, speaking,
         quality: participant.connectionQuality
       });
     };
@@ -449,7 +454,7 @@ export function CallSheet({
         {tiles.length === 0 ? (
           <div className="call-stage">
             <div className="call-empty">
-              <div className="tile-avatar">{initials(me?.displayName ?? "?")}</div>
+              <Avatar name={me?.displayName ?? "?"} url={me?.avatarUrl} size={84} className="tile-avatar" />
               <p>{status === "connected" ? "You are connected." : statusLabel}</p>
               <p className="dim">
                 {status === "connected"
@@ -492,12 +497,19 @@ export function CallSheet({
         <aside className="call-roster" aria-label="Who is on the call">
           <p className="roster-head">In the call · {inCall.length || (status === "connected" ? 1 : 0)}</p>
           {inCall.length === 0 && status === "connected" && (
-            <RosterRow name={me?.displayName ?? "You"} suffix="(you)" here muted={!micOn} />
+            <RosterRow
+              name={me?.displayName ?? "You"}
+              avatarUrl={me?.avatarUrl}
+              suffix="(you)"
+              here
+              muted={!micOn}
+            />
           )}
           {inCall.map((u) => (
             <RosterRow
               key={u.id}
               name={u.displayName}
+              avatarUrl={u.avatarUrl}
               suffix={u.id === me?.id ? "(you)" : undefined}
               here
               muted={
@@ -513,7 +525,7 @@ export function CallSheet({
             <>
               <p className="roster-head">Not in the call · {away.length}</p>
               {away.map((u) => (
-                <RosterRow key={u.id} name={u.displayName} />
+                <RosterRow key={u.id} name={u.displayName} avatarUrl={u.avatarUrl} />
               ))}
             </>
           )}
@@ -658,13 +670,14 @@ export function CallSheet({
 }
 
 function RosterRow({
-  name, suffix, here, muted, speaking
+  name, avatarUrl, suffix, here, muted, speaking
 }: {
-  name: string; suffix?: string; here?: boolean; muted?: boolean; speaking?: boolean;
+  name: string; avatarUrl?: string | null;
+  suffix?: string; here?: boolean; muted?: boolean; speaking?: boolean;
 }) {
   return (
     <div className={`roster-row${here ? " here" : ""}${speaking ? " speaking" : ""}`}>
-      <span className="roster-avatar">{initials(name)}</span>
+      <Avatar name={name} url={avatarUrl} size={30} className="roster-avatar" />
       <span className="roster-name">
         {name} {suffix && <em>{suffix}</em>}
       </span>
@@ -772,7 +785,7 @@ function VideoTile({ tile }: { tile: Tile }) {
       {tile.track ? (
         <video ref={ref} autoPlay playsInline muted={tile.isLocal} />
       ) : (
-        <div className="tile-avatar">{initials(tile.name)}</div>
+        <Avatar name={tile.name} url={tile.avatarUrl} size={84} className="tile-avatar" />
       )}
 
       <span className="tile-name">

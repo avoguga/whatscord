@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { inviteLink } from "../lib/deeplink";
 import { useStore, type User } from "../store";
-import { initials } from "../lib/format";
+import { Avatar } from "./Avatar";
 import { IconSearch, IconCopy, IconCheck, IconClose } from "./icons";
 import { Scrim } from "./Scrim";
 
@@ -129,9 +129,7 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
         </p>
         {members.map((m) => (
           <div key={m.id} className="row" style={{ height: 56, padding: 0 }}>
-            <div className="avatar" style={{ width: 38, height: 38, flexBasis: 38, fontSize: 14 }}>
-              {initials(m.displayName)}
-            </div>
+            <Avatar name={m.displayName} url={m.avatarUrl} size={38} />
             <div className="row-body">
               <div className="row-name" style={{ fontSize: 15 }}>
                 {m.displayName}
@@ -297,10 +295,7 @@ function PeoplePicker({ chosen, onToggle }: { chosen: User[]; onToggle: (u: User
             aria-selected={picked}
             onClick={() => onToggle(u)}
           >
-            <div className="avatar" style={{ width: 40, height: 40, flexBasis: 40, fontSize: 14 }}>
-              {initials(u.displayName)}
-              {u.online && <span className="presence-dot" />}
-            </div>
+            <Avatar name={u.displayName} url={u.avatarUrl} size={40} online={u.online} />
             <div className="row-body">
               <div className="row-name" style={{ fontSize: 15 }}>
                 {u.displayName}

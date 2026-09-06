@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { useStore, type User } from "../store";
-import { initials } from "../lib/format";
+import { Avatar } from "./Avatar";
 import { IconSearch } from "./icons";
 import { Scrim } from "./Scrim";
 
@@ -62,10 +62,7 @@ export function NewChatModal({ onClose }: { onClose: () => void }) {
 
         {results.map((user) => (
           <button key={user.id} className="row" style={{ height: 64 }} disabled={busy} onClick={() => start(user)}>
-            <div className="avatar" style={{ width: 42, height: 42, flexBasis: 42, fontSize: 15 }}>
-              {initials(user.displayName)}
-              {user.online && <span className="presence-dot" />}
-            </div>
+            <Avatar name={user.displayName} url={user.avatarUrl} size={40} online={user.online} />
             <div className="row-body">
               <div className="row-name">{user.displayName}</div>
               <div className="row-preview">@{user.username}</div>

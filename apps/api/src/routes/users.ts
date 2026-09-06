@@ -45,7 +45,19 @@ export async function userRoutes(app: FastifyInstance) {
       .object({
         displayName: z.string().min(1).max(48).optional(),
         bio: z.string().max(300).optional(),
-        avatarUrl: z.string().max(500).optional()
+        /*
+         * Precisa apontar para um arquivo NOSSO. Aceitar URL arbitraria deixaria
+         * qualquer pessoa transformar o proprio avatar num rastreador: o
+         * endereco seria buscado pelo navegador de todo mundo que visse a
+         * conversa, entregando IP e horario a um servidor de terceiros.
+         * `null` remove a foto.
+         */
+        avatarUrl: z
+          .string()
+          .max(500)
+          .regex(/^\/files\/[A-Za-z0-9._~%\-/]+$/, "That is not a valid image.")
+          .nullable()
+          .optional()
       })
       .safeParse(request.body);
     if (!body.success) return reply.code(400).send({ error: body.error.issues[0].message });

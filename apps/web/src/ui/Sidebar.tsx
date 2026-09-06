@@ -292,10 +292,16 @@ function RoomRow({
           <IconVoiceRoom size={22} />
         ) : isChannel ? (
           <IconHash size={20} />
-        ) : room.iconUrl ? (
-          <img src={fileUrl(room.iconUrl)} alt="" />
         ) : (
-          initials(label)
+          /*
+           * Numa conversa direta o retrato e o da PESSOA, nao do quarto — o
+           * `iconUrl` do quarto so existe para grupo. Sem este `??` a foto de
+           * perfil de quem conversa com voce nunca apareceria na lista.
+           */
+          (() => {
+            const foto = room.kind === "DM" ? room.counterpart?.avatarUrl : room.iconUrl;
+            return foto ? <img src={fileUrl(foto)} alt="" /> : initials(label);
+          })()
         )}
         {online && !isVoice && !isChannel && <span className="presence-dot" />}
       </div>
