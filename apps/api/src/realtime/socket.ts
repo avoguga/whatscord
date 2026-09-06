@@ -4,6 +4,14 @@ import { createAdapter } from "@socket.io/redis-adapter";
 import { prisma } from "../lib/prisma.js";
 import { verifyAccessToken } from "../lib/auth.js";
 import { markOffline, markOnline, redisPub, redisSub } from "../lib/redis.js";
+import {
+  entrarNaVoz,
+  esquecerConexao,
+  renovarConexao,
+  RENOVACAO_DE_VOZ_MS,
+  sairDaVoz
+} from "../lib/presencaDeVoz.js";
+import { anunciarPresencaDeVoz } from "./voz.js";
 import { emitToUsers, roomChannel, setIO, userChannel } from "./bus.js";
 
 /**
@@ -124,15 +132,62 @@ export async function attachSocketServer(httpServer: HttpServer) {
       if (payload?.roomId) socket.leave(roomChannel(payload.roomId));
     });
 
-    socket.on("call:leave", (payload: { roomId?: string }) =>
+    /*
+     * Entrar na voz.
+     *
+     * O cliente que já existe entra pedindo o token em `POST
+     * /rooms/:id/call/token`, e aquela rota também registra a presença — este
+     * evento é o caminho para quem entra numa sala de voz sem chamar o
+     * LiveKit (ouvindo apenas, ou com as chamadas desligadas no servidor).
+     * `voice:join` e `call:join` são o mesmo evento com dois nomes porque o
+     * resto do protocolo de chamada usa o prefixo `call:`.
+     */
+    const entrar = (payload: { roomId?: string }) =>
+      safe(async () => {
+        if (!payload?.roomId || !(await isMember(payload.roomId, userId))) return;
+        const mudou = await entrarNaVoz(payload.roomId, userId, socket.id);
+        socket
+          .to(roomChannel(payload.roomId))
+          .emit("call:joined", { roomId: payload.roomId, userId });
+        if (mudou) await anunciarPresencaDeVoz(payload.roomId);
+      });
+    socket.on("voice:join", entrar);
+    socket.on("call:join", entrar);
+
+    const sair = (payload: { roomId?: string }) =>
       safe(async () => {
         if (!payload?.roomId || !(await isMember(payload.roomId, userId))) return;
         socket.to(roomChannel(payload.roomId)).emit("call:left", { roomId: payload.roomId, userId });
-      })
-    );
+        /*
+         * Sair é deliberado: derruba TODAS as conexões desta pessoa nesta sala,
+         * não só a que mandou o evento. O LiveKit não deixa a mesma identidade
+         * estar duas vezes na sala, então "a outra aba continua na chamada" não
+         * é um estado que exista de verdade — deixá-la registrada só faria a
+         * pessoa ficar na lista depois de ter saído.
+         */
+        if (await sairDaVoz(payload.roomId, userId, socket.id, true)) {
+          await anunciarPresencaDeVoz(payload.roomId);
+        }
+      });
+    socket.on("call:leave", sair);
+    socket.on("voice:leave", sair);
+
+    // Renovação vinda do cliente. O servidor renova sozinho de qualquer forma;
+    // esta é só uma segunda rede, para o caso de um relógio dormindo.
+    socket.on("voice:heartbeat", () => safe(() => renovarConexao(socket.id)));
 
     socket.on("disconnect", () =>
       safe(async () => {
+        /*
+         * Fechar a aba tem que tirar a pessoa da sala de voz na hora. O TTL
+         * daria conta em 90 s, mas 90 s olhando para alguém que já foi embora é
+         * exatamente o defeito que a presença no servidor veio consertar.
+         */
+        for (const roomId of await esquecerConexao(socket.id, userId)) {
+          io.to(roomChannel(roomId)).emit("call:left", { roomId, userId });
+          await anunciarPresencaDeVoz(roomId);
+        }
+
         const wasLast = await markOffline(userId, socket.id);
         if (!wasLast) return;
         await prisma.user
@@ -145,6 +200,20 @@ export async function attachSocketServer(httpServer: HttpServer) {
       })
     );
   });
+
+  /*
+   * O heartbeat da presença de voz é do servidor, sobre os sockets que ESTA
+   * instância segura. Assim o TTL no Redis vira o que ele deve ser: o que
+   * limpa a bagunça de uma instância que morreu sem despedida, e não o relógio
+   * do qual a presença depende para existir.
+   */
+  const batida = setInterval(() => {
+    for (const socketId of io.sockets.sockets.keys()) {
+      renovarConexao(socketId).catch(() => undefined);
+    }
+  }, RENOVACAO_DE_VOZ_MS);
+  // Um timer pendurado não pode ser o que segura o processo de pé.
+  batida.unref();
 
   setIO(io);
   return io;

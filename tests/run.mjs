@@ -2090,6 +2090,777 @@ async function secChamadas() {
 }
 
 /* ================================================================== */
+/* 12. Presença de voz                                                 */
+/* ================================================================== */
+
+/**
+ * A presença de voz mudou de dono: antes vivia na memória do cliente e morria
+ * num F5. O que estes testes perseguem é justamente o que a memória do cliente
+ * não dava conta — uma aba que acabou de abrir vendo quem já estava lá dentro,
+ * e ninguém ficando preso na lista depois de fechar a janela.
+ */
+async function secPresencaDeVoz() {
+  console.log("\n=== 12. Presença de voz ===");
+  const { A, B, C } = state;
+
+  const spaces = await GET("/spaces", { token: A.token });
+  const space = spaces.json?.spaces?.find((s) => s.id === state.space.id);
+  const voice = space?.channels?.find((c) => c.kind === "VOICE");
+  if (!voice) {
+    fail("presença de voz", "um canal VOICE no espaço de teste", JSON.stringify(space?.channels));
+    return;
+  }
+  const sala = voice.id;
+
+  const vozA = await connectSocket(A.token, "vozA");
+  const vozB = await connectSocket(B.token, "vozB");
+  state.sockets = [...(state.sockets ?? []), vozA, vozB];
+  pass("sockets de voz conectados");
+
+  await t("sala vazia", async () => {
+    const r = await GET(`/calls/presence?roomIds=${sala}`, { token: A.token });
+    check(
+      "GET /calls/presence responde 200 com o objeto presence",
+      r.status === 200 && typeof r.json?.presence === "object",
+      "200 com presence",
+      short(r)
+    );
+    check(
+      "sala de voz sem ninguém volta vazia",
+      (r.json?.presence?.[sala] ?? []).length === 0,
+      "[]",
+      JSON.stringify(r.json?.presence?.[sala])
+    );
+  });
+
+  await t("entrar na voz", async () => {
+    vozB.clear();
+    vozA.socket.emit("voice:join", { roomId: sala });
+    await sleep(1500);
+
+    const r = await GET(`/calls/presence?roomIds=${sala}`, { token: B.token });
+    const users = r.json?.presence?.[sala] ?? [];
+    check(
+      "quem entrou na voz aparece para outro membro da sala",
+      users.some((u) => u.id === A.id),
+      "A na lista",
+      short(r)
+    );
+    const u = users.find((x) => x.id === A.id);
+    check(
+      "a presença vem com id, username, displayName e avatarUrl",
+      Boolean(u && u.username && u.displayName && "avatarUrl" in u),
+      "os quatro campos",
+      JSON.stringify(u)
+    );
+
+    const eventos = vozB.of("voice:presence").filter((e) => e.payload?.roomId === sala);
+    check(
+      "os membros da sala recebem voice:presence",
+      eventos.length >= 1 && eventos.at(-1).payload?.users?.some((x) => x.id === A.id),
+      "voice:presence trazendo A",
+      JSON.stringify(eventos.map((e) => e.payload?.users?.map((x) => x.id))).slice(0, 200)
+    );
+  });
+
+  await t("sobreviver ao F5", async () => {
+    // Uma aba que acabou de abrir não viu evento nenhum: tudo o que ela tem é
+    // a consulta HTTP. Se a presença vivesse só nos eventos, aqui viria vazio.
+    const recemAberta = await connectSocket(B.token, "vozB2");
+    const r = await GET(`/calls/presence?roomIds=${sala}`, { token: B.token });
+    check(
+      "uma aba recém-aberta vê quem já estava na voz (a presença sobrevive ao F5)",
+      (r.json?.presence?.[sala] ?? []).some((u) => u.id === A.id),
+      "A na lista",
+      short(r)
+    );
+    recemAberta.socket.disconnect();
+  });
+
+  await t("sala alheia", async () => {
+    const r = await GET(`/calls/presence?roomIds=${sala}`, { token: C.token });
+    check(
+      "quem não é da sala recebe 200 com a sala AUSENTE do objeto (não um erro)",
+      r.status === 200 && !(sala in (r.json?.presence ?? {})),
+      "200 e a sala ausente",
+      short(r)
+    );
+  });
+
+  await t("ids desconhecidos", async () => {
+    const r = await GET(`/calls/presence?roomIds=nao-existe-mesmo,${sala}`, { token: A.token });
+    check(
+      "um id inventado no meio da lista não derruba a consulta inteira",
+      r.status === 200 && !("nao-existe-mesmo" in (r.json?.presence ?? {})),
+      "200 sem a sala inventada",
+      short(r)
+    );
+    const vazio = await GET("/calls/presence", { token: A.token });
+    check(
+      "sem roomIds a resposta é um objeto vazio",
+      vazio.status === 200 && Object.keys(vazio.json?.presence ?? {}).length === 0,
+      "200 com presence vazio",
+      short(vazio)
+    );
+  });
+
+  await t("duas abas da mesma pessoa", async () => {
+    const segunda = await connectSocket(A.token, "vozA2");
+    segunda.socket.emit("voice:join", { roomId: sala });
+    await sleep(1200);
+    segunda.socket.disconnect();
+    await sleep(2000);
+
+    const r = await GET(`/calls/presence?roomIds=${sala}`, { token: B.token });
+    check(
+      "fechar UMA aba não tira quem ainda tem outra conexão na voz",
+      (r.json?.presence?.[sala] ?? []).some((u) => u.id === A.id),
+      "A ainda na lista",
+      short(r)
+    );
+  });
+
+  await t("queda da última conexão", async () => {
+    vozB.clear();
+    vozA.socket.disconnect();
+    await sleep(2500);
+
+    const r = await GET(`/calls/presence?roomIds=${sala}`, { token: B.token });
+    check(
+      "quando a última conexão cai, a pessoa sai da lista (sem esperar o TTL)",
+      !(r.json?.presence?.[sala] ?? []).some((u) => u.id === A.id),
+      "A fora da lista",
+      short(r)
+    );
+    check(
+      "a saída por queda de conexão também avisa a sala",
+      vozB.of("voice:presence").length >= 1,
+      ">= 1 voice:presence",
+      String(vozB.of("voice:presence").length)
+    );
+  });
+
+  await t("sair pelo call:leave", async () => {
+    const vozA3 = await connectSocket(A.token, "vozA3");
+    state.sockets.push(vozA3);
+    vozA3.socket.emit("voice:join", { roomId: sala });
+    await sleep(1200);
+
+    const dentro = await GET(`/calls/presence?roomIds=${sala}`, { token: B.token });
+    check(
+      "A entra de novo na voz",
+      (dentro.json?.presence?.[sala] ?? []).some((u) => u.id === A.id),
+      "A na lista",
+      short(dentro)
+    );
+
+    vozA3.socket.emit("call:leave", { roomId: sala });
+    await sleep(1500);
+    const fora = await GET(`/calls/presence?roomIds=${sala}`, { token: B.token });
+    check(
+      "call:leave tira a pessoa da lista",
+      !(fora.json?.presence?.[sala] ?? []).some((u) => u.id === A.id),
+      "A fora da lista",
+      short(fora)
+    );
+    vozA3.socket.disconnect();
+  });
+
+  await t("entrar sem ser da sala", async () => {
+    const invasor = await connectSocket(C.token, "vozC");
+    state.sockets.push(invasor);
+    invasor.socket.emit("voice:join", { roomId: sala });
+    await sleep(1500);
+    const r = await GET(`/calls/presence?roomIds=${sala}`, { token: B.token });
+    check(
+      "quem não é membro da sala não consegue se colocar na presença dela",
+      !(r.json?.presence?.[sala] ?? []).some((u) => u.id === C.id),
+      "C fora da lista",
+      short(r)
+    );
+    invasor.socket.disconnect();
+  });
+
+  await t("presença sem autenticação", async () => {
+    const r = await GET(`/calls/presence?roomIds=${sala}`);
+    check("GET /calls/presence sem token é 401", r.status === 401, "401", short(r));
+  });
+}
+
+/* ================================================================== */
+/* 13. Ordem e pastas dos espaços                                      */
+/* ================================================================== */
+
+async function secOrdemEPastas() {
+  console.log("\n=== 13. Ordem e pastas dos espaços ===");
+  const { A, B, C } = state;
+
+  await t("campos novos em GET /spaces", async () => {
+    const r = await GET("/spaces", { token: A.token });
+    const s = r.json?.spaces?.find((x) => x.id === state.space.id);
+    check("cada espaço vem com position numérico", typeof s?.position === "number", "number", typeof s?.position);
+    check(
+      "cada espaço vem com folderId (nulo enquanto está solto)",
+      Boolean(s) && "folderId" in s && s.folderId === null,
+      "null",
+      JSON.stringify(s?.folderId)
+    );
+    check(
+      "os campos antigos continuam todos lá",
+      Boolean(s?.name && s?.inviteCode && s?.role && typeof s?.memberCount === "number" && Array.isArray(s?.channels)),
+      "name, inviteCode, role, memberCount e channels",
+      JSON.stringify(Object.keys(s ?? {}))
+    );
+  });
+
+  await t("criar pasta", async () => {
+    const r = await POST("/space-folders", {
+      token: A.token,
+      body: { name: "Trabalho", color: "#5865F2" }
+    });
+    check("POST /space-folders devolve 201 com a pasta", r.status === 201 && Boolean(r.json?.folder?.id), "201 com folder", short(r));
+    check(
+      "a pasta vem com name, color e position",
+      r.json?.folder?.name === "Trabalho" &&
+        r.json?.folder?.color === "#5865F2" &&
+        typeof r.json?.folder?.position === "number",
+      "os três campos",
+      short(r)
+    );
+    state.pasta = r.json?.folder;
+  });
+
+  await t("pasta sem nome", async () => {
+    const r = await POST("/space-folders", { token: A.token, body: { name: "" } });
+    check("criar pasta sem nome é 400", r.status === 400, "400", short(r));
+  });
+
+  await t("listar pastas", async () => {
+    const r = await GET("/space-folders", { token: A.token });
+    check(
+      "GET /space-folders lista a pasta criada",
+      r.status === 200 && r.json?.folders?.some((f) => f.id === state.pasta?.id),
+      "200 com a pasta",
+      short(r)
+    );
+    const outra = await GET("/space-folders", { token: B.token });
+    check(
+      "a pasta de um não aparece para o outro",
+      !outra.json?.folders?.some((f) => f.id === state.pasta?.id),
+      "sem a pasta de A",
+      short(outra)
+    );
+  });
+
+  await t("renomear pasta", async () => {
+    const r = await PATCH(`/space-folders/${state.pasta.id}`, {
+      token: A.token,
+      body: { name: "Jogos", position: 2 }
+    });
+    check(
+      "PATCH /space-folders/:id grava nome e posição",
+      r.status === 200 && r.json?.folder?.name === "Jogos" && r.json?.folder?.position === 2,
+      "200 com os campos novos",
+      short(r)
+    );
+  });
+
+  await t("pasta de outra pessoa", async () => {
+    const p = await PATCH(`/space-folders/${state.pasta.id}`, {
+      token: C.token,
+      body: { name: "sequestrada" }
+    });
+    check("renomear a pasta de outra pessoa é 404", p.status === 404, "404", short(p));
+    const d = await DEL(`/space-folders/${state.pasta.id}`, { token: C.token });
+    check("apagar a pasta de outra pessoa é 404", d.status === 404, "404", short(d));
+  });
+
+  await t("reordenar", async () => {
+    const r = await PATCH("/spaces/order", {
+      token: A.token,
+      body: { items: [{ spaceId: state.space.id, position: 7, folderId: state.pasta.id }] }
+    });
+    check("PATCH /spaces/order responde 204", r.status === 204, "204", short(r));
+
+    const lista = await GET("/spaces", { token: A.token });
+    const s = lista.json?.spaces?.find((x) => x.id === state.space.id);
+    check(
+      "a posição e a pasta ficaram gravadas",
+      s?.position === 7 && s?.folderId === state.pasta.id,
+      `7 e ${state.pasta.id}`,
+      `${s?.position} e ${s?.folderId}`
+    );
+  });
+
+  await t("a ordem é de quem olha", async () => {
+    const r = await GET("/spaces", { token: B.token });
+    const s = r.json?.spaces?.find((x) => x.id === state.space.id);
+    check(
+      "reordenar para si NÃO mexe na barra lateral de outro membro do mesmo espaço",
+      s?.position === 0 && s?.folderId === null,
+      "0 e null",
+      `${s?.position} e ${s?.folderId}`
+    );
+  });
+
+  await t("espaço alheio na reordenação", async () => {
+    const alheio = await POST("/spaces", { token: C.token, body: { name: "Espaço de C" } });
+    state.spaceDeC = alheio.json?.space;
+    const r = await PATCH("/spaces/order", {
+      token: A.token,
+      body: {
+        items: [
+          { spaceId: state.spaceDeC.id, position: 99, folderId: null },
+          { spaceId: state.space.id, position: 1, folderId: null }
+        ]
+      }
+    });
+    check(
+      "espaço de que não se é membro é ignorado em silêncio (204, sem vazar que existe)",
+      r.status === 204,
+      "204",
+      short(r)
+    );
+
+    const doC = await GET("/spaces", { token: C.token });
+    const s = doC.json?.spaces?.find((x) => x.id === state.spaceDeC.id);
+    check("e nada muda para o dono dele", s?.position === 0, "0", String(s?.position));
+
+    const doA = await GET("/spaces", { token: A.token });
+    const meu = doA.json?.spaces?.find((x) => x.id === state.space.id);
+    check(
+      "o resto do lote é aplicado normalmente",
+      meu?.position === 1 && meu?.folderId === null,
+      "1 e null",
+      `${meu?.position} e ${meu?.folderId}`
+    );
+  });
+
+  await t("pasta alheia na reordenação", async () => {
+    const pastaDeC = await POST("/space-folders", { token: C.token, body: { name: "Pasta de C" } });
+    const r = await PATCH("/spaces/order", {
+      token: A.token,
+      body: { items: [{ spaceId: state.space.id, position: 1, folderId: pastaDeC.json?.folder?.id }] }
+    });
+    check("guardar um espaço na pasta de outra pessoa é recusado (403)", r.status === 403, "403", short(r));
+  });
+
+  await t("apagar a pasta não apaga os espaços", async () => {
+    await PATCH("/spaces/order", {
+      token: A.token,
+      body: { items: [{ spaceId: state.space.id, position: 1, folderId: state.pasta.id }] }
+    });
+
+    const r = await DEL(`/space-folders/${state.pasta.id}`, { token: A.token });
+    check("DELETE /space-folders/:id responde 204", r.status === 204, "204", short(r));
+
+    const lista = await GET("/spaces", { token: A.token });
+    const s = lista.json?.spaces?.find((x) => x.id === state.space.id);
+    check("O ESPAÇO QUE ESTAVA DENTRO CONTINUA EXISTINDO", Boolean(s), "o espaço na lista", short(lista));
+    check("e volta a ficar solto (folderId nulo)", s?.folderId === null, "null", JSON.stringify(s?.folderId));
+
+    const pastas = await GET("/space-folders", { token: A.token });
+    check(
+      "a pasta some da listagem",
+      !pastas.json?.folders?.some((f) => f.id === state.pasta.id),
+      "sem a pasta",
+      short(pastas)
+    );
+
+    const canais = s?.channels?.length ?? 0;
+    check("e os canais do espaço continuam lá", canais >= 2, ">= 2 canais", String(canais));
+  });
+
+  await t("ordem sem autenticação", async () => {
+    const r = await PATCH("/spaces/order", { body: { items: [] } });
+    check("PATCH /spaces/order sem token é 401", r.status === 401, "401", short(r));
+    const f = await GET("/space-folders");
+    check("GET /space-folders sem token é 401", f.status === 401, "401", short(f));
+  });
+}
+
+/* ================================================================== */
+/* 14. Grupo: nome e ícone                                             */
+/* ================================================================== */
+
+async function secGrupo() {
+  console.log("\n=== 14. Grupo: nome e ícone ===");
+  const { A, B, C } = state;
+
+  const criado = await POST("/rooms/group", {
+    token: A.token,
+    body: { name: "grupo do icone", memberIds: [B.id] }
+  });
+  const room = criado.json?.room?.id;
+  check("grupo criado para o teste", criado.status === 201 && Boolean(room), "201", short(criado));
+  if (!room) return;
+
+  await t("renomear e trocar o ícone", async () => {
+    const r = await PATCH(`/rooms/${room}`, {
+      token: A.token,
+      body: { name: "grupo renomeado", iconUrl: "/files/icone-de-teste.png" }
+    });
+    check(
+      "o dono do grupo troca nome e ícone (200)",
+      r.status === 200 &&
+        r.json?.room?.name === "grupo renomeado" &&
+        r.json?.room?.iconUrl === "/files/icone-de-teste.png",
+      "200 com os dois campos",
+      short(r)
+    );
+
+    const lista = await GET("/rooms", { token: B.token });
+    const sala = lista.json?.rooms?.find((x) => x.id === room);
+    check(
+      "o outro membro vê o nome e o ícone novos",
+      sala?.name === "grupo renomeado" && sala?.iconUrl === "/files/icone-de-teste.png",
+      "nome e ícone novos",
+      JSON.stringify({ name: sala?.name, iconUrl: sala?.iconUrl })
+    );
+  });
+
+  await t("evento de socket", async () => {
+    if (!state.sockB) {
+      note("sem socket de B guardado — a checagem do evento de troca de ícone foi pulada");
+      return;
+    }
+    state.sockB.clear();
+    await PATCH(`/rooms/${room}`, { token: A.token, body: { name: "grupo avisado" } });
+    await sleep(1500);
+    const eventos = state.sockB
+      .of("room:updated")
+      .filter((e) => e.payload?.roomId === room);
+    check(
+      "os membros são avisados da troca por socket (sem recarregar)",
+      eventos.length >= 1 && eventos.at(-1).payload?.name === "grupo avisado",
+      "room:updated com o nome novo",
+      JSON.stringify(eventos.map((e) => e.payload)).slice(0, 200)
+    );
+  });
+
+  await t("ícone apontando para fora", async () => {
+    const r = await PATCH(`/rooms/${room}`, {
+      token: A.token,
+      body: { iconUrl: "https://rastreador.example.com/pixel.png" }
+    });
+    check("URL externa como ícone é recusada (400)", r.status === 400, "400", short(r));
+    check(
+      "e com o mesmo código da validação de avatar",
+      r.json?.code === "validation.avatar_url",
+      "validation.avatar_url",
+      String(r.json?.code)
+    );
+  });
+
+  await t("ícone com travessia de caminho", async () => {
+    const r = await PATCH(`/rooms/${room}`, {
+      token: A.token,
+      body: { iconUrl: "/files/../../etc/passwd" }
+    });
+    check("caminho que escapa da pasta de arquivos é recusado (400)", r.status === 400, "400", short(r));
+  });
+
+  await t("remover o ícone", async () => {
+    const r = await PATCH(`/rooms/${room}`, { token: A.token, body: { iconUrl: null } });
+    check(
+      "iconUrl nulo tira o ícone",
+      r.status === 200 && r.json?.room?.iconUrl === null,
+      "200 com iconUrl null",
+      short(r)
+    );
+  });
+
+  await t("nome vazio", async () => {
+    const r = await PATCH(`/rooms/${room}`, { token: A.token, body: { name: "" } });
+    check("nome vazio é recusado (400)", r.status === 400, "400", short(r));
+  });
+
+  await t("membro comum", async () => {
+    const r = await PATCH(`/rooms/${room}`, { token: B.token, body: { name: "invasao" } });
+    check("membro comum não renomeia o grupo (403)", r.status === 403, "403", short(r));
+    const lista = await GET("/rooms", { token: A.token });
+    const sala = lista.json?.rooms?.find((x) => x.id === room);
+    check("e o nome continua o mesmo", sala?.name !== "invasao", "o nome anterior", String(sala?.name));
+  });
+
+  await t("quem não é do grupo", async () => {
+    const r = await PATCH(`/rooms/${room}`, { token: C.token, body: { name: "invasao" } });
+    check("quem não é da sala recebe 404", r.status === 404, "404", short(r));
+  });
+
+  await t("DM não tem nome próprio", async () => {
+    const r = await PATCH(`/rooms/${state.dmAB}`, { token: A.token, body: { name: "apelido" } });
+    check("renomear um DM é recusado (400)", r.status === 400, "400", short(r));
+    check("com o código de sala que não é grupo", r.json?.code === "rooms.group_only", "rooms.group_only", String(r.json?.code));
+  });
+
+  await t("canal de espaço", async () => {
+    const r = await PATCH(`/rooms/${state.generalId}`, { token: A.token, body: { name: "renomeado" } });
+    check("um canal de espaço não se renomeia por esta rota (400)", r.status === 400, "400", short(r));
+  });
+}
+
+/* ================================================================== */
+/* 15. Papéis do espaço                                                */
+/* ================================================================== */
+
+/**
+ * A regra que o resto depende: NINGUÉM AGE SOBRE ALGUÉM DO MESMO NÍVEL OU
+ * ACIMA. Sem ela, dois administradores podem se rebaixar mutuamente até o
+ * espaço ficar sem quem o administre — e é o teste do ADMIN contra o ADMIN que
+ * segura isso.
+ */
+async function secPapeis() {
+  console.log("\n=== 15. Papéis do espaço ===");
+  const { A, B, C, D } = state;
+
+  const criado = await POST("/spaces", { token: A.token, body: { name: "Espaco de Papeis" } });
+  const space = criado.json?.space;
+  check("espaço criado para os testes de papel", criado.status === 201 && Boolean(space?.id), "201", short(criado));
+  if (!space?.id) return;
+  state.spacePapeis = space;
+  const general = space.channels?.find((c) => c.kind === "TEXT")?.id;
+
+  const [E, F] = await Promise.all([makeUser("E"), makeUser("F")]);
+  for (const quem of [B, C, D, E]) {
+    await POST(`/spaces/join/${space.inviteCode}`, { token: quem.token });
+  }
+  pass("B, C, D e E entraram pelo convite (F fica de fora)");
+
+  await t("lista de membros", async () => {
+    const r = await GET(`/spaces/${space.id}/members`, { token: A.token });
+    check(
+      "GET /spaces/:id/members responde 200 com os 5 membros",
+      r.status === 200 && r.json?.members?.length === 5,
+      "200 com 5 membros",
+      short(r)
+    );
+    const primeiro = r.json?.members?.[0];
+    check("o dono vem primeiro", primeiro?.id === A.id && primeiro?.role === "OWNER", "A como OWNER", JSON.stringify(primeiro));
+    check(
+      "cada membro traz id, username, displayName, avatarUrl, role e joinedAt",
+      Boolean(primeiro?.username && primeiro?.displayName && "avatarUrl" in primeiro && primeiro?.role && primeiro?.joinedAt),
+      "os seis campos",
+      JSON.stringify(primeiro)
+    );
+  });
+
+  await t("membro comum não promove", async () => {
+    const r = await PATCH(`/spaces/${space.id}/members/${C.id}`, {
+      token: E.token,
+      body: { role: "ADMIN" }
+    });
+    check("MEMBER não muda o papel de ninguém (403)", r.status === 403, "403", short(r));
+  });
+
+  await t("o dono promove", async () => {
+    const rb = await PATCH(`/spaces/${space.id}/members/${B.id}`, { token: A.token, body: { role: "ADMIN" } });
+    check("OWNER promove B a ADMIN (200)", rb.status === 200, "200", short(rb));
+    const rc = await PATCH(`/spaces/${space.id}/members/${C.id}`, { token: A.token, body: { role: "ADMIN" } });
+    check("OWNER promove C a ADMIN (200)", rc.status === 200, "200", short(rc));
+
+    const lista = await GET(`/spaces/${space.id}/members`, { token: A.token });
+    const papel = (id) => lista.json?.members?.find((m) => m.id === id)?.role;
+    check(
+      "a lista passa a mostrar B e C como ADMIN",
+      papel(B.id) === "ADMIN" && papel(C.id) === "ADMIN",
+      "ADMIN e ADMIN",
+      `${papel(B.id)} e ${papel(C.id)}`
+    );
+  });
+
+  await t("ADMIN contra ADMIN", async () => {
+    const r = await PATCH(`/spaces/${space.id}/members/${C.id}`, { token: B.token, body: { role: "MEMBER" } });
+    check("UM ADMIN NÃO CONSEGUE REBAIXAR OUTRO ADMIN (403)", r.status === 403, "403", short(r));
+    check("e o motivo é a hierarquia", r.json?.code === "spaces.rank_too_low", "spaces.rank_too_low", String(r.json?.code));
+
+    const lista = await GET(`/spaces/${space.id}/members`, { token: A.token });
+    check(
+      "C continua ADMIN depois da tentativa",
+      lista.json?.members?.find((m) => m.id === C.id)?.role === "ADMIN",
+      "ADMIN",
+      String(lista.json?.members?.find((m) => m.id === C.id)?.role)
+    );
+
+    const expulsar = await DEL(`/spaces/${space.id}/members/${C.id}`, { token: B.token });
+    check(
+      "e também não consegue expulsá-lo (403)",
+      expulsar.status === 403 && expulsar.json?.code === "spaces.rank_too_low",
+      "403 spaces.rank_too_low",
+      short(expulsar)
+    );
+  });
+
+  await t("ninguém muda o próprio papel", async () => {
+    const r = await PATCH(`/spaces/${space.id}/members/${A.id}`, { token: A.token, body: { role: "MEMBER" } });
+    check(
+      "nem o dono muda o próprio papel (403)",
+      r.status === 403 && r.json?.code === "spaces.self_role",
+      "403 spaces.self_role",
+      short(r)
+    );
+  });
+
+  await t("não existe segundo dono", async () => {
+    const r = await PATCH(`/spaces/${space.id}/members/${B.id}`, { token: A.token, body: { role: "OWNER" } });
+    check(
+      "promover a OWNER pelo PATCH é recusado (400)",
+      r.status === 400 && r.json?.code === "spaces.owner_via_transfer",
+      "400 spaces.owner_via_transfer",
+      short(r)
+    );
+  });
+
+  await t("papel inexistente", async () => {
+    const r = await PATCH(`/spaces/${space.id}/members/${B.id}`, { token: A.token, body: { role: "CHEFE" } });
+    check("papel que não existe é 400", r.status === 400, "400", short(r));
+  });
+
+  await t("quem está fora do espaço", async () => {
+    const r = await PATCH(`/spaces/${space.id}/members/${B.id}`, { token: F.token, body: { role: "MEMBER" } });
+    check("quem não é do espaço recebe 404", r.status === 404, "404", short(r));
+
+    const alvo = await PATCH(`/spaces/${space.id}/members/${F.id}`, { token: A.token, body: { role: "ADMIN" } });
+    check(
+      "promover alguém que não está no espaço é 404",
+      alvo.status === 404 && alvo.json?.code === "spaces.member_missing",
+      "404 spaces.member_missing",
+      short(alvo)
+    );
+
+    const membros = await GET(`/spaces/${space.id}/members`, { token: F.token });
+    check("e nem a lista de membros ele vê", membros.status === 404, "404", short(membros));
+  });
+
+  await t("expulsar não apaga as mensagens", async () => {
+    const msg = await POST(`/rooms/${general}/messages`, {
+      token: D.token,
+      body: { content: "escrito antes de eu ser removido" }
+    });
+    check("D escreve no canal antes de ser removido", msg.status === 201, "201", short(msg));
+
+    const r = await DEL(`/spaces/${space.id}/members/${D.id}`, { token: B.token });
+    check("um ADMIN remove um MEMBER (204)", r.status === 204, "204", short(r));
+
+    const lista = await GET(`/spaces/${space.id}/members`, { token: A.token });
+    check("D sai da lista de membros", !lista.json?.members?.some((m) => m.id === D.id), "sem D", short(lista));
+
+    const canal = await GET(`/rooms/${general}/messages?limit=50`, { token: A.token });
+    check(
+      "A MENSAGEM DE D CONTINUA NO CANAL",
+      canal.json?.messages?.some((m) => m.id === msg.json?.message?.id),
+      "a mensagem ainda listada",
+      short(canal)
+    );
+
+    const espacos = await GET("/spaces", { token: D.token });
+    check("o espaço some da barra lateral de D", !espacos.json?.spaces?.some((s) => s.id === space.id), "sem o espaço", short(espacos));
+
+    const leitura = await GET(`/rooms/${general}/messages`, { token: D.token });
+    check("e D perde o acesso ao canal", leitura.status === 404, "404", short(leitura));
+  });
+
+  await t("o dono não é removível", async () => {
+    const r = await DEL(`/spaces/${space.id}/members/${A.id}`, { token: B.token });
+    check(
+      "um ADMIN não remove o OWNER (403)",
+      r.status === 403 && r.json?.code === "spaces.owner_stays",
+      "403 spaces.owner_stays",
+      short(r)
+    );
+  });
+
+  await t("remover a si mesmo", async () => {
+    const r = await DEL(`/spaces/${space.id}/members/${B.id}`, { token: B.token });
+    check(
+      "remover a si mesmo manda usar a rota de sair (400)",
+      r.status === 400 && r.json?.code === "spaces.leave_instead",
+      "400 spaces.leave_instead",
+      short(r)
+    );
+  });
+
+  await t("sair do espaço continua funcionando", async () => {
+    const r = await DEL(`/spaces/${space.id}/members/me`, { token: E.token });
+    check(
+      "DELETE /spaces/:id/members/me segue respondendo { ok: true }",
+      r.status === 200 && r.json?.ok === true && r.json?.spaceDeleted === false,
+      "200 com ok e spaceDeleted false",
+      short(r)
+    );
+    const lista = await GET(`/spaces/${space.id}/members`, { token: A.token });
+    check("e E sai da lista", !lista.json?.members?.some((m) => m.id === E.id), "sem E", short(lista));
+  });
+
+  await t("transferir a posse", async () => {
+    const tentativa = await POST(`/spaces/${space.id}/owner`, { token: B.token, body: { userId: C.id } });
+    check(
+      "um ADMIN não transfere a posse (403)",
+      tentativa.status === 403 && tentativa.json?.code === "spaces.owner_only",
+      "403 spaces.owner_only",
+      short(tentativa)
+    );
+
+    const r = await POST(`/spaces/${space.id}/owner`, { token: A.token, body: { userId: B.id } });
+    check("o OWNER transfere a posse (200)", r.status === 200, "200", short(r));
+
+    const lista = await GET(`/spaces/${space.id}/members`, { token: A.token });
+    const papel = (id) => lista.json?.members?.find((m) => m.id === id)?.role;
+    check("B vira OWNER", papel(B.id) === "OWNER", "OWNER", String(papel(B.id)));
+    check("o dono antigo vira ADMIN, não MEMBER", papel(A.id) === "ADMIN", "ADMIN", String(papel(A.id)));
+    check(
+      "o espaço continua com um único dono",
+      lista.json?.members?.filter((m) => m.role === "OWNER").length === 1,
+      "1 OWNER",
+      String(lista.json?.members?.filter((m) => m.role === "OWNER").length)
+    );
+
+    const proprio = await POST(`/spaces/${space.id}/owner`, { token: B.token, body: { userId: B.id } });
+    check("transferir a posse para si mesmo é recusado (403)", proprio.status === 403, "403", short(proprio));
+
+    const volta = await POST(`/spaces/${space.id}/owner`, { token: B.token, body: { userId: A.id } });
+    check("e a posse volta para A", volta.status === 200, "200", short(volta));
+  });
+
+  await t("regenerar o convite", async () => {
+    const antigo = space.inviteCode;
+
+    const porAdmin = await POST(`/spaces/${space.id}/invite/regenerate`, { token: C.token });
+    check("um ADMIN pode regenerar o convite (200)", porAdmin.status === 200, "200", short(porAdmin));
+
+    const r = await POST(`/spaces/${space.id}/invite/regenerate`, { token: A.token });
+    check(
+      "OWNER regenera e recebe um código diferente",
+      r.status === 200 && Boolean(r.json?.inviteCode) && r.json.inviteCode !== antigo,
+      "200 com inviteCode novo",
+      short(r)
+    );
+    const novo = r.json?.inviteCode;
+
+    const comVelho = await POST(`/spaces/join/${antigo}`, { token: F.token });
+    check("O CONVITE ANTIGO PARA DE FUNCIONAR NA HORA (404)", comVelho.status === 404, "404", short(comVelho));
+
+    const comNovo = await POST(`/spaces/join/${novo}`, { token: F.token });
+    check("o convite novo funciona", comNovo.status === 200, "200", short(comNovo));
+
+    const semCargo = await POST(`/spaces/${space.id}/invite/regenerate`, { token: F.token });
+    check("um MEMBER não regenera o convite (403)", semCargo.status === 403, "403", short(semCargo));
+  });
+
+  await t("ordem da lista de membros", async () => {
+    const r = await GET(`/spaces/${space.id}/members`, { token: A.token });
+    const posto = { OWNER: 0, ADMIN: 1, MEMBER: 2 };
+    const papeis = (r.json?.members ?? []).map((m) => posto[m.role]);
+    check(
+      "a lista vem ordenada por papel: dono, admins e depois membros",
+      papeis.every((v, i) => i === 0 || v >= papeis[i - 1]),
+      "não decrescente",
+      JSON.stringify(r.json?.members?.map((m) => m.role))
+    );
+  });
+}
+
+/* ================================================================== */
 /* main                                                                */
 /* ================================================================== */
 
@@ -2132,7 +2903,11 @@ async function main() {
     ["idempotencia", secIdempotencia, ["dmAB", "groupPag", "sockA", "sockB"]],
     ["arquivos", secArquivos, ["dmAB"]],
     ["edge", secEdge, ["dmAB", "msg1", "groupPag"]],
-    ["chamadas", secChamadas, ["dmAB", "space", "C"]]
+    ["chamadas", secChamadas, ["dmAB", "space", "C"]],
+    ["presencavoz", secPresencaDeVoz, ["A", "B", "C", "space"]],
+    ["ordem", secOrdemEPastas, ["A", "B", "C", "space"]],
+    ["grupo", secGrupo, ["A", "B", "C", "dmAB", "generalId"]],
+    ["papeis", secPapeis, ["A", "B", "C", "D"]]
   ];
 
   for (const [name, section, needs] of sections) {
