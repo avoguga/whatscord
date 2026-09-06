@@ -19,3 +19,11 @@ coverage/
 *.apk
 *.aab
 *.exe
+
+# Worktrees de agentes. Sao clones locais e temporarios do proprio repo;
+# versiona-los criaria um repositorio dentro do repositorio.
+.claude/worktrees/
+
+# Catalogos compilados. O plugin do Vite compila o .po no build; versionar o
+# .js gerado so cria um segundo lugar para a traducao ficar desatualizada.
+apps/web/src/locales/*.js

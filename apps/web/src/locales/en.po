@@ -410,6 +410,10 @@ msgid "Front camera"
 msgstr "Front camera"
 
 #: src/lib/erros.ts
+msgid "Give the folder a name."
+msgstr "Give the folder a name."
+
+#: src/lib/erros.ts
 msgid "Give the group a name."
 msgstr "Give the group a name."
 
@@ -695,6 +699,22 @@ msgstr "online"
 msgid "Only admins can add channels."
 msgstr "Only admins can add channels."
 
+#: src/lib/erros.ts
+msgid "Only group admins can change the group."
+msgstr "Only group admins can change the group."
+
+#: src/lib/erros.ts
+msgid "Only group chats can be edited here."
+msgstr "Only group chats can be edited here."
+
+#: src/lib/erros.ts
+msgid "Only space admins can manage members."
+msgstr "Only space admins can manage members."
+
+#: src/lib/erros.ts
+msgid "Only the space owner can do that."
+msgstr "Only the space owner can do that."
+
 #: src/ui/InviteGate.tsx
 msgid "Open in the WhatsCord app"
 msgstr "Open in the WhatsCord app"
@@ -749,12 +769,20 @@ msgid "Pick a conversation on the left, or start one. Voice rooms sit in the sam
 msgstr "Pick a conversation on the left, or start one. Voice rooms sit in the same list — open one and press the call button in the header to join whoever is there."
 
 #: src/lib/erros.ts
+msgid "Pick a role: admin or member."
+msgstr "Pick a role: admin or member."
+
+#: src/lib/erros.ts
 msgid "Pick an emoji."
 msgstr "Pick an emoji."
 
 #: src/lib/erros.ts
 msgid "Pick someone to message."
 msgstr "Pick someone to message."
+
+#: src/lib/erros.ts
+msgid "Pick who should own the space."
+msgstr "Pick who should own the space."
 
 #: src/lib/erros.ts
 msgid "Pick who to add."
@@ -1068,6 +1096,14 @@ msgstr "That file is empty."
 msgid "That file is no longer here."
 msgstr "That file is no longer here."
 
+#: src/lib/erros.ts
+msgid "That folder does not exist."
+msgstr "That folder does not exist."
+
+#: src/lib/erros.ts
+msgid "That folder is not yours."
+msgstr "That folder is not yours."
+
 #: src/ui/Invites.tsx
 msgid "That group could not be created."
 msgstr "That group could not be created."
@@ -1090,8 +1126,16 @@ msgid "That message is gone."
 msgstr "That message is gone."
 
 #: src/lib/erros.ts
+msgid "That ordering is not valid."
+msgstr "That ordering is not valid."
+
+#: src/lib/erros.ts
 msgid "That pagination cursor is not valid."
 msgstr "That pagination cursor is not valid."
+
+#: src/lib/erros.ts
+msgid "That person is not in this space."
+msgstr "That person is not in this space."
 
 #: src/lib/erros.ts
 msgid "That person is not on WhatsCord."
@@ -1161,6 +1205,10 @@ msgstr "The new setting applies the next time you start sharing."
 msgid "The other camera could not be opened — another app may be holding it."
 msgstr "The other camera could not be opened — another app may be holding it."
 
+#: src/lib/erros.ts
+msgid "The owner cannot be removed from the space."
+msgstr "The owner cannot be removed from the space."
+
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
 msgid "Theme"
@@ -1189,6 +1237,10 @@ msgstr "This message was deleted"
 #: src/ui/Sidebar.tsx
 msgid "This space has no channels yet."
 msgstr "This space has no channels yet."
+
+#: src/lib/erros.ts
+msgid "Transfer ownership instead of setting that role."
+msgstr "Transfer ownership instead of setting that role."
 
 #: src/ui/Call.tsx
 msgid "Turn your camera on first — there is no picture to switch while it is off."
@@ -1222,6 +1274,10 @@ msgstr "Unread"
 #: src/lib/erros.ts
 msgid "Use at least 8 characters."
 msgstr "Use at least 8 characters."
+
+#: src/lib/erros.ts
+msgid "Use leave space to remove yourself."
+msgstr "Use leave space to remove yourself."
 
 #: src/lib/erros.ts
 msgid "Use lowercase letters, numbers, dots and underscores."
@@ -1326,6 +1382,14 @@ msgstr "You can only edit your own messages."
 #: src/lib/erros.ts
 msgid "You can only reply to a message in this conversation."
 msgstr "You can only reply to a message in this conversation."
+
+#: src/lib/erros.ts
+msgid "You cannot act on someone at your own level or above."
+msgstr "You cannot act on someone at your own level or above."
+
+#: src/lib/erros.ts
+msgid "You cannot change your own role."
+msgstr "You cannot change your own role."
 
 #: src/lib/erros.ts
 msgid "You cannot message yourself."

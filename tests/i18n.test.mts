@@ -446,7 +446,7 @@ section("erros da API — a ponte das mensagens do zod");
  * cobra.
  */
 const mensagensDoZod = (() => {
-  const fontes = ["routes/auth.ts", "routes/rooms.ts", "routes/users.ts"].map((f) =>
+  const fontes = ["routes/auth.ts", "routes/rooms.ts", "routes/users.ts", "lib/imagem.ts"].map((f) =>
     readFileSync(new URL(`../apps/api/src/${f}`, import.meta.url), "utf8")
   );
   const achadas = new Set<string>();

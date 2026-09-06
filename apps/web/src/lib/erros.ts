@@ -58,6 +58,8 @@ const MENSAGENS: Record<string, MessageDescriptor> = {
   "messages.pick_emoji": msg`Pick an emoji.`,
 
   "rooms.gone": msg`That conversation no longer exists.`,
+  "rooms.group_only": msg`Only group chats can be edited here.`,
+  "rooms.staff_only": msg`Only group admins can change the group.`,
   "rooms.self_dm": msg`You cannot message yourself.`,
   "rooms.person_missing": msg`That person is not on WhatsCord.`,
   "rooms.dm_is_full": msg`A direct message cannot take more people.`,
@@ -73,6 +75,25 @@ const MENSAGENS: Record<string, MessageDescriptor> = {
   "spaces.bad_invite": msg`That invite is not valid.`,
   "spaces.missing": msg`That space does not exist.`,
   "spaces.needs_name": msg`Give the space a name.`,
+  "spaces.staff_only": msg`Only space admins can manage members.`,
+  "spaces.owner_only": msg`Only the space owner can do that.`,
+  /*
+   * A regra de hierarquia inteira numa frase só. Dizer "você não tem permissão"
+   * deixaria a pessoa tentando de novo; dizer o critério explica por que um
+   * admin não consegue mexer noutro admin, que é o caso que surpreende.
+   */
+  "spaces.rank_too_low": msg`You cannot act on someone at your own level or above.`,
+  "spaces.self_role": msg`You cannot change your own role.`,
+  "spaces.leave_instead": msg`Use leave space to remove yourself.`,
+  "spaces.member_missing": msg`That person is not in this space.`,
+  "spaces.owner_stays": msg`The owner cannot be removed from the space.`,
+  "spaces.owner_via_transfer": msg`Transfer ownership instead of setting that role.`,
+  "spaces.pick_role": msg`Pick a role: admin or member.`,
+  "spaces.pick_owner": msg`Pick who should own the space.`,
+  "spaces.folder_missing": msg`That folder does not exist.`,
+  "spaces.folder_not_yours": msg`That folder is not yours.`,
+  "spaces.needs_folder_name": msg`Give the folder a name.`,
+  "spaces.bad_order": msg`That ordering is not valid.`,
 
   "users.missing": msg`That account does not exist.`,
 

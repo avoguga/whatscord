@@ -410,6 +410,10 @@ msgid "Front camera"
 msgstr "Cámara frontal"
 
 #: src/lib/erros.ts
+msgid "Give the folder a name."
+msgstr "Ponle un nombre a la carpeta."
+
+#: src/lib/erros.ts
 msgid "Give the group a name."
 msgstr "Ponle un nombre al grupo."
 
@@ -695,6 +699,22 @@ msgstr "en línea"
 msgid "Only admins can add channels."
 msgstr "Solo los administradores pueden añadir canales."
 
+#: src/lib/erros.ts
+msgid "Only group admins can change the group."
+msgstr "Solo los administradores del grupo pueden cambiarlo."
+
+#: src/lib/erros.ts
+msgid "Only group chats can be edited here."
+msgstr "Aquí solo se pueden editar grupos."
+
+#: src/lib/erros.ts
+msgid "Only space admins can manage members."
+msgstr "Solo los administradores del espacio pueden gestionar miembros."
+
+#: src/lib/erros.ts
+msgid "Only the space owner can do that."
+msgstr "Solo el dueño del espacio puede hacer eso."
+
 #: src/ui/InviteGate.tsx
 msgid "Open in the WhatsCord app"
 msgstr "Abrir en la aplicación WhatsCord"
@@ -749,12 +769,20 @@ msgid "Pick a conversation on the left, or start one. Voice rooms sit in the sam
 msgstr "Elige una conversación a la izquierda, o empieza una. Las salas de voz están en la misma lista: abre una y pulsa el botón de llamada arriba para unirte a quien esté."
 
 #: src/lib/erros.ts
+msgid "Pick a role: admin or member."
+msgstr "Elige un rol: administrador o miembro."
+
+#: src/lib/erros.ts
 msgid "Pick an emoji."
 msgstr "Elige un emoji."
 
 #: src/lib/erros.ts
 msgid "Pick someone to message."
 msgstr "Elige a alguien para escribirle."
+
+#: src/lib/erros.ts
+msgid "Pick who should own the space."
+msgstr "Elige quién debe ser el dueño del espacio."
 
 #: src/lib/erros.ts
 msgid "Pick who to add."
@@ -1068,6 +1096,14 @@ msgstr "Ese archivo está vacío."
 msgid "That file is no longer here."
 msgstr "Ese archivo ya no está aquí."
 
+#: src/lib/erros.ts
+msgid "That folder does not exist."
+msgstr "Esa carpeta no existe."
+
+#: src/lib/erros.ts
+msgid "That folder is not yours."
+msgstr "Esa carpeta no es tuya."
+
 #: src/ui/Invites.tsx
 msgid "That group could not be created."
 msgstr "No se pudo crear ese grupo."
@@ -1090,8 +1126,16 @@ msgid "That message is gone."
 msgstr "Ese mensaje ya no existe."
 
 #: src/lib/erros.ts
+msgid "That ordering is not valid."
+msgstr "Ese orden no es válido."
+
+#: src/lib/erros.ts
 msgid "That pagination cursor is not valid."
 msgstr "Ese cursor de paginación no es válido."
+
+#: src/lib/erros.ts
+msgid "That person is not in this space."
+msgstr "Esa persona no está en este espacio."
 
 #: src/lib/erros.ts
 msgid "That person is not on WhatsCord."
@@ -1161,6 +1205,10 @@ msgstr "El nuevo ajuste se aplica la próxima vez que compartas."
 msgid "The other camera could not be opened — another app may be holding it."
 msgstr "No se pudo abrir la otra cámara: otra aplicación puede estar usándola."
 
+#: src/lib/erros.ts
+msgid "The owner cannot be removed from the space."
+msgstr "No se puede quitar al dueño del espacio."
+
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
 msgid "Theme"
@@ -1189,6 +1237,10 @@ msgstr "Este mensaje fue eliminado"
 #: src/ui/Sidebar.tsx
 msgid "This space has no channels yet."
 msgstr "Este espacio todavía no tiene canales."
+
+#: src/lib/erros.ts
+msgid "Transfer ownership instead of setting that role."
+msgstr "Transfiere la propiedad en vez de asignar ese rol."
 
 #: src/ui/Call.tsx
 msgid "Turn your camera on first — there is no picture to switch while it is off."
@@ -1222,6 +1274,10 @@ msgstr "No leídas"
 #: src/lib/erros.ts
 msgid "Use at least 8 characters."
 msgstr "Usa al menos 8 caracteres."
+
+#: src/lib/erros.ts
+msgid "Use leave space to remove yourself."
+msgstr "Para salir, usa salir del espacio."
 
 #: src/lib/erros.ts
 msgid "Use lowercase letters, numbers, dots and underscores."
@@ -1326,6 +1382,14 @@ msgstr "Solo puedes editar tus propios mensajes."
 #: src/lib/erros.ts
 msgid "You can only reply to a message in this conversation."
 msgstr "Solo puedes responder a un mensaje de esta conversación."
+
+#: src/lib/erros.ts
+msgid "You cannot act on someone at your own level or above."
+msgstr "No puedes actuar sobre alguien de tu mismo nivel o superior."
+
+#: src/lib/erros.ts
+msgid "You cannot change your own role."
+msgstr "No puedes cambiar tu propio rol."
 
 #: src/lib/erros.ts
 msgid "You cannot message yourself."
