@@ -33,8 +33,9 @@ Três erros reais que só apareceram ao executar, nunca em revisão de código:
 - Um documento do repositório afirmava em negrito *"não use `network_mode:
   host`"*. Era pesquisa sem execução. Estava errado, e nenhuma chamada externa
   conectava por dias.
-- O link `/join/<código>` **não subia o app**: o Vite está com `base: "./"` e o
-  bundle era procurado em `/join/assets/`.
+- O link `/join/<código>` **não subia o app**: o Vite estava com `base: "./"` e o
+  bundle era procurado em `/join/assets/`. Já corrigido — ver D3 em
+  `DECISOES.md`.
 - Dentro do app desktop `location.origin` é `http://tauri.localhost` — o link de
   convite gerado ali parecia normal e não abria em nenhuma outra máquina.
 
@@ -155,16 +156,18 @@ roomOptionDefaults = { adaptiveStream: false, dynacast: false }
 
 ## 3. Armadilhas
 
-### A. `base: "./"` no Vite quebra rota aninhada 🛑
+### A. `base` do Vite — RESOLVIDA
 
-`apps/web/vite.config.ts` tem `base: "./"`. Qualquer caminho aninhado
-(`/settings/audio`) faz o navegador buscar o bundle em `/settings/assets/…`,
-receber o HTML pelo fallback de SPA, e **não subir**. Por isso o convite é
-`/?join=<código>`.
+Já está em `base: "/"`, verificado em execução (ver D3 em `DECISOES.md`). Rotas
+aninhadas voltam a funcionar na web.
 
-Se precisar de rotas (provável para a Tarefa 6), a mudança é `base: "/"` — padrão
-do template oficial do Tauri v2, **não verificado aqui**. Verificação obrigatória:
-mudar, `npm run dist`, **instalar e abrir o app**; janela em branco = reverter.
+**Não reverta para `./`.** O comentário antigo dizia "Tauri loads the build from
+disk" e era herança do Tauri v1; no v2 nenhuma plataforma usa `file://`. Com
+`./`, qualquer caminho aninhado faz o navegador buscar o bundle em
+`/rota/assets/…` e receber o HTML pelo fallback de SPA.
+
+**Pendente:** confirmar num aparelho Android. A evidência (`addPathHandler("/")`
+no wry) é forte, mas não é execução.
 
 ### B. Coolify e LiveKit
 
@@ -263,11 +266,21 @@ plataformas: mobile (web e APK)
 A troca é 100% por `deviceId`; `facingMode` não aparece em lugar nenhum.
 `switchActiveDevice` **só aceita deviceId** (apurado).
 
-**A premissa "no celular tem que ser facingMode" é plausível e NÃO está
-confirmada.** Comece medindo: num celular real, logar `enumerateDevices()` e ver
-se as câmeras vêm com ids distintos e rotulados. Se vierem, pode ser só
-interface. Se não, o caminho é republicar a track de vídeo com `facingMode`,
-contornando `switchActiveDevice`.
+**Decidido em `DECISOES.md` (D4), com evidência.** Três achados mudam o
+caminho:
+- O **Android System WebView** tem bug documentado: `enumerateDevices` devolve
+  `label` vazio (issues.chromium.org/issues/41288617). O app roda em WebView, não
+  no Chrome — então seleção por `deviceId` é não confiável justamente no celular.
+- O Android costuma permitir **uma câmera aberta por vez**, e
+  `switchActiveDevice` pede a nova com `exact: true` sem liberar a anterior →
+  `OverconstrainedError`.
+- **`LocalVideoTrack.restartTrack({ facingMode })` existe e é o caminho certo** —
+  troca a track sob o sender, sem despublicar. `VideoCaptureOptions` aceita
+  `facingMode`.
+
+Implementar: botão "virar câmera" no celular chamando `restartTrack`; seletor por
+`deviceId` no desktop. A escolha é por **capacidade detectada** (as câmeras vêm
+rotuladas?), não por user-agent.
 
 - Arquivos: `apps/web/src/lib/devices.ts`, `apps/web/src/ui/DevicePicker.tsx`,
   `apps/web/src/ui/Call.tsx`.
@@ -290,11 +303,14 @@ plataformas: web, desktop
 
 Sintoma: *"fica esticado como widescreen, fora da resolução correta"*.
 
-**A hipótese óbvia foi investigada e enfraquecida:** as constraints saem como
-`width: { ideal: 1920 }` — `ideal`, não `exact` — e `aspectRatio` nunca é
-enviado. O SDK provavelmente **não** força 16:9.
+**Hipótese descartada, não só enfraquecida.** O grupo de trabalho do WebRTC
+decidiu explicitamente que `getDisplayMedia` faz **crop-and-scale** e **nunca
+distorce** (lists.w3.org/Archives/Public/public-webrtc-logs/2019May/0044.html).
+Somado a isso, `object-fit: contain` não pode matematicamente esticar. As duas
+suspeitas óbvias estão eliminadas — **inclusive a de que `.tile.screen
+{ aspect-ratio: 16/9 }` distorceria: ela produz barras, não esticamento.**
 
-Ordem de investigação:
+Esta tarefa é de **medição antes de código**. Ordem:
 1. **Meça antes de mexer.** Numa chamada real, do lado de quem recebe:
    `track.mediaStreamTrack.getSettings()` dá a resolução que chegou. Compare com
    a resolução da tela compartilhada. Bateu → problema é CSS. Não bateu →
