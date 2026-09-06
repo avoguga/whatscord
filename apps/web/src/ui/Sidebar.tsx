@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useStore, type Room } from "../store";
+import { useStore, type Room, type VoiceUser } from "../store";
 import { fileUrl } from "../lib/api";
 import { initials, listStamp } from "../lib/format";
 import {
@@ -7,8 +7,10 @@ import {
   IconVoiceRoom, IconSettings, IconUserPlus, IconGroup, IconSpaces, IconHash
 } from "./icons";
 import { NewChatModal, NewSpaceModal } from "./Modals";
-import { SpaceModal, NewGroupModal, AddPeopleModal } from "./Invites";
+import { SpaceModal, NewGroupModal, AddPeopleModal, GroupModal } from "./Invites";
 import { SettingsModal } from "./Settings";
+import { SpaceRail } from "./SpaceRail";
+import { Avatar } from "./Avatar";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
 import type { I18n } from "@lingui/core";
@@ -25,6 +27,7 @@ export function Sidebar() {
   const search = useStore((s) => s.search);
   const online = useStore((s) => s.online);
   const voicePresence = useStore((s) => s.voicePresence);
+  const voicePeople = useStore((s) => s.voicePeople);
 
   const openRoom = useStore((s) => s.openRoom);
   const setFilter = useStore((s) => s.setFilter);
@@ -32,7 +35,7 @@ export function Sidebar() {
   const setActiveSpace = useStore((s) => s.setActiveSpace);
 
   const [modal, setModal] = useState<
-    "chat" | "space" | "group" | "spaceInfo" | "addPeople" | "settings" | null
+    "chat" | "space" | "group" | "spaceInfo" | "addPeople" | "groupInfo" | "settings" | null
   >(null);
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const activeRoom = rooms.find((r) => r.id === activeRoomId);
@@ -56,15 +59,22 @@ export function Sidebar() {
   const unreadTotal = rooms.reduce((n, r) => n + r.unread, 0);
 
   const row = (room: Room) => (
-    <RoomRow
-      key={room.id}
-      room={room}
-      selected={room.id === activeRoomId}
-      onOpen={() => openRoom(room.id)}
-      online={room.counterpart ? online.has(room.counterpart.id) : false}
-      inVoice={voicePresence[room.id]?.length ?? 0}
-      meId={me?.id ?? ""}
-    />
+    /*
+     * Numa sala de voz a linha vem acompanhada de quem está lá dentro, logo
+     * abaixo dela — é o que o Discord mostra, e é a única forma de decidir se
+     * vale entrar sem entrar para descobrir.
+     */
+    <div key={room.id} className="row-block">
+      <RoomRow
+        room={room}
+        selected={room.id === activeRoomId}
+        onOpen={() => openRoom(room.id)}
+        online={room.counterpart ? online.has(room.counterpart.id) : false}
+        inVoice={voicePresence[room.id]?.length ?? 0}
+        meId={me?.id ?? ""}
+      />
+      {room.kind === "VOICE" && <NaChamada users={voicePeople[room.id] ?? []} />}
+    </div>
   );
 
   return (
@@ -89,21 +99,10 @@ export function Sidebar() {
 
         {spaces.length > 0 && <div className="rail-sep" />}
 
-        {spaces.map((space) => (
-          <button
-            key={space.id}
-            className="space-chip"
-            data-tip={space.name}
-            aria-pressed={activeSpaceId === space.id}
-            onClick={() => setActiveSpace(space.id)}
-          >
-            {space.iconUrl ? (
-              <img className="rail-avatar" src={fileUrl(space.iconUrl)} alt="" />
-            ) : (
-              initials(space.name)
-            )}
-          </button>
-        ))}
+        {/* Os espaços saíram daqui para um componente só deles porque agora
+            eles se movem: arrastar, agrupar em pasta e o menu que faz as duas
+            coisas sem mouse não cabem no meio de uma barra de navegação. */}
+        <SpaceRail />
 
         {/* A plus, not the people glyph: this adds a space, it does not list
             people, and the two icons sat next to each other. */}
@@ -176,12 +175,28 @@ export function Sidebar() {
         )}
 
         {activeRoom?.kind === "GROUP" && !activeSpaceId && (
-          <button className="invite-strip" onClick={() => setModal("addPeople")}>
-            <IconUserPlus size={18} />
-            <span>
-              <b>Add people to {activeRoom.name}</b>
-            </span>
-          </button>
+          /*
+             Duas ações, dois botões. Trocar a foto do grupo estava sem porta
+             nenhuma na interface, e pendurá-la neste mesmo botão faria "adicionar
+             pessoas" abrir um formulário de foto — que é como se perde a
+             confiança em qualquer botão da tela.
+          */
+          <div className="invite-strip-row">
+            <button className="invite-strip" onClick={() => setModal("addPeople")}>
+              <IconUserPlus size={18} />
+              <span>
+                <b>{t`Add people to ${activeRoom.name ?? ""}`}</b>
+              </span>
+            </button>
+            <button
+              className="invite-strip-side"
+              onClick={() => setModal("groupInfo")}
+              title={t`Group name and picture`}
+              aria-label={t`Group name and picture`}
+            >
+              <IconSettings size={18} />
+            </button>
+          </div>
         )}
 
         <div className="search-wrap">
@@ -249,7 +264,39 @@ export function Sidebar() {
       {modal === "addPeople" && activeRoomId && (
         <AddPeopleModal roomId={activeRoomId} onClose={() => setModal(null)} />
       )}
+      {modal === "groupInfo" && activeRoomId && (
+        <GroupModal roomId={activeRoomId} onClose={() => setModal(null)} />
+      )}
     </>
+  );
+}
+
+/**
+ * Quem está na sala de voz agora, desenhado sob a linha do canal.
+ *
+ * NÃO há indicador de quem está falando nem de quem está mudo. Essa informação
+ * existe só dentro do LiveKit, para quem já entrou na chamada — a presença que
+ * o servidor manda (`GET /calls/presence` e o evento `voice:presence`) traz id,
+ * nome e retrato, e nada sobre o microfone. Inventar um ponto verde aqui seria
+ * mentir para quem está decidindo se entra.
+ */
+function NaChamada({ users }: { users: VoiceUser[] }) {
+  const { t } = useLingui();
+  if (users.length === 0) return null;
+
+  return (
+    <ul className="voice-here" aria-label={t`In this voice room`}>
+      {users.map((u) => (
+        <li key={u.id}>
+          {/* O nome está escrito ao lado, mas a dica do mouse existe porque ele
+              é cortado quando é longo e a barra é estreita. */}
+          <span className="voice-here-person" title={u.displayName}>
+            <Avatar name={u.displayName} url={u.avatarUrl} size={22} className="avatar voice-face" />
+            <span className="voice-here-name">{u.displayName}</span>
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 

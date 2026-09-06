@@ -1,6 +1,6 @@
 import { io, type Socket } from "socket.io-client";
 import { apiBase, loadTokens } from "./api";
-import { useStore, type Message } from "../store";
+import { useStore, type Message, type VoiceUser } from "../store";
 
 let socket: Socket | null = null;
 
@@ -58,10 +58,36 @@ export function connectSocket() {
     store().refreshRooms().catch(() => undefined);
   });
 
+  /*
+   * A lista completa de quem está numa sala de voz, com nome e retrato. É a
+   * fonte boa: `call:joined` abaixo só traz um id, e um id não desenha nada na
+   * barra lateral.
+   */
+  socket.on("voice:presence", (p: { roomId: string; users: VoiceUser[] }) => {
+    store().setVoiceRoster(p.roomId, p.users ?? []);
+  });
+
   socket.on("call:joined", (p: { roomId: string; userId: string }) => {
-    const current = useStore.getState().voicePresence[p.roomId] ?? [];
-    if (!current.includes(p.userId)) {
+    const estado = useStore.getState();
+    const current = estado.voicePresence[p.roomId] ?? [];
+    if (current.includes(p.userId)) return;
+
+    /*
+     * O evento traz um id sem pessoa. Procurar nos membros da sala resolve o
+     * caso comum sem uma ida à rede; quando não resolve — alguém que entrou no
+     * espaço agora e ainda não está na lista local — vale a pena buscar, senão
+     * a barra lateral contaria uma pessoa a mais do que consegue desenhar.
+     */
+    const membro = estado.rooms
+      .find((r) => r.id === p.roomId)
+      ?.members.find((m) => m.id === p.userId);
+
+    if (membro) {
+      const atual = estado.voicePeople[p.roomId] ?? [];
+      store().setVoiceRoster(p.roomId, [...atual, membro]);
+    } else {
       store().setVoicePresence(p.roomId, [...current, p.userId]);
+      store().refreshVoicePresence().catch(() => undefined);
     }
   });
   socket.on("call:left", (p: { roomId: string; userId: string }) => {
@@ -70,6 +96,15 @@ export function connectSocket() {
       p.roomId,
       current.filter((u) => u !== p.userId)
     );
+  });
+
+  /*
+   * Reconectou: enquanto o socket esteve fora, gente entrou e saiu das chamadas
+   * sem que nenhum evento chegasse aqui. Sem esta busca, a barra lateral fica
+   * mostrando a foto de quem já desligou até a próxima entrada de alguém.
+   */
+  socket.on("connect", () => {
+    store().refreshVoicePresence().catch(() => undefined);
   });
 
   socket.on("connect_error", (err) => console.warn("realtime:", err.message));
