@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useStore } from "./store";
 import { connectSocket, disconnectSocket } from "./lib/socket";
+import { watchSystemTheme } from "./lib/theme";
 import {
   inviteFromLocation,
   onDeepLink,
@@ -68,6 +69,17 @@ export default function App() {
 
   // Links entregues com o app já aberto.
   useEffect(() => onDeepLink((code) => void accept(code)), [accept]);
+
+  /*
+   * Repinta quando o SISTEMA troca de tema, e só quando a preferência é
+   * "igual ao dispositivo". Sem isto o Windows entra no modo noturno às 18h e
+   * o app segue claro até alguém recarregar.
+   *
+   * Lê o tema por `getState()` em vez de por dependência: assinar a mudança de
+   * novo a cada troca de tema derrubaria o listener no momento exato em que ele
+   * importa.
+   */
+  useEffect(() => watchSystemTheme(() => useStore.getState().theme), []);
 
   /*
    * O endereço com que a página abriu, uma vez só.

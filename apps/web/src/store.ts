@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { api, clearTokens, loadTokens, saveTokens } from "./lib/api";
+import { saveTheme, storedTheme, type Theme } from "./lib/theme";
 
 /**
  * Collapses a message list to one entry per message and keeps it in time order.
@@ -134,6 +135,8 @@ type State = {
   replyTo: Message | null;
   voicePresence: Record<string, string[]>;
   toasts: Toast[];
+  /** Claro, escuro ou igual ao dispositivo. Pintado no `<html>`. */
+  theme: Theme;
 
   bootstrap: () => Promise<void>;
   signIn: (identifier: string, password: string) => Promise<void>;
@@ -161,6 +164,7 @@ type State = {
   setReplyTo: (m: Message | null) => void;
   setActiveSpace: (id: string | null) => void;
   notify: (text: string, kind?: "ok" | "bad") => void;
+  setTheme: (t: Theme) => void;
   dismissToast: (id: string) => void;
 
   ingestMessage: (m: Message) => void;
@@ -200,6 +204,12 @@ export const useStore = create<State>((set, get) => ({
   me: null,
   booting: true,
   toasts: [],
+  /*
+   * Lido do armazenamento, não fixado em "system": o `index.html` já pintou a
+   * tela com esse mesmo valor antes do React existir, e divergir aqui faria a
+   * tela de configurações marcar a opção errada.
+   */
+  theme: storedTheme(),
   ...blankSession,
 
   async bootstrap() {
@@ -424,6 +434,11 @@ export const useStore = create<State>((set, get) => ({
   setSearch: (search) => set({ search }),
   setReplyTo: (replyTo) => set({ replyTo }),
   setActiveSpace: (activeSpaceId) => set({ activeSpaceId }),
+
+  setTheme(t) {
+    saveTheme(t);
+    set({ theme: t });
+  },
 
   notify(text, kind = "ok") {
     const id = crypto.randomUUID();
