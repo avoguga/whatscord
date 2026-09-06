@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useStore, type Message } from "../store";
 import { api, fileUrl, uploadFile } from "../lib/api";
 import { clock, daySeparator, fileSize, initials, isImage, isVideo, sameDay } from "../lib/format";
@@ -253,6 +253,14 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
           }
         }}
       >
+        {/*
+          A caixa interna existe por um motivo so: `margin-top: auto` nela empurra
+          tudo para BAIXO quando ha poucas mensagens, como no WhatsApp, sem
+          quebrar a rolagem quando ha muitas. Por `justify-content: flex-end` no
+          proprio contêiner rolavel, o comeco da conversa fica inalcancavel assim
+          que o conteudo passa da altura da tela.
+        */}
+        <div className="messages-inner">
         {findTerm.trim() && list.length === 0 && (
           <div className="day-sep"><span>Nothing loaded matches “{findTerm.trim()}”</span></div>
         )}
@@ -281,7 +289,21 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
           const newDay = !prev || !sameDay(prev.createdAt, message.createdAt);
           const firstOfRun = newDay || !prev || prev.author.id !== message.author.id;
           return (
-            <div key={message.id}>
+            /*
+             * `Fragment` com chave, e nao um `<div>` embrulhando os dois.
+             *
+             * O div existia so para dar uma chave ao React, e custava caro sem
+             * que se visse: sendo `display: block`, ele engolia o
+             * `align-self: flex-end` do balao de saida e o `align-self: center`
+             * do separador de dia — os dois passavam a nao alinhar nada. A
+             * mensagem enviada ficava encostada a ESQUERDA com 65% de largura,
+             * deixando o resto da linha vazio, e o separador de dia ia parar na
+             * esquerda em vez do meio.
+             *
+             * Ele tambem quebrava `.msg + .msg`: as mensagens nunca eram irmas,
+             * entao o espacamento entre mensagens seguidas nunca chegou a valer.
+             */
+            <Fragment key={message.id}>
               {newDay && <div className="day-sep"><span>{daySeparator(message.createdAt)}</span></div>}
               <Bubble
                 message={message}
@@ -290,7 +312,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
                 showAuthor={firstOfRun && room.kind !== "DM" && message.author.id !== me?.id}
                 onReply={setReplyTo}
               />
-            </div>
+            </Fragment>
           );
         })}
 
@@ -304,6 +326,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
                 })}
           </div>
         )}
+        </div>
       </div>
 
       {replyTo && (
@@ -428,6 +451,56 @@ const Bubble = memo(function Bubble({
    */
   const { t } = useLingui();
 
+  /*
+   * A hora e as confirmacoes, guardadas numa variavel para poderem aparecer em
+   * dois lugares diferentes.
+   *
+   * Havendo texto, elas vao DENTRO dele e como primeiro filho: `float: right`
+   * so encaixa ao lado do que vem DEPOIS dele no fluxo. Num bloco separado
+   * logo abaixo, como estavam, o float caia sempre numa linha propria — e um
+   * "oi" virava um balao alto e quadrado, em vez do "oi 20:57" numa linha so
+   * que o WhatsApp faz.
+   *
+   * Sem texto (mensagem so de anexo) elas voltam a ser um bloco no fim, porque
+   * nao ha linha nenhuma em que encaixar.
+   */
+  const hora = (
+          <span className="bubble-meta">
+            {message.editedAt && (
+              <span>
+                <Trans>edited</Trans>
+              </span>
+            )}
+            {clock(message.createdAt)}
+            {mine && (
+              <span className="ticks">
+                {message.pending ? <IconClock /> : message.failed ? <IconCheck size={15} /> : <IconChecks />}
+              </span>
+            )}
+          </span>
+  );
+
+  /*
+   * O buraco que o horario vai ocupar.
+   *
+   * E uma copia INVISIVEL do proprio horario, flutuando a direita antes do
+   * texto. Copia, e nao uma largura fixa, porque o conteudo varia — "editada",
+   * as confirmacoes de leitura — e qualquer numero cravado erraria em algum
+   * caso, sobrepondo o texto ou deixando um vao.
+   *
+   * Serve para o horario de verdade poder ser posicionado por cima, no canto,
+   * e mesmo assim vir DEPOIS do texto no DOM. Sem isso, para o horario encaixar
+   * na mesma linha ele precisaria vir antes — e um leitor de tela anunciaria a
+   * hora antes da mensagem, que e a ordem errada de ler uma conversa.
+   */
+  const buraco = (
+    <span className="bubble-space" aria-hidden="true">
+      {hora}
+    </span>
+  );
+
+  const temTexto = Boolean(message.content) || message.deleted;
+
   return (
     <div
       className={`msg ${mine ? "out" : "in"}${firstOfRun ? " first-of-run" : ""}`}
@@ -467,10 +540,16 @@ const Bubble = memo(function Bubble({
 
         {message.deleted ? (
           <div className="bubble-text deleted">
+            {buraco}
             <Trans>This message was deleted</Trans>
           </div>
         ) : (
-          message.content && <div className="bubble-text">{message.content}</div>
+          message.content && (
+            <div className="bubble-text">
+              {buraco}
+              {message.content}
+            </div>
+          )
         )}
 
         {message.reactions.length > 0 && (
@@ -489,19 +568,7 @@ const Bubble = memo(function Bubble({
           </div>
         )}
 
-        <span className="bubble-meta">
-          {message.editedAt && (
-            <span>
-              <Trans>edited</Trans>
-            </span>
-          )}
-          {clock(message.createdAt)}
-          {mine && (
-            <span className="ticks">
-              {message.pending ? <IconClock /> : message.failed ? <IconCheck size={15} /> : <IconChecks />}
-            </span>
-          )}
-        </span>
+        {hora}
 
         {message.failed && (
           <div style={{ color: "var(--danger)", fontSize: 12, marginTop: 4 }}>

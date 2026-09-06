@@ -405,7 +405,25 @@ input, textarea { font: inherit; color: inherit; }
   background-color: var(--chat-bg);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260' viewBox='0 0 260 260'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.028' stroke-width='1.6'%3E%3Cpath d='M22 40h34a6 6 0 0 1 6 6v16a6 6 0 0 1-6 6H36l-8 8v-8h-6a6 6 0 0 1-6-6V46a6 6 0 0 1 6-6z'/%3E%3Ccircle cx='196' cy='52' r='13'/%3E%3Cpath d='M180 210c0-9 7-16 16-16s16 7 16 16'/%3E%3Cpath d='M108 128l12 12 22-26'/%3E%3Crect x='58' y='176' width='40' height='28' rx='5'/%3E%3Cpath d='M222 150v22m-11-11h22'/%3E%3Cpath d='M148 62c6-6 16-6 22 0'/%3E%3Ccircle cx='40' cy='118' r='9'/%3E%3Cpath d='M232 96l-10 18h20z'/%3E%3C/g%3E%3C/svg%3E");
   padding: var(--gap-4) 6%;
+  display: flex; flex-direction: column;
+}
+/*
+  A caixa que de fato empilha as mensagens.
+  ---------------------------------------------------------------------------
+  `margin-top: auto` e o que ancora a conversa no RODAPE quando ha poucas
+  mensagens — que e o que o WhatsApp faz e o que faltava aqui: tres mensagens
+  ficavam no alto com a tela inteira vazia embaixo.
+
+  Por que uma caixa interna e nao `justify-content: flex-end` no contêiner: num
+  elemento com rolagem, `flex-end` torna o COMECO do conteudo inalcancavel
+  assim que ele passa da altura da tela — a conversa antiga simplesmente nao
+  sobe. Com `margin-top: auto` a mesma ancoragem acontece sem custo nenhum
+  quando o conteudo cresce.
+*/
+.messages-inner {
+  margin-top: auto;
   display: flex; flex-direction: column; gap: 2px;
+  min-height: 0;
 }
 
 .day-sep { align-self: center; margin: var(--gap-4) 0 var(--gap-3); }
@@ -418,7 +436,9 @@ input, textarea { font: inherit; color: inherit; }
 .msg { display: flex; max-width: 65%; }
 .msg.out { align-self: flex-end; }
 .msg.in { align-self: flex-start; }
-.msg + .msg { margin-top: 2px; }
+/* Removido: `.msg + .msg { margin-top: 2px }`. Ele nunca chegou a valer — cada
+   mensagem morava no proprio div e elas nao eram irmas. Agora que sao, o `gap`
+   de 2px da caixa ja da esse espaco, e a margem so o dobraria. */
 .msg.first-of-run { margin-top: var(--gap-3); }
 
 .bubble {
@@ -441,13 +461,22 @@ input, textarea { font: inherit; color: inherit; }
 .bubble-text { font-size: 14.4px; white-space: pre-wrap; word-break: break-word; }
 .bubble-text.deleted { color: var(--text-faint); font-style: italic; }
 
+/* O horario vai POR CIMA do buraco reservado, no canto de baixo. Assim ele
+   pode vir depois do texto no DOM — a ordem em que um leitor de tela deve ler
+   — e ainda assim aparecer na mesma linha da ultima palavra. */
 .bubble-meta {
-  float: right;
+  position: absolute; right: 9px; bottom: 6px;
   display: inline-flex; align-items: center; gap: 3px;
-  margin: 6px -2px -4px 8px;
   font-size: 11px; color: var(--text-faint);
   white-space: nowrap;
 }
+/* O buraco: uma copia invisivel do horario, flutuando antes do texto. E ele
+   que abre o espaco na ultima linha; `visibility: hidden` mantem a largura. */
+.bubble-space {
+  float: right; visibility: hidden; pointer-events: none;
+  height: 1px; margin-left: 8px;
+}
+.bubble-space .bubble-meta { position: static; }
 .msg.out .bubble-meta { color: var(--meta-out); }
 .ticks { display: inline-flex; }
 .ticks.read { color: var(--read); }
