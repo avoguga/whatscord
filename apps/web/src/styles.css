@@ -487,7 +487,11 @@ input, textarea { font: inherit; color: inherit; }
   display: grid; place-items: center;
 }
 .tile video { width: 100%; height: 100%; object-fit: contain; background: #000; }
-.tile.screen { grid-column: 1 / -1; aspect-ratio: 16 / 9; }
+/* Codigo morto removido: `.tile.screen { grid-column: 1/-1; aspect-ratio: 16/9 }`.
+   Uma tela compartilhada SEMPRE cai no modo foco (Call.tsx:457 liga o foco
+   quando ha screenTile, e a tela renderiza dentro de .stage-main), e la
+   `.call-stage.focus .stage-main .tile` — especificidade 0,3,0 contra 0,2,0 —
+   sobrescreve as duas propriedades. A regra nunca chegava a valer. */
 .tile .tile-name {
   position: absolute; left: 10px; bottom: 8px;
   font-size: 12.5px; background: rgba(0, 0, 0, 0.62);

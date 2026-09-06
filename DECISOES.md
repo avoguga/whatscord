@@ -235,12 +235,19 @@ lado de quem recebe.
 4. Procurar atributos HTML `width`/`height` no `<video>`: eles alteram a
    proporção intrínseca **antes** do CSS e distorcem mesmo com `contain` correto.
 
-**Observação separada, esta sim acionável agora:** uma tela 16:10 ou 4:3 dentro
-do contêiner `aspect-ratio: 16/9` aparece com barras grandes, o que se descreve
-naturalmente como *"parece widescreen fora da resolução"*. Não é distorção, mas é
-defeito de apresentação. No modo foco isso já está resolvido
-(`aspect-ratio: auto`); confirmar que a tela compartilhada **sempre** cai no modo
-foco.
+**Terceira hipótese, também derrubada — inclusive a minha "observação
+acionável".** Eu havia sugerido que a tela 16:10 dentro do `aspect-ratio: 16/9`
+apareceria com barras. Fui verificar no código e a regra **nunca chega a valer**:
+
+- o modo foco liga exatamente quando existe tela compartilhada (`Call.tsx:457`);
+- a tela **sempre** renderiza dentro de `.stage-main` (`Call.tsx:467`);
+- ali, `.call-stage.focus .stage-main .tile` (especificidade 0,3,0) sobrescreve
+  `.tile.screen` (0,2,0), zerando o `aspect-ratio` fixo.
+
+Era **código morto**. Removido, com o motivo registrado no próprio CSS.
+
+Resultado: as **três** explicações candidatas caíram. Não há hipótese viva — daí
+esta decisão ser uma pendência de medição, não uma escolha de projeto.
 
 ---
 
