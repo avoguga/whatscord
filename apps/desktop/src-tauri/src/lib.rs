@@ -215,32 +215,42 @@ pub fn run() {
 
     builder
         .plugin(tauri_plugin_deep_link::init())
-        .setup(|app| {
-            use tauri_plugin_deep_link::DeepLinkExt;
-
-            let handle = app.handle().clone();
-            app.deep_link().on_open_url(move |event| {
-                deliver_deep_links(
-                    &handle,
-                    event.urls().into_iter().map(|u| u.to_string()).collect(),
-                );
-            });
-
+        .setup(|_app| {
             /*
-             * Em desenvolvimento nada registrou o esquema no Windows — quem faz
-             * isso na versao final e o instalador NSIS, a partir de
-             * `plugins.deep-link.desktop.schemes`. Registrar aqui tambem em
-             * release faria uma copia portatil roubar o esquema da instalada.
+             * Todo este bloco e so de desktop. `deliver_deep_links` usa
+             * `get_webview_window` e `eval`, e o esquema `whatscord://` so e
+             * registrado pelo instalador do Windows — no Android o caminho de
+             * link seria App Links, que exige assetlinks.json e nao esta feito.
+             * Sem esta guarda o build para Android nao compila.
              */
-            #[cfg(debug_assertions)]
-            let _ = app.deep_link().register_all();
+            #[cfg(desktop)]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
 
-            /*
-             * O caso de abrir o app CLICANDO no link, com ele fechado: a URL
-             * chega como argumento de linha de comando e ninguem a leu ainda.
-             * Precisa vir depois do `on_open_url` acima, que e quem escuta.
-             */
-            app.deep_link().handle_cli_arguments(std::env::args());
+                let handle = _app.handle().clone();
+                _app.deep_link().on_open_url(move |event| {
+                    deliver_deep_links(
+                        &handle,
+                        event.urls().into_iter().map(|u| u.to_string()).collect(),
+                    );
+                });
+
+                /*
+                 * Em desenvolvimento nada registrou o esquema no Windows — quem
+                 * faz isso na versao final e o instalador NSIS, a partir de
+                 * `plugins.deep-link.desktop.schemes`. Registrar aqui tambem em
+                 * release faria uma copia portatil roubar o esquema da instalada.
+                 */
+                #[cfg(debug_assertions)]
+                let _ = _app.deep_link().register_all();
+
+                /*
+                 * O caso de abrir o app CLICANDO no link, com ele fechado: a URL
+                 * chega como argumento de linha de comando e ninguem a leu ainda.
+                 * Precisa vir depois do `on_open_url` acima, que e quem escuta.
+                 */
+                _app.deep_link().handle_cli_arguments(std::env::args());
+            }
 
             Ok(())
         })
