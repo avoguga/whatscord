@@ -254,3 +254,87 @@ Um link aberto por quem ainda não tem conta fica guardado no `sessionStorage` e
 tela vazia, sem nunca entrar no espaço para o qual foi convidada. A tela de login
 avisa que há um convite esperando, senão parece que o link não fez nada.
 
+
+## Presença de voz, ordem da barra lateral e papéis do espaço
+
+### A presença de voz mora no Redis, num ZSET por sala
+
+Ela vivia na memória do cliente e morria num F5: quem recarregava a página via a
+sala de voz vazia mesmo com gente falando dentro. A fonte de verdade passou para
+o servidor — `GET /calls/presence?roomIds=…` e o evento `voice:presence`.
+
+**Um ZSET por sala, e não um SET com TTL na chave.** Cada membro é
+`userId:socketId` e o *score* é o instante em que aquela conexão vence. Com um
+TTL na chave inteira, o vencimento seria do conjunto: a conexão de quem caiu
+ficaria viva enquanto qualquer outra pessoa da sala renovasse. Com o vencimento
+no score, cada conexão expira sozinha.
+
+**A presença é por USUÁRIO, contada por conexão.** Quem abre o app em duas abas
+tem duas conexões e só sai da lista quando a última delas sai — daí o `userId`
+fazer parte do membro do ZSET. A exceção é a saída deliberada (`call:leave`), que
+derruba todas as conexões daquela pessoa naquela sala: o LiveKit não deixa a
+mesma identidade estar duas vezes na sala, então "a outra aba continua na
+chamada" não é um estado que exista.
+
+**Quem bate o heartbeat é o servidor, não o cliente.** Um `setInterval` no
+cliente confiaria a presença justamente a quem pode ter travado, e uma aba em
+segundo plano tem o timer estrangulado pelo navegador — quem estivesse só
+ouvindo a chamada noutra janela sumiria da lista. Cada instância renova os
+sockets que ela mesma segura. Assim o TTL de 90 s vira o que ele deve ser: a
+faxina de uma instância que morreu sem se despedir, e não o relógio do qual a
+presença depende para existir.
+
+**A entrada se prende às conexões, mesmo vindo por HTTP.** Pedir o token em
+`POST /rooms/:id/call/token` É entrar na sala de voz, e é o único passo que o
+cliente atual dá. Como o pedido HTTP não sabe de qual aba veio, a presença é
+registrada para todas as conexões abertas daquela pessoa — é o `disconnect` de
+cada uma que vai desfazê-la depois.
+
+### A ordem da barra lateral é de quem olha
+
+`position` e `folderId` moram em `SpaceMember`, não em `Space`. Se morassem no
+espaço, arrastar um servidor para o topo reordenaria a tela de todos os outros
+membros dele.
+
+**Apagar uma pasta não apaga o que estava dentro** (`onDelete: SetNull`). São
+espaços inteiros, com as conversas de outras pessoas; uma gaveta desfeita na
+barra lateral de alguém não pode arrastá-los junto.
+
+**Espaço de que a pessoa não é membro é ignorado em silêncio** em
+`PATCH /spaces/order`, mas pasta de outra pessoa é recusada com erro. A diferença
+é o que cada caso vaza: recusar o espaço responderia "ele existe, você é que não
+está nele" para qualquer id chutado; já aceitar a pasta em silêncio gravaria um
+`folderId` que a listagem nunca devolve, e o espaço sumiria da barra lateral sem
+explicação.
+
+### Hierarquia: ninguém age sobre alguém do mesmo nível ou acima
+
+Vale igual para promover, rebaixar e expulsar — inclusive entre dois
+administradores. Sem essa regra, dois deles podem se rebaixar mutuamente até o
+espaço ficar sem quem o administre.
+
+**Só o dono mexe em papel.** Deixar um administrador promover outro faria o cargo
+se espalhar sozinho: quem entrou pelo convite de ontem vira administrador hoje e
+distribui o cargo amanhã, mais depressa do que o dono consegue desfazer.
+
+**Não existe um segundo dono.** `PATCH …/members/:userId` recusa o papel `OWNER`;
+a posse passa por `POST /spaces/:id/owner`, que troca os dois papéis na mesma
+transação. O dono antigo vira ADMIN, não MEMBER — quem entregou as chaves não
+deve perder até a possibilidade de criar um canal no espaço que era dele.
+
+**Expulsar não apaga mensagem.** É regra de produto: apagar o que a pessoa
+escreveu arrancaria metade das conversas de quem continua no espaço. O que sai é
+o acesso — a associação ao espaço, as dos canais e as inscrições dos sockets
+ainda abertos.
+
+**Regenerar o convite corta o antigo na hora** porque o código É o único campo:
+`Space.inviteCode` é sobrescrito e `POST /spaces/join/:code` não tem onde achar o
+valor anterior. É isso que faz a rota servir para o que ela existe — cortar um
+link que vazou.
+
+### O ícone do grupo usa a mesma validação do avatar
+
+`lib/imagem.ts` guarda a expressão que os dois campos compartilham. Aceitar URL
+arbitrária transformaria o ícone num rastreador de IP de todo mundo que vê a
+conversa — pior que num avatar, porque quem escolhe o ícone do grupo não é
+necessariamente quem aparece na foto. O `(?!.*\.\.)` barra travessia de caminho.

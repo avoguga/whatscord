@@ -15,6 +15,20 @@ export const userSelect = {
   lastSeenAt: true
 } satisfies Prisma.UserSelect;
 
+/**
+ * O mínimo para desenhar alguém numa lista de sala de voz.
+ *
+ * Deliberadamente menor que `userSelect`: a presença de voz é lida em lote,
+ * para várias salas de uma vez e a cada entrada ou saída, e `bio` e
+ * `lastSeenAt` não aparecem em lugar nenhum dessa tela.
+ */
+export const vozUserSelect = {
+  id: true,
+  username: true,
+  displayName: true,
+  avatarUrl: true
+} satisfies Prisma.UserSelect;
+
 export const messageInclude = {
   author: { select: userSelect },
   attachments: true,

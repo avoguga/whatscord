@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { userSelect } from "../lib/shapes.js";
 import { authGuard } from "../plugins/auth.js";
 import { onlineUserIds } from "../lib/redis.js";
+import { caminhoDeImagem } from "../lib/imagem.js";
 import { falha, falhaDeValidacao } from "../lib/falha.js";
 
 export async function userRoutes(app: FastifyInstance) {
@@ -46,27 +47,8 @@ export async function userRoutes(app: FastifyInstance) {
       .object({
         displayName: z.string().min(1).max(48).optional(),
         bio: z.string().max(300).optional(),
-        /*
-         * Precisa apontar para um arquivo NOSSO. Aceitar URL arbitraria deixaria
-         * qualquer pessoa transformar o proprio avatar num rastreador: o
-         * endereco seria buscado pelo navegador de todo mundo que visse a
-         * conversa, entregando IP e horario a um servidor de terceiros.
-         * `null` remove a foto.
-         */
-        avatarUrl: z
-          .string()
-          .max(500)
-          /*
-           * O `(?!.*\.\.)` nao e paranoia: sem ele, `/files/../../etc/passwd`
-           * passava na validacao. Nao chega a ser leitura de arquivo — o valor
-           * so vira `src` de imagem e o navegador normaliza para fora do
-           * `/files/` — mas guardar caminho que escapa da pasta e o tipo de
-           * coisa que vira problema no dia em que alguem usar esse campo do
-           * lado do servidor.
-           */
-          .regex(/^\/files\/(?!.*\.\.)[A-Za-z0-9._~%\-/]+$/, "That is not a valid image.")
-          .nullable()
-          .optional()
+        // A mesma regra que valida o ícone de um grupo. Ver `lib/imagem.ts`.
+        avatarUrl: caminhoDeImagem
       })
       .safeParse(request.body);
     if (!body.success) return falhaDeValidacao(reply, body.error.issues[0].message);

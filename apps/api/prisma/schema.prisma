@@ -52,6 +52,7 @@ model User {
   messages      Message[]
   reactions     Reaction[]
   ownedSpaces   Space[]        @relation("SpaceOwner")
+  spaceFolders  SpaceFolder[]
 
   @@index([username])
 }
@@ -88,12 +89,41 @@ model SpaceMember {
   spaceId  String
   userId   String
   role     MemberRole @default(MEMBER)
+  // A ordem da barra lateral é de QUEM OLHA, não do espaço: se fosse do espaço,
+  // arrastar um servidor para o topo reordenaria a tela de todos os outros
+  // membros. Por isso mora aqui, na associação, e não em `Space`.
+  position Int        @default(0)
+  // Nulo = solto, fora de qualquer pasta. A pasta também é de quem olha.
+  folderId String?
   joinedAt DateTime   @default(now())
 
-  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space  Space        @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder SpaceFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
 
   @@unique([spaceId, userId])
+  @@index([userId])
+  @@index([folderId])
+}
+
+/**
+ * Pasta da barra lateral, privada de cada pessoa.
+ *
+ * Apagar a pasta NÃO pode apagar o que estava dentro — são espaços inteiros,
+ * com as conversas de todo mundo. Daí o `SetNull` na relação: os espaços
+ * voltam a ficar soltos e nada se perde.
+ */
+model SpaceFolder {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  color     String?
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  members SpaceMember[]
+
   @@index([userId])
 }
 

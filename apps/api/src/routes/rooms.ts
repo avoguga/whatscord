@@ -4,7 +4,8 @@ import { prisma } from "../lib/prisma.js";
 import { userSelect } from "../lib/shapes.js";
 import { authGuard } from "../plugins/auth.js";
 import { dmKeyFor, HttpError, requireMembership, memberIdsOf } from "../lib/rooms.js";
-import { emitToUsers, joinUserSockets, leaveUserSockets } from "../realtime/bus.js";
+import { caminhoDeImagem } from "../lib/imagem.js";
+import { emitToRoom, emitToUsers, joinUserSockets, leaveUserSockets } from "../realtime/bus.js";
 import { falha, falhaDeValidacao } from "../lib/falha.js";
 
 export async function roomRoutes(app: FastifyInstance) {
@@ -124,6 +125,63 @@ export async function roomRoutes(app: FastifyInstance) {
         members: room.members.map((m) => ({ ...m.user, role: m.role }))
       }
     };
+  });
+
+  /**
+   * Renomear o grupo e trocar o ícone.
+   *
+   * Só GROUP. Um canal de espaço se administra pelo espaço, e um DM não tem
+   * nome próprio — ele é chamado pelo nome da outra pessoa, então gravar um
+   * nome aqui seria gravar um apelido que só um dos dois lados veria.
+   */
+  app.patch("/rooms/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z
+      .object({
+        name: z.string().min(1, "Give the group a name.").max(60).optional(),
+        // A mesma validação do avatar, de propósito. Ver `lib/imagem.ts`.
+        iconUrl: caminhoDeImagem
+      })
+      .safeParse(request.body ?? {});
+    if (!body.success) return falhaDeValidacao(reply, body.error.issues[0].message);
+
+    let membership;
+    try {
+      membership = await requireMembership(id, request.userId);
+    } catch (err) {
+      if (err instanceof HttpError) return falha(reply, err.status, err.code, err.message);
+      throw err;
+    }
+
+    if (membership.room.kind !== "GROUP") {
+      return falha(reply, 400, "rooms.group_only", "Only group chats can be edited here.");
+    }
+    if (membership.role === "MEMBER") {
+      return falha(reply, 403, "rooms.staff_only", "Only group admins can change the group.");
+    }
+
+    const seletor = { id: true, kind: true, name: true, iconUrl: true } as const;
+    // Corpo sem campo nenhum devolve a sala como está, sem gravar nem avisar.
+    if (body.data.name === undefined && body.data.iconUrl === undefined) {
+      return { room: await prisma.room.findUniqueOrThrow({ where: { id }, select: seletor }) };
+    }
+
+    const room = await prisma.room.update({
+      where: { id },
+      data: { name: body.data.name, iconUrl: body.data.iconUrl },
+      select: seletor
+    });
+
+    /*
+     * Dois eventos de propósito. `room:updated` carrega o que mudou, para quem
+     * quiser trocar o cabeçalho na hora; `room:members` é o que os clientes já
+     * instalados escutam para recarregar a barra lateral, e sem ele o nome
+     * antigo ficaria na tela até alguém apertar F5.
+     */
+    emitToRoom(id, "room:updated", { roomId: id, name: room.name, iconUrl: room.iconUrl });
+    emitToRoom(id, "room:members", { roomId: id });
+
+    return { room };
   });
 
   /** Opens the DM with someone, or returns the one that already exists. */

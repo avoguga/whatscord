@@ -26,6 +26,20 @@ export function emitToUsers(userIds: string[], event: string, payload: unknown) 
   io.to(userIds.map(userChannel)).emit(event, payload);
 }
 
+/**
+ * As conexões abertas de uma pessoa.
+ *
+ * Uma rota HTTP não sabe de qual aba veio o pedido — o token vale para todas.
+ * Quando a presença de voz precisa nascer de um POST, é aqui que ela descobre
+ * a quais conexões se prender, para que o `disconnect` de cada uma possa
+ * desfazê-la depois.
+ */
+export async function socketIdsOfUser(userId: string): Promise<string[]> {
+  if (!io) return [];
+  const sockets = await io.in(userChannel(userId)).fetchSockets();
+  return sockets.map((s) => s.id);
+}
+
 /** Pulls every connected socket of a user into a newly joined room. */
 export async function joinUserSockets(userId: string, roomId: string) {
   if (!io) return;

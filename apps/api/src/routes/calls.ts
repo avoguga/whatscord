@@ -1,10 +1,13 @@
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 import { AccessToken, TrackSource } from "livekit-server-sdk";
 import { prisma } from "../lib/prisma.js";
 import { env, callsEnabled } from "../env.js";
 import { authGuard } from "../plugins/auth.js";
 import { HttpError, memberIdsOf, requireMembership } from "../lib/rooms.js";
-import { emitToRoom } from "../realtime/bus.js";
+import { entrarNaVoz } from "../lib/presencaDeVoz.js";
+import { emitToRoom, socketIdsOfUser } from "../realtime/bus.js";
+import { anunciarPresencaDeVoz, usuariosDaSala } from "../realtime/voz.js";
 import { falha } from "../lib/falha.js";
 
 /**
@@ -17,6 +20,43 @@ export async function callRoutes(app: FastifyInstance) {
     enabled: callsEnabled,
     url: callsEnabled ? env.LIVEKIT_URL : null
   }));
+
+  /**
+   * Quem está em cada sala de voz agora.
+   *
+   * É o que faz a presença sobreviver ao F5: a lista deixa de nascer dos
+   * eventos que a aba viu desde que abriu, e passa a ser lida do servidor.
+   *
+   * Sala de que quem pergunta não é membro simplesmente NÃO VEM na resposta —
+   * não vem como erro. Responder 403 para um id qualquer contaria a estranhos
+   * que a sala existe, e uma barra lateral que pergunta por trinta salas de uma
+   * vez não pode falhar inteira porque uma delas já não é sua.
+   */
+  app.get("/calls/presence", { preHandler: authGuard }, async (request) => {
+    const query = z.object({ roomIds: z.string().max(4000).optional() }).safeParse(request.query);
+    const pedidas = [
+      ...new Set(
+        (query.success ? (query.data.roomIds ?? "") : "")
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean)
+      )
+    ].slice(0, 100);
+    if (pedidas.length === 0) return { presence: {} };
+
+    const minhas = await prisma.roomMember.findMany({
+      where: { userId: request.userId, roomId: { in: pedidas } },
+      select: { roomId: true }
+    });
+
+    const presence: Record<string, Awaited<ReturnType<typeof usuariosDaSala>>> = {};
+    await Promise.all(
+      minhas.map(async (m) => {
+        presence[m.roomId] = await usuariosDaSala(m.roomId);
+      })
+    );
+    return { presence };
+  });
 
   app.post("/rooms/:id/call/token", { preHandler: authGuard }, async (request, reply) => {
     if (!callsEnabled) {
@@ -61,6 +101,22 @@ export async function callRoutes(app: FastifyInstance) {
     });
 
     emitToRoom(id, "call:joined", { roomId: id, userId: user.id, displayName: user.displayName });
+
+    /*
+     * Pegar o token É entrar na sala de voz — é o único passo que o cliente dá
+     * antes de aparecer no LiveKit, e prender a presença aqui é o que faz ela
+     * existir para quem chegar depois.
+     *
+     * A presença se prende às CONEXÕES da pessoa, não ao pedido HTTP, porque é
+     * o `disconnect` de cada conexão que vai desfazê-la. Sem nenhuma conexão
+     * aberta (um cliente que só fala HTTP), sobra o TTL como saída.
+     */
+    const conexoes = await socketIdsOfUser(user.id);
+    let mudou = false;
+    for (const socketId of conexoes.length > 0 ? conexoes : [`http:${user.id}`]) {
+      if (await entrarNaVoz(id, user.id, socketId)) mudou = true;
+    }
+    if (mudou) await anunciarPresencaDeVoz(id);
 
     return {
       url: env.LIVEKIT_URL,
