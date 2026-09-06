@@ -56,6 +56,9 @@
   --heading: #d1d7db;
   --meta-out: rgba(233, 237, 239, 0.6);
   --pill: rgba(32, 44, 51, 0.92);
+  /* Fundo do bloco que envolve uma pasta aberta no rail. Discreto de proposito:
+     ele precisa dizer "estes andam juntos" sem competir com o icone ativo. */
+  --folder-block: rgba(255, 255, 255, 0.12);
 
   /* FIXAS nos dois temas, de proposito: ficam sobre midia (video, foto), onde
      o fundo e sempre escuro independentemente do tema da interface. */
@@ -152,6 +155,7 @@
   /* Hora e confirmação DENTRO do balão verde-claro: aqui o fundo é claro nos
      dois temas, então esta é a única cor que precisa escurecer junto. */
   --meta-out: rgba(17, 27, 33, 0.55);
+  --folder-block: rgba(11, 20, 26, 0.11);
 
   /*
     A chamada continua escura no tema claro — de propósito, não por esquecimento.
@@ -202,6 +206,14 @@ input, textarea { font: inherit; color: inherit; }
 .rail {
   width: var(--rail-w);
   background: var(--rail);
+  /*
+   * Contexto de empilhamento proprio, e nao enfeite: o bloco que envolve uma
+   * pasta aberta e desenhado num `::before` com `z-index: -1`, para ficar atras
+   * do icone. Sem um contexto aqui, esse -1 escapa para tras do FUNDO do rail e
+   * o bloco simplesmente nao aparece. Com o contexto, ele pinta acima do fundo
+   * do rail e abaixo dos icones, que e onde tem de estar.
+   */
+  position: relative; z-index: 0;
   border-right: 1px solid var(--divider);
   display: flex;
   flex-direction: column;
@@ -1738,12 +1750,44 @@ input, textarea { font: inherit; color: inherit; }
 .folder-mini-empty { grid-column: 1 / -1; grid-row: 1 / -1; display: grid; place-items: center; }
 .folder-open-mark { display: grid; place-items: center; }
 
-/* O tracinho a esquerda diz "isto esta dentro da pasta de cima". O `::after`
-   ja e a dica de texto do rail, entao a marca tem que morar no `::before`. */
+/* O BLOCO que envolve a pasta aberta e o que esta dentro dela.
+   ---------------------------------------------------------------------------
+   Antes daqui existia so um tracinho de 2px a esquerda de cada chip. Ele
+   cumpria a regra no papel — "isto pertence a pasta de cima" — e falhava na
+   pratica: com o rail cheio, tres icones soltos abaixo de uma pasta sao
+   indistinguiveis de tres icones soltos ao lado dela, e a pessoa nao sabe onde
+   o grupo termina. O Discord resolve envolvendo o conjunto num bloco, e e o
+   que passa a ser feito aqui.
+
+   O bloco nao pode ser um elemento em volta: o rail e uma lista PLANA por
+   exigencia do arrastar (o dnd-kit ordena irmaos, e aninhar os filhos numa
+   caixa tiraria eles da lista ordenavel). Entao cada chip pinta o seu pedaco
+   do bloco num `::before`, e os pedacos se encostam: o rail tem `gap` de 8px,
+   entao cada pedaco avanca 4px para cima e 4px para baixo e o vao some.
+
+   O `::after` ja e a dica de texto do rail, por isso a marca mora no
+   `::before`. */
+.rail-folder.agrupando::before,
 .space-chip.in-folder::before {
   content: ""; position: absolute;
-  left: -9px; top: -5px; bottom: -5px;
-  width: 2px; border-radius: 2px; background: var(--divider);
+  left: -5px; right: -5px; top: -4px; bottom: -4px;
+  background: var(--folder-block);
+  z-index: -1;
+}
+/* As pontas: a de cima e a propria pasta, a de baixo e o ultimo de dentro.
+   Sem arredondar, o bloco parece continuar para fora do grupo. */
+.rail-folder.agrupando::before { top: -5px; border-radius: 14px 14px 0 0; }
+.space-chip.in-folder-last::before { bottom: -5px; border-radius: 0 0 14px 14px; }
+/* Uma pasta aberta e vazia nao existe como bloco — nao ha o que envolver. */
+
+/* Com o rail deitado no rodape, o bloco cresce para os lados. */
+@media (max-width: 560px) {
+  .rail-folder.agrupando::before,
+  .space-chip.in-folder::before {
+    left: -4px; right: -4px; top: -5px; bottom: -5px;
+  }
+  .rail-folder.agrupando::before { left: -5px; border-radius: 14px 0 0 14px; }
+  .space-chip.in-folder-last::before { right: -5px; border-radius: 0 14px 14px 0; }
 }
 
 /* O alvo de fusao: soltar aqui cria (ou entra n)uma pasta. */
@@ -1778,8 +1822,8 @@ input, textarea { font: inherit; color: inherit; }
   .rail-drag { width: 44px; height: 44px; }
 }
 @media (max-width: 560px) {
-  /* Rail deitado: o tracinho vertical de "dentro da pasta" nao quer dizer nada. */
-  .space-chip.in-folder::before { display: none; }
+  /* O bloco continua valendo com o rail deitado; a orientacao dele muda mais
+     abaixo, junto das outras regras de pasta. */
 }
 
 /* ---- escolha de cor da pasta ---- */

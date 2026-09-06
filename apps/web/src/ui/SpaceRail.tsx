@@ -268,6 +268,16 @@ export function SpaceRail() {
     }
   }
 
+  /*
+   * Os vizinhos de um espaço dentro da mesma pasta.
+   *
+   * Serve só para saber quem é o primeiro e o último: são eles que fecham as
+   * pontas do bloco que envolve o grupo. Sem isso o bloco fica com as quatro
+   * quinas retas e parece que continua para fora da pasta.
+   */
+  const irmaosDe = (espaco: Space): Space[] =>
+    espaco.folderId ? (dentroDe.get(espaco.folderId) ?? []) : [];
+
   /** Solta um espaço em cima de outro: vira pasta. Em cima de pasta: entra. */
   async function fundir(espaco: Space, alvoId: string) {
     const alvo = slots.find((s) => s.id === alvoId);
@@ -448,6 +458,8 @@ export function SpaceRail() {
                 key={slot.id}
                 espaco={slot.space}
                 dentroDePasta={Boolean(slot.space.folderId)}
+                primeiroDaPasta={irmaosDe(slot.space)[0]?.id === slot.space.id}
+                ultimoDaPasta={irmaosDe(slot.space).at(-1)?.id === slot.space.id}
                 ativo={activeSpaceId === slot.space.id}
                 alvo={alvoFusao === slot.id}
                 onOpen={() => setActiveSpace(slot.space.id)}
@@ -510,12 +522,16 @@ function EscudoDoEspaco({ espaco }: { espaco: Space }) {
 }
 
 function EspacoChip({
-  espaco, ativo, alvo, dentroDePasta, onOpen, onMenu
+  espaco, ativo, alvo, dentroDePasta, primeiroDaPasta, ultimoDaPasta, onOpen, onMenu
 }: {
   espaco: Space;
   ativo: boolean;
   alvo: boolean;
   dentroDePasta: boolean;
+  /* Onde este chip fica no grupo. É o que arredonda a ponta de baixo do bloco
+     na última posição e evita que ele pareça continuar no vazio. */
+  primeiroDaPasta: boolean;
+  ultimoDaPasta: boolean;
   onOpen: () => void;
   onMenu: () => void;
 }) {
@@ -528,7 +544,7 @@ function EspacoChip({
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      className={`space-chip${dentroDePasta ? " in-folder" : ""}${alvo ? " merge" : ""}`}
+      className={`space-chip${dentroDePasta ? " in-folder" : ""}${primeiroDaPasta ? " in-folder-first" : ""}${ultimoDaPasta ? " in-folder-last" : ""}${alvo ? " merge" : ""}`}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
       data-tip={espaco.name}
       /*
@@ -592,19 +608,31 @@ function PastaChip({
   });
   const nome = pasta.name;
 
+  /*
+   * Fechada, a pasta esconde tudo o que tem dentro — e o ícone de quatro
+   * miniaturas não diz nome nenhum. A dica passa a listar quem está lá, que é
+   * a única forma de descobrir sem abrir. É o que o Discord faz.
+   *
+   * Aberta, a lista seria redundante: os nomes já estão logo abaixo.
+   */
+  const dica =
+    !aberta && dentro.length > 0
+      ? `${nome}: ${dentro.map((e) => e.name).join(", ")}`
+      : nome;
+
   return (
     <button
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      className={`rail-folder${aberta ? " open" : ""}${alvo ? " merge" : ""}${temAtivo ? " has-active" : ""}`}
+      className={`rail-folder${aberta ? " open" : ""}${aberta && dentro.length > 0 ? " agrupando" : ""}${alvo ? " merge" : ""}${temAtivo ? " has-active" : ""}`}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.4 : 1,
         ...(pasta.color ? { ["--folder-color" as string]: pasta.color } : {})
       }}
-      data-tip={nome}
+      data-tip={dica}
       aria-expanded={aberta}
       aria-label={aberta ? t`Close the folder ${nome}` : t`Open the folder ${nome}`}
       onClick={onToggle}
