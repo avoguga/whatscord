@@ -18,3 +18,4 @@ coverage/
 # Instaladores gerados ficam fora do repositorio.
 *.apk
 *.aab
+*.exe
