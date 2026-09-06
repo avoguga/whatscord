@@ -55,7 +55,15 @@ export async function userRoutes(app: FastifyInstance) {
         avatarUrl: z
           .string()
           .max(500)
-          .regex(/^\/files\/[A-Za-z0-9._~%\-/]+$/, "That is not a valid image.")
+          /*
+           * O `(?!.*\.\.)` nao e paranoia: sem ele, `/files/../../etc/passwd`
+           * passava na validacao. Nao chega a ser leitura de arquivo — o valor
+           * so vira `src` de imagem e o navegador normaliza para fora do
+           * `/files/` — mas guardar caminho que escapa da pasta e o tipo de
+           * coisa que vira problema no dia em que alguem usar esse campo do
+           * lado do servidor.
+           */
+          .regex(/^\/files\/(?!.*\.\.)[A-Za-z0-9._~%\-/]+$/, "That is not a valid image.")
           .nullable()
           .optional()
       })
