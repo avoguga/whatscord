@@ -1252,3 +1252,90 @@ input, textarea { font: inherit; color: inherit; }
 }
 .gate-foot { margin: var(--gap-2) 0 0; font-size: 12.5px; color: var(--text-faint); }
 .gate-foot a { color: var(--accent-bright); }
+
+/* ---------------------------------------------------------------------------
+   Atalho de configuracao ao lado do microfone e da camera.
+
+   O unico acesso as configuracoes era um painel cheio: para trocar de microfone
+   no meio de uma chamada a pessoa abria tudo, procurava e fechava. A seta abre
+   um menu curto, ancorado ao proprio botao.
+--------------------------------------------------------------------------- */
+
+.call-ctl-group { position: relative; display: flex; align-items: flex-start; }
+
+.call-caret {
+  align-self: center;
+  position: relative;
+  width: 22px; height: 34px;
+  margin-left: -2px;
+  display: grid; place-items: center;
+  color: var(--text-dim); border-radius: 6px;
+}
+/* A seta e estreita de proposito — ela nao pode competir visualmente com o
+   botao ao lado. Mas 22x34 e alvo pequeno demais para o dedo, entao a area
+   clicavel e esticada por um pseudo-elemento, sem mexer no desenho nem
+   empurrar o layout. */
+.call-caret::after {
+  content: ""; position: absolute; inset: -6px -11px;
+}
+.call-caret:hover { color: var(--text); background: var(--hover); }
+.call-caret[aria-expanded="true"] { color: var(--accent-bright); background: var(--hover); }
+
+.quick-menu {
+  position: absolute; bottom: calc(100% + 10px); left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  width: 260px; max-width: calc(100vw - 24px);
+  background: var(--panel); border: 1px solid var(--divider);
+  border-radius: 10px; box-shadow: var(--shadow);
+  padding: var(--gap-2);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.quick-head {
+  margin: 2px 6px 6px;
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
+.quick-list { display: flex; flex-direction: column; max-height: 40vh; overflow-y: auto; }
+.quick-item {
+  text-align: left; padding: 8px 10px; border-radius: 6px;
+  font-size: 13.5px; color: var(--text);
+  /* A marca de selecionado entra a esquerda sem mover o texto. */
+  padding-left: 24px; position: relative;
+}
+.quick-item:hover { background: var(--hover); }
+.quick-item.on { color: var(--accent-bright); }
+.quick-item.on::before {
+  content: ""; position: absolute; left: 9px; top: 50%;
+  width: 6px; height: 6px; margin-top: -3px; border-radius: 50%;
+  background: var(--accent-bright);
+}
+.quick-empty, .quick-blocked p {
+  margin: 4px 10px 8px; font-size: 12.5px; color: var(--text-dim); line-height: 1.45;
+}
+.quick-blocked { display: flex; flex-direction: column; }
+.quick-full {
+  margin-top: 4px; padding: 8px 10px; border-radius: 6px;
+  text-align: left; font-size: 13px; color: var(--accent-bright);
+  border-top: 1px solid var(--divider);
+}
+.quick-full:hover { background: var(--hover); }
+
+@media (max-width: 560px) {
+  /* Numa tela estreita o menu nao cabe centrado no botao; ancora na barra. */
+  .quick-menu { left: 0; transform: none; width: min(260px, calc(100vw - 24px)); }
+
+  /* As duas setas somaram largura e a barra passou a estourar por 9px em 412px,
+     empurrando o primeiro controle para fora da tela. O espacamento e o que
+     sobra para cortar sem encolher alvo de toque. */
+  .call-bar { gap: 10px; }
+  .call-ctl-label { font-size: 11px; }
+}
+
+@media (max-width: 380px) {
+  /* Aparelho estreito de verdade: a seta sai e resta o painel completo, que
+     continua alcancavel pelo botao Devices. Melhor perder o atalho do que
+     empurrar o botao de desligar para fora da tela. */
+  .call-caret { display: none; }
+  .call-bar { gap: 8px; }
+}

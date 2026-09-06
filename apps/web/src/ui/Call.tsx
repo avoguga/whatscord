@@ -26,9 +26,11 @@ import {
   type ShareMode
 } from "../lib/screenshare";
 import { DevicePicker } from "./DevicePicker";
+import { QuickDeviceMenu } from "./QuickDeviceMenu";
 import {
   IconMic, IconMicOff, IconVideo, IconVideoOff, IconScreen,
-  IconHangup, IconMinimize, IconSignal, IconSpeaker, IconSettings, IconClose
+  IconHangup, IconMinimize, IconSignal, IconSpeaker, IconSettings, IconClose,
+  IconChevronDown
 } from "./icons";
 
 type Tile = {
@@ -88,6 +90,8 @@ export function CallSheet({
   const [roster, setRoster] = useState<User[]>([]);
 
   const [showDevices, setShowDevices] = useState(false);
+  /** Qual menu curto está aberto (a seta ao lado do microfone ou da câmera). */
+  const [quick, setQuick] = useState<null | "audioinput" | "videoinput">(null);
   /** Short-lived "X joined" lines, the visual half of the arrival cue. */
   const [events, setEvents] = useState<{ id: number; text: string }[]>([]);
   const [outputId, setOutputId] = useState<string | undefined>(() => loadDevicePrefs().audiooutput);
@@ -517,18 +521,65 @@ export function CallSheet({
       </div>
 
       <div className="call-bar">
-        <CallButton
-          label={micOn ? "Mute" : "Unmute"}
-          danger={!micOn}
-          onClick={toggleMic}
-          icon={micOn ? <IconMic /> : <IconMicOff />}
-        />
-        <CallButton
-          label={camOn ? "Stop video" : "Start video"}
-          danger={!camOn}
-          onClick={toggleCam}
-          icon={camOn ? <IconVideo /> : <IconVideoOff />}
-        />
+        <div className="call-ctl-group">
+          <CallButton
+            label={micOn ? "Mute" : "Unmute"}
+            danger={!micOn}
+            onClick={toggleMic}
+            icon={micOn ? <IconMic /> : <IconMicOff />}
+          />
+          <button
+            className="call-caret"
+            title="Microphone options"
+            aria-label="Microphone options"
+            aria-expanded={quick === "audioinput"}
+            onClick={() => setQuick((q) => (q === "audioinput" ? null : "audioinput"))}
+          >
+            <IconChevronDown size={14} />
+          </button>
+          {quick === "audioinput" && (
+            <QuickDeviceMenu
+              kind="audioinput"
+              onSwitch={(k, id) => room.switchActiveDevice(k, id).then(() => undefined)}
+              onNotice={setNotice}
+              onClose={() => setQuick(null)}
+              onFullSettings={() => {
+                setQuick(null);
+                setShowDevices(true);
+              }}
+            />
+          )}
+        </div>
+
+        <div className="call-ctl-group">
+          <CallButton
+            label={camOn ? "Stop video" : "Start video"}
+            danger={!camOn}
+            onClick={toggleCam}
+            icon={camOn ? <IconVideo /> : <IconVideoOff />}
+          />
+          <button
+            className="call-caret"
+            title="Camera options"
+            aria-label="Camera options"
+            aria-expanded={quick === "videoinput"}
+            onClick={() => setQuick((q) => (q === "videoinput" ? null : "videoinput"))}
+          >
+            <IconChevronDown size={14} />
+          </button>
+          {quick === "videoinput" && (
+            <QuickDeviceMenu
+              kind="videoinput"
+              onSwitch={(k, id) => room.switchActiveDevice(k, id).then(() => undefined)}
+              onNotice={setNotice}
+              onClose={() => setQuick(null)}
+              onFullSettings={() => {
+                setQuick(null);
+                setShowDevices(true);
+              }}
+            />
+          )}
+        </div>
         <CallButton
           label={sharing ? "Stop sharing" : "Share screen"}
           active={sharing}

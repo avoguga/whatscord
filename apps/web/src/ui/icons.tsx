@@ -111,3 +111,6 @@ export const IconMinimize = ({ size }: P) => (
 export const IconSpeaker = ({ size }: P) => (
   <svg {...base(size ?? 18)}><path d="M11 5 6 9H2v6h4l5 4V5z" /><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5" /></svg>
 );
+export const IconChevronDown = ({ size }: P) => (
+  <svg {...base(size)}><path d="m6 9 6 6 6-6" /></svg>
+);
