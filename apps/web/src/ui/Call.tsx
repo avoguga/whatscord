@@ -13,7 +13,15 @@ import {
 import { api } from "../lib/api";
 import { useStore, type User } from "../store";
 import { getSocket } from "../lib/socket";
-import { loadDevicePrefs } from "../lib/devices";
+import {
+  cameraParaFacing,
+  deveUsarFacingMode,
+  loadDevicePrefs,
+  proximoFacingMode,
+  trocouDeCamera,
+  useDevices,
+  type FacingMode
+} from "../lib/devices";
 import { playCue } from "../lib/sounds";
 import {
   canShareScreen,
@@ -100,6 +108,16 @@ export function CallSheet({
   const [events, setEvents] = useState<{ id: number; text: string }[]>([]);
   const [outputId, setOutputId] = useState<string | undefined>(() => loadDevicePrefs().audiooutput);
   const [shareMode, setShareMode] = useState<ShareMode>(() => loadShareMode());
+
+  /*
+   * Uma chamada abre pela câmera frontal — é a de quem fala. Guardamos o lado em
+   * estado, e não perguntamos à track a cada render, porque `getSettings()` só
+   * responde `facingMode` em parte das plataformas: nas outras a resposta seria
+   * `undefined` e o botão perderia a noção de para que lado virar.
+   */
+  const [facing, setFacing] = useState<FacingMode>("user");
+  const { rawCameras } = useDevices();
+  const podeVirarCamera = deveUsarFacingMode(rawCameras);
 
   const [revision, setRevision] = useState(0);
   const bump = () => setRevision((n) => n + 1);
@@ -345,6 +363,58 @@ export function CallSheet({
     } catch {
       setNotice(t`Your camera could not be turned on. Check the browser's permission.`);
     }
+    bump();
+  }
+
+  /**
+   * Virar a câmera: frontal ⇄ traseira.
+   *
+   * No computador `switchActiveDevice("videoinput", id)` resolve, porque lá cada
+   * câmera tem um id estável e um nome que diz o que ela é. No telefone não:
+   * pedir o LADO é a única forma que a plataforma entende bem.
+   *
+   * Três degraus, porque o de cima falha calado (ver `trocouDeCamera`):
+   *  1. `restartTrack({ facingMode })` — o caminho certo no celular;
+   *  2. se não trocou nada, `switchActiveDevice` com o id da outra câmera;
+   *  3. só então avisamos a pessoa, em vez de deixá-la achando que o botão
+   *     não faz nada.
+   */
+  async function virarCamera() {
+    const track = room.localParticipant.getTrackPublication(Track.Source.Camera)?.videoTrack;
+    if (!track) {
+      setNotice(t`Turn your camera on first — there is no picture to switch while it is off.`);
+      return;
+    }
+
+    const alvo = proximoFacingMode(facing);
+    const antes = track.mediaStreamTrack.getSettings();
+
+    try {
+      await track.restartTrack({ facingMode: alvo });
+      if (trocouDeCamera(antes, track.mediaStreamTrack.getSettings(), alvo)) {
+        setFacing(alvo);
+        setNotice(null);
+        bump();
+        return;
+      }
+    } catch {
+      /* segue para o plano B */
+    }
+
+    const id = cameraParaFacing(rawCameras, alvo, antes.deviceId);
+    if (id) {
+      try {
+        await room.switchActiveDevice("videoinput", id);
+        setFacing(alvo);
+        setNotice(null);
+        bump();
+        return;
+      } catch {
+        /* nem por id: aí sim é para contar */
+      }
+    }
+
+    setNotice(t`The other camera could not be opened — another app may be holding it.`);
     bump();
   }
 
@@ -597,6 +667,27 @@ export function CallSheet({
             />
           )}
         </div>
+        {/*
+          Só aparece onde virar a câmera quer dizer alguma coisa: com mais de uma
+          câmera e numa plataforma que não deixa escolher por id (ver
+          `deveUsarFacingMode`). No computador o botão não existe — lá a escolha
+          mora no menu da setinha, por nome.
+        */}
+        {podeVirarCamera && (
+          <CallButton
+            label={facing === "user" ? t`Rear camera` : t`Front camera`}
+            onClick={() => void virarCamera()}
+            disabled={!camOn}
+            title={
+              camOn
+                ? facing === "user"
+                  ? t`Switch to the rear camera`
+                  : t`Switch to the front camera`
+                : t`Turn your camera on to switch between them.`
+            }
+            icon={<IconFlipCamera />}
+          />
+        )}
         <CallButton
           label={sharing ? t`Stop sharing` : t`Share screen`}
           active={sharing}
@@ -684,6 +775,33 @@ export function CallSheet({
         </aside>
       )}
     </div>
+  );
+}
+
+/**
+ * Câmera com duas setas em volta: virar para o outro lado.
+ *
+ * Mora aqui, e não em `icons.tsx`, porque é o único lugar que o usa e porque o
+ * arquivo de ícones está sendo mexido por outra frente ao mesmo tempo. Mesma
+ * receita visual do resto: traço 1.8, sem preenchimento, 24×24.
+ */
+function IconFlipCamera({ size = 22 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 8.5h3.2l1.4-2h4.8l1.4 2H21v10H3z" />
+      <path d="M9.6 13.2a2.9 2.9 0 0 0 4.8 1.6M14.4 13.2a2.9 2.9 0 0 0-4.8-1.6" />
+      <path d="M9.6 10.4v1.2h1.2M14.4 15.9v-1.2h-1.2" />
+    </svg>
   );
 }
 

@@ -592,7 +592,51 @@ input, textarea { font: inherit; color: inherit; }
   aspect-ratio: 16 / 10;
   display: grid; place-items: center;
 }
-.tile video { width: 100%; height: 100%; object-fit: contain; background: var(--media-ink); }
+/* A TELA COMPARTILHADA "ESTICADA" — o que a medicao mostrou, e por que
+   `position: absolute` e o conserto.
+
+   Metodo: servidor de desenvolvimento na 5175, aba propria no Playwright (a
+   aba e compartilhada com outros agentes; cada medicao confirmou
+   `location.href` antes de valer). Dentro da pagina, o DOM real da chamada
+   (.call-sheet > .call-body > .call-stage.focus > .stage-main > .tile.screen >
+   video) montado numa caixa de 1280x760 fixa — um wrapper com `transform`
+   vira bloco continente do `.call-sheet`, que e `position: fixed`, entao o
+   numero nao depende do tamanho da janela. A fonte de video foi um
+   `canvas.captureStream(30)` de proporcao conhecida e NAO-16:9, para provar o
+   comportamento sem depender de um compartilhamento de verdade.
+
+   Fonte quadrada de 1000x1000 num tile de 996x443,4 (proporcao 2,246):
+     1. track.getSettings()        1000x1000  ar 1,000
+     2. videoWidth/videoHeight     1000x1000  ar 1,000
+     3. video.getBoundingClientRect()  996x996   ar 1,000  <- 552,6px A MAIS que o tile
+        (o proprio tile:                996x443,4)
+     4. getComputedStyle           object-fit: contain, height: 996px
+
+   1 e 2 batem: a captura e a publicacao estao certas, o defeito e daqui.
+   O que 3 e 4 dizem e que `height: 100%` NAO resolveu: o elemento ficou com a
+   altura intrinseca da fonte (largura / proporcao). Motivo: `.tile` e
+   `display: grid` com `place-items: center`, entao a unica linha e `auto`;
+   `height: 100%` contra uma linha `auto` e ciclico e vira `auto`, e um elemento
+   substituido com largura definida e altura `auto` toma largura/proporcao. A
+   linha cresce para 996px, ultrapassa os 443,4px do tile, e `align-content:
+   stretch` nao tem folga nenhuma para distribuir. O `overflow: hidden` do tile
+   entao CORTA a metade de cima e a de baixo — a imagem nao chega a ser
+   distorcida, ela e ampliada e cortada, que e o que se ve como "esticada".
+   `object-fit: contain` nunca teve chance: ele encaixa a imagem dentro da CAIXA
+   DO ELEMENTO, e era a caixa que estava errada.
+
+   Nao e so a tela: na tira de participantes, uma camera 1280x1024 num tile
+   16/10 de 168x105 media 168x134,4 — 29,4px cortados, quase um quarto da altura.
+
+   Tirar o video do fluxo do grid resolve nos dois: `position: absolute` com
+   `inset: 0` faz a caixa do elemento ser exatamente o tile (medido: 996x443,4 e
+   168x105, transbordo 0), e ai sim `contain` faz o seu trabalho e deixa as
+   tarjas pretas onde a proporcao nao fecha. O avatar continua item do grid e
+   segue centralizado pelo `place-items`. */
+.tile video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: contain; background: var(--media-ink);
+}
 /* Codigo morto removido: `.tile.screen { grid-column: 1/-1; aspect-ratio: 16/9 }`.
    Uma tela compartilhada SEMPRE cai no modo foco (Call.tsx:457 liga o foco
    quando ha screenTile, e a tela renderiza dentro de .stage-main), e la

@@ -405,6 +405,10 @@ msgstr "Buscar nesta conversa"
 msgid "Follows the light or dark mode of your system."
 msgstr "Acompanha o modo claro ou escuro do sistema."
 
+#: src/ui/Call.tsx
+msgid "Front camera"
+msgstr "Câmera frontal"
+
 #: src/lib/erros.ts
 msgid "Give the group a name."
 msgstr "Dê um nome ao grupo."
@@ -789,6 +793,10 @@ msgid "Reactions"
 msgstr "Reações"
 
 #: src/ui/Call.tsx
+msgid "Rear camera"
+msgstr "Câmera traseira"
+
+#: src/ui/Call.tsx
 msgid "Reconnecting…"
 msgstr "Reconectando…"
 
@@ -969,6 +977,14 @@ msgstr "Parar o teste"
 msgid "Stop video"
 msgstr "Desligar vídeo"
 
+#: src/ui/Call.tsx
+msgid "Switch to the front camera"
+msgstr "Passar para a câmera frontal"
+
+#: src/ui/Call.tsx
+msgid "Switch to the rear camera"
+msgstr "Passar para a câmera traseira"
+
 #: src/ui/DevicePicker.tsx
 #: src/ui/QuickDeviceMenu.tsx
 msgid "System default"
@@ -1141,6 +1157,10 @@ msgstr "A mensagem não pode ficar vazia."
 msgid "The new setting applies the next time you start sharing."
 msgstr "A nova configuração vale a partir do próximo compartilhamento."
 
+#: src/ui/Call.tsx
+msgid "The other camera could not be opened — another app may be holding it."
+msgstr "Não foi possível abrir a outra câmera — outro aplicativo pode estar usando."
+
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
 msgid "Theme"
@@ -1169,6 +1189,14 @@ msgstr "Esta mensagem foi apagada"
 #: src/ui/Sidebar.tsx
 msgid "This space has no channels yet."
 msgstr "Este espaço ainda não tem canais."
+
+#: src/ui/Call.tsx
+msgid "Turn your camera on first — there is no picture to switch while it is off."
+msgstr "Ligue a câmera primeiro — desligada não há imagem para trocar."
+
+#: src/ui/Call.tsx
+msgid "Turn your camera on to switch between them."
+msgstr "Ligue a câmera para poder alternar entre elas."
 
 #: src/ui/Chat.tsx
 msgid "Type a message"

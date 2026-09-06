@@ -9,11 +9,17 @@
  *
  * Código de saída: 0 tudo passou · 1 houve FAIL.
  */
+import { readFileSync } from "node:fs";
 import {
+  cameraParaFacing,
+  deveUsarFacingMode,
   deviceLabel,
+  facingDoRotulo,
   needsPermission,
+  proximoFacingMode,
   resolveDeviceId,
-  selectableDevices
+  selectableDevices,
+  trocouDeCamera
 } from "../apps/web/src/lib/devices";
 import {
   CUES,
@@ -426,6 +432,216 @@ check(
   loadShareMode() === "text",
   "text",
   loadShareMode()
+);
+
+// ---------------------------------------------------------------------------
+section("virar a câmera — de que lado é cada câmera");
+
+const cam = (deviceId: string, label = "") =>
+  ({ deviceId, label, kind: "videoinput" }) as MediaDeviceInfo;
+
+check("virar de frontal dá traseira", proximoFacingMode("user") === "environment");
+check("virar de traseira dá frontal", proximoFacingMode("environment") === "user");
+check(
+  "virar duas vezes volta ao começo",
+  proximoFacingMode(proximoFacingMode("user")) === "user"
+);
+
+// Rótulos reais: Android ("camera2 0, facing back"), iOS ("Back Dual Wide Camera").
+check("rótulo do Android traseira", facingDoRotulo("camera2 0, facing back") === "environment");
+check("rótulo do Android frontal", facingDoRotulo("camera2 1, facing front") === "user");
+check("rótulo do iOS frontal", facingDoRotulo("Front Camera") === "user");
+check("rótulo do iOS traseira", facingDoRotulo("Back Dual Wide Camera") === "environment");
+check("rótulo em português", facingDoRotulo("Câmera traseira") === "environment");
+check("webcam de mesa não anuncia lado", facingDoRotulo("HD Pro Webcam C920") === null);
+check("rótulo vazio não anuncia lado", facingDoRotulo("") === null);
+check("rótulo ausente não quebra", facingDoRotulo(undefined) === null);
+/*
+ * "user" e "environment" são valores da API, não palavras de rótulo. Se
+ * entrassem na busca, uma webcam chamada "User's Webcam" viraria "frontal" e o
+ * botão apareceria num computador.
+ */
+check(
+  '"User\'s Webcam" NÃO é lido como câmera frontal',
+  facingDoRotulo("User's Webcam") === null,
+  null,
+  facingDoRotulo("User's Webcam")
+);
+
+// ---------------------------------------------------------------------------
+section("virar a câmera — quando o botão pode aparecer");
+
+check(
+  "computador com duas webcams nomeadas: troca por id, sem botão",
+  deveUsarFacingMode([cam("a", "HD Pro Webcam C920"), cam("b", "Integrated Camera")]) === false,
+  false,
+  deveUsarFacingMode([cam("a", "HD Pro Webcam C920"), cam("b", "Integrated Camera")])
+);
+check(
+  "uma câmera só nunca mostra o botão, mesmo num telefone",
+  deveUsarFacingMode([cam("a", "camera2 0, facing back")]) === false
+);
+check("lista vazia não mostra o botão", deveUsarFacingMode([]) === false);
+check(
+  "(a) alguma câmera sem deviceId: não há id para passar, usa o lado",
+  deveUsarFacingMode([cam(""), cam("b", "Integrated Camera")]) === true
+);
+check(
+  "(b) tem id mas nenhuma tem nome — a WebView do Android",
+  deveUsarFacingMode([cam("a"), cam("b")]) === true
+);
+check(
+  "(c) o rótulo anuncia o lado — o próprio aparelho está dizendo",
+  deveUsarFacingMode([cam("a", "camera2 0, facing back"), cam("b", "camera2 1, facing front")]) ===
+    true
+);
+check(
+  "basta UMA anunciar o lado",
+  deveUsarFacingMode([cam("a", "Front Camera"), cam("b", "Desk View Camera")]) === true
+);
+/*
+ * O placeholder de antes da permissão (id e nome vazios) vem sozinho, um por
+ * tipo — então não dispara o botão antes de a pessoa liberar a câmera.
+ */
+check(
+  "placeholder solitário de antes da permissão não mostra o botão",
+  deveUsarFacingMode([cam("")]) === false
+);
+
+// ---------------------------------------------------------------------------
+section("virar a câmera — o plano B, por deviceId");
+
+const doTelefone = [cam("tras-1", "camera2 0, facing back"), cam("frente-1", "camera2 1, facing front")];
+check(
+  "com rótulo, escolhe a câmera do lado pedido",
+  cameraParaFacing(doTelefone, "environment", "frente-1") === "tras-1",
+  "tras-1",
+  cameraParaFacing(doTelefone, "environment", "frente-1")
+);
+check(
+  "com rótulo, o outro lado também",
+  cameraParaFacing(doTelefone, "user", "tras-1") === "frente-1"
+);
+check(
+  "sem rótulo que ajude, pega a outra que não a de agora",
+  cameraParaFacing([cam("a"), cam("b")], "environment", "a") === "b",
+  "b",
+  cameraParaFacing([cam("a"), cam("b")], "environment", "a")
+);
+check(
+  "nunca devolve um deviceId vazio (o placeholder não serve de alvo)",
+  cameraParaFacing([cam(""), cam("b")], "environment", "b") === undefined,
+  undefined,
+  cameraParaFacing([cam(""), cam("b")], "environment", "b")
+);
+check(
+  "com uma câmera usável só, e sendo a atual, não há alvo",
+  cameraParaFacing([cam("a")], "environment", "a") === undefined
+);
+
+// ---------------------------------------------------------------------------
+section("virar a câmera — descobrir se a troca aconteceu de verdade");
+
+/*
+ * A armadilha que este teste tranca: `restartTrack({ facingMode })` não exige
+ * nada do navegador. O `constraintsForOptions` do livekit-client ainda injeta
+ * `deviceId ??= { ideal: "default" }`, e `facingMode` vai como valor nu — os
+ * dois são "ideal". A promessa então RESOLVE COM SUCESSO devolvendo a mesma
+ * câmera. Sem esta checagem o plano B nunca rodaria justamente onde é preciso.
+ */
+check(
+  "o lado mudou para o pedido: trocou",
+  trocouDeCamera({ facingMode: "user" }, { facingMode: "environment" }, "environment") === true
+);
+check(
+  "o lado continua o mesmo: NÃO trocou (sucesso silencioso)",
+  trocouDeCamera({ facingMode: "user" }, { facingMode: "user" }, "environment") === false,
+  false,
+  trocouDeCamera({ facingMode: "user" }, { facingMode: "user" }, "environment")
+);
+check(
+  "sem facingMode, um deviceId diferente também prova a troca",
+  trocouDeCamera({ deviceId: "a" }, { deviceId: "b" }, "environment") === true
+);
+check(
+  "sem facingMode e com o mesmo deviceId: não trocou",
+  trocouDeCamera({ deviceId: "a" }, { deviceId: "a" }, "environment") === false
+);
+check(
+  "sem pista nenhuma, aceita — reabrir a câmera à toa é pior",
+  trocouDeCamera({}, {}, "environment") === true
+);
+check(
+  "facingMode manda mais que deviceId (a mesma câmera pode virar sozinha)",
+  trocouDeCamera({ deviceId: "a", facingMode: "user" }, { deviceId: "a", facingMode: "environment" }, "environment") === true
+);
+
+// ---------------------------------------------------------------------------
+section("tela compartilhada esticada — a regra de CSS que a medição apontou");
+
+/*
+ * MEDIÇÃO (servidor em 5175, aba própria no Playwright, DOM real da chamada numa
+ * caixa de 1280x760, fonte = canvas.captureStream de proporção conhecida):
+ *
+ *   fonte 1000x1000 · videoWidth/Height 1000x1000 · tile 996x443,4
+ *   caixa do <video> medida: 996x996  →  552,6px A MAIS que o tile
+ *
+ * 1 e 2 batendo provam que a captura está certa. O defeito é que `height: 100%`
+ * não resolve dentro de `.tile` (grid com `place-items: center`, linha `auto`):
+ * o elemento substituído toma largura/proporção, transborda, e o
+ * `overflow: hidden` do tile corta em cima e embaixo. `object-fit: contain`
+ * encaixa a imagem na CAIXA DO ELEMENTO — e era a caixa que estava errada.
+ *
+ * O conserto é tirar o vídeo do fluxo do grid. Se alguém reescrever a regra sem
+ * `position: absolute`, o corte volta — e é isso que este bloco tranca.
+ */
+const css = readFileSync(new URL("../apps/web/src/styles.css", import.meta.url), "utf8");
+const regraDoVideo = /\.tile\s+video\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+
+check("a regra `.tile video` existe na folha de estilo", regraDoVideo.length > 0);
+check(
+  "o vídeo sai do fluxo do grid (position: absolute)",
+  /position:\s*absolute/.test(regraDoVideo),
+  "position: absolute",
+  regraDoVideo.trim()
+);
+check(
+  "e é colado nos quatro lados do tile (inset: 0)",
+  /inset:\s*0/.test(regraDoVideo),
+  "inset: 0",
+  regraDoVideo.trim()
+);
+check(
+  "continua encaixando por dentro, sem cortar (object-fit: contain)",
+  /object-fit:\s*contain/.test(regraDoVideo)
+);
+check(
+  "o tile continua sendo o bloco de referência (position: relative)",
+  /\.tile\s*\{[^}]*position:\s*relative/.test(css)
+);
+
+/*
+ * A conta que o navegador fazia, reproduzida aqui para o número da medição não
+ * virar folclore: sem sair do fluxo, a altura do <video> é largura/proporção,
+ * independente da altura do tile.
+ */
+const alturaSolta = (larguraDoTile: number, proporcaoDaFonte: number) =>
+  larguraDoTile / proporcaoDaFonte;
+check(
+  "a conta bate com os 996x996 medidos numa fonte quadrada",
+  Math.round(alturaSolta(996, 1)) === 996
+);
+check(
+  "e com o transbordo de 552,6px sobre um tile de 443,4px de altura",
+  Math.abs(alturaSolta(996, 1) - 443.4 - 552.6) < 0.1,
+  552.6,
+  alturaSolta(996, 1) - 443.4
+);
+check(
+  "a tira também sofria: 1280x1024 num tile 16/10 de 168x105 dava 134,4",
+  Math.abs(alturaSolta(168, 1280 / 1024) - 134.4) < 0.1,
+  134.4,
+  alturaSolta(168, 1280 / 1024)
 );
 
 // ---------------------------------------------------------------------------
