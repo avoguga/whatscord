@@ -31,12 +31,23 @@ fn set_badge_count(window: tauri::Window, count: u32) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
-/// Fora do Windows o Tauri tem badge numerico de verdade (macOS/Linux/iOS).
-#[cfg(not(target_os = "windows"))]
+/// Fora do Windows, no desktop, o Tauri tem badge numerico de verdade
+/// (macOS/Linux).
+#[cfg(all(not(target_os = "windows"), desktop))]
 #[tauri::command]
 fn set_badge_count(window: tauri::Window, count: u32) -> Result<(), String> {
     let value = if count == 0 { None } else { Some(count as i64) };
     window.set_badge_count(value).map_err(|e| e.to_string())
+}
+
+/// No Android nao existe badge de janela: quem exibe contador no icone e o
+/// launcher, por um canal proprio de cada fabricante. Uma nao-operacao mantem
+/// o mesmo comando disponivel para o frontend, que assim nao precisa saber em
+/// que plataforma esta rodando.
+#[cfg(mobile)]
+#[tauri::command]
+fn set_badge_count(_window: tauri::Window, _count: u32) -> Result<(), String> {
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------

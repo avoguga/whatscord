@@ -14,3 +14,7 @@ apps/api/uploads/
 coverage/
 .vite/
 *.tsbuildinfo
+
+# Instaladores gerados ficam fora do repositorio.
+*.apk
+*.aab
