@@ -38,13 +38,46 @@ msgstr "{0, plural, one {# persona escribiendo…} other {# personas escribiendo
 msgid "{0, plural, one {# person was added.} other {# people were added.}}"
 msgstr "{0, plural, one {Se añadió # persona.} other {Se añadieron # personas.}}"
 
+#. placeholder {0}: room.memberCount
+#: src/ui/Invites.tsx
+msgid "{0, plural, one {# person} other {# people}}"
+msgstr "{0, plural, one {# persona} other {# personas}}"
+
 #: src/ui/Sidebar.tsx
 msgid "{inVoice, plural, one {# connected} other {# connected}}"
 msgstr "{inVoice, plural, one {# conectado} other {# conectados}}"
 
+#: src/ui/SpaceRail.tsx
+msgid "{nome} is over {alvo}."
+msgstr "{nome} está sobre {alvo}."
+
+#: src/ui/SpaceRail.tsx
+msgid "{nome} was dropped at {alvo}."
+msgstr "{nome} se soltó en {alvo}."
+
+#: src/ui/SpaceRail.tsx
+msgid "{nome} was left where it was."
+msgstr "{nome} se quedó donde estaba."
+
+#: src/ui/Invites.tsx
+msgid "{quem} is now a member."
+msgstr "Ahora {quem} es miembro."
+
+#: src/ui/Invites.tsx
+msgid "{quem} is now an admin."
+msgstr "Ahora {quem} administra el espacio."
+
+#: src/ui/Invites.tsx
+msgid "{quem} owns this space now."
+msgstr "Ahora este espacio es de {quem}."
+
 #: src/ui/Invites.tsx
 msgid "{quem} was added."
 msgstr "Se añadió a {quem}."
+
+#: src/ui/Invites.tsx
+msgid "{quem} was removed from the space."
+msgstr "Sacaste a {quem} del espacio."
 
 #: src/ui/Call.tsx
 msgid "{total, plural, one {# person connected} other {# people connected}}"
@@ -61,6 +94,10 @@ msgstr "Un mensaje directo no admite más personas."
 #: src/ui/Call.tsx
 msgid "A microphone or camera could not be opened — another app may be holding it."
 msgstr "No se pudo abrir un micrófono o cámara: otra aplicación puede estar usándolo."
+
+#: src/ui/Invites.tsx
+msgid "A new code could not be created."
+msgstr "No se pudo crear un código nuevo."
 
 #: src/ui/Modals.tsx
 msgid "A space holds text channels and voice rooms, and everyone you invite sees all of them."
@@ -100,9 +137,18 @@ msgstr "Añadir un canal"
 msgid "Add people"
 msgstr "Añadir personas"
 
+#. placeholder {0}: activeRoom.name ?? ""
+#: src/ui/Sidebar.tsx
+msgid "Add people to {0}"
+msgstr "Añadir personas a {0}"
+
 #: src/ui/Invites.tsx
 msgid "Adding…"
 msgstr "Añadiendo…"
+
+#: src/ui/Invites.tsx
+msgid "Admin"
+msgstr "Admin"
 
 #: src/ui/Sidebar.tsx
 msgid "All"
@@ -129,6 +175,10 @@ msgstr "Permitir el micrófono"
 #: src/ui/Auth.tsx
 msgid "Already have one? "
 msgstr "¿Ya tienes una? "
+
+#: src/ui/FolderModal.tsx
+msgid "Amber"
+msgstr "Ámbar"
 
 #: src/lib/erros.ts
 msgid "An account already uses that email."
@@ -201,6 +251,10 @@ msgstr "Referencia de archivo no válida."
 msgid "Bad pagination values."
 msgstr "Valores de paginación no válidos."
 
+#: src/ui/FolderModal.tsx
+msgid "Blurple"
+msgstr "Azul violeta"
+
 #: src/ui/Call.tsx
 msgid "Call"
 msgstr "Llamada"
@@ -220,9 +274,15 @@ msgstr "Cámara"
 msgid "Camera options"
 msgstr "Opciones de cámara"
 
+#: src/ui/FolderModal.tsx
+#: src/ui/FolderModal.tsx
+#: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Modals.tsx
+#: src/ui/SpaceRail.tsx
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -234,9 +294,15 @@ msgstr "Cancelar la respuesta"
 msgid "Categories"
 msgstr "Categorías"
 
+#: src/ui/Invites.tsx
 #: src/ui/Settings.tsx
 msgid "Change"
 msgstr "Cambiar"
+
+#: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
+msgid "Change the group picture"
+msgstr "Cambiar la foto del grupo"
 
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
@@ -265,6 +331,14 @@ msgstr "Cerrar dispositivos"
 #: src/ui/Chat.tsx
 msgid "Close search"
 msgstr "Cerrar la búsqueda"
+
+#: src/ui/SpaceRail.tsx
+msgid "Close the folder {nome}"
+msgstr "Cerrar la carpeta {nome}"
+
+#: src/ui/FolderModal.tsx
+msgid "Colour"
+msgstr "Color"
 
 #: src/ui/Call.tsx
 msgid "Connecting…"
@@ -307,6 +381,14 @@ msgstr "Crear"
 msgid "Create a group"
 msgstr "Crear un grupo"
 
+#: src/ui/Invites.tsx
+msgid "Create a new code? Every link and code you have already shared stops working right away, and anyone still holding one will be turned away. People who are already in the space stay in."
+msgstr "¿Crear un código nuevo? Todos los enlaces y códigos que ya compartiste dejan de funcionar al instante, y a quien todavía tenga uno se le negará la entrada. Quien ya está en el espacio se queda."
+
+#: src/ui/Invites.tsx
+msgid "Create a new invite code"
+msgstr "Crear un código de invitación nuevo"
+
 #: src/ui/Auth.tsx
 msgid "Create account"
 msgstr "Crear cuenta"
@@ -336,6 +418,19 @@ msgstr "Crear con {0}"
 msgid "Dark"
 msgstr "Oscuro"
 
+#. placeholder {0}: pasta.name
+#: src/ui/FolderModal.tsx
+msgid "Delete <0>{0}</0>? The spaces inside go back to the bar on their own. Nothing is removed and nobody is told."
+msgstr "¿Eliminar <0>{0}</0>? Los espacios de dentro vuelven solos a la barra. No se quita nada y no se avisa a nadie."
+
+#: src/ui/FolderModal.tsx
+msgid "Delete this folder"
+msgstr "Eliminar esta carpeta"
+
+#: src/ui/FolderModal.tsx
+msgid "Deleting…"
+msgstr "Eliminando…"
+
 #: src/ui/Modals.tsx
 msgid "Design team"
 msgstr "Equipo de diseño"
@@ -360,6 +455,7 @@ msgstr "Documento"
 msgid "Don't have the desktop app yet? <0>Download it for Windows</0>"
 msgstr "¿Aún no tienes la aplicación? <0>Descárgala para Windows</0>"
 
+#: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 msgid "Done"
 msgstr "Listo"
@@ -388,6 +484,10 @@ msgstr "Escribe tu correo o nombre de usuario."
 msgid "Enter your password."
 msgstr "Escribe tu contraseña."
 
+#: src/ui/Invites.tsx
+msgid "Everyone in the group sees the name and the picture."
+msgstr "Todo el grupo ve el nombre y la foto."
+
 #: src/ui/EmojiPicker.tsx
 msgid "Faces"
 msgstr "Caras"
@@ -401,6 +501,38 @@ msgstr "Los archivos tienen que pesar menos de {mb} MB."
 msgid "Find in this conversation"
 msgstr "Buscar en esta conversación"
 
+#: src/ui/FolderModal.tsx
+msgid "Folder"
+msgstr "Carpeta"
+
+#: src/ui/FolderModal.tsx
+msgid "Folder colour"
+msgstr "Color de la carpeta"
+
+#: src/ui/SpaceRail.tsx
+msgid "Folder created."
+msgstr "Carpeta creada."
+
+#: src/ui/SpaceRail.tsx
+msgid "Folder created. Open it to give it a name and a colour."
+msgstr "Carpeta creada. Ábrela para darle nombre y color."
+
+#: src/ui/FolderModal.tsx
+msgid "Folder deleted. The spaces are still here."
+msgstr "Carpeta eliminada. Los espacios siguen aquí."
+
+#: src/ui/FolderModal.tsx
+msgid "Folder name"
+msgstr "Nombre de la carpeta"
+
+#: src/ui/FolderModal.tsx
+msgid "Folder saved."
+msgstr "Carpeta guardada."
+
+#: src/ui/SpaceRail.tsx
+msgid "Folder settings"
+msgstr "Ajustes de la carpeta"
+
 #: src/ui/Settings.tsx
 msgid "Follows the light or dark mode of your system."
 msgstr "Sigue el modo claro u oscuro del sistema."
@@ -413,13 +545,48 @@ msgstr "Ponle un nombre al grupo."
 msgid "Give the space a name."
 msgstr "Ponle un nombre al espacio."
 
+#: src/ui/FolderModal.tsx
+msgid "Green"
+msgstr "Verde"
+
+#: src/ui/FolderModal.tsx
+msgid "Grey"
+msgstr "Gris"
+
+#: src/ui/Invites.tsx
+msgid "Group"
+msgstr "Grupo"
+
 #: src/ui/Invites.tsx
 msgid "Group {grupo} created."
 msgstr "Grupo {grupo} creado."
 
 #: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
 msgid "Group name"
 msgstr "Nombre del grupo"
+
+#: src/ui/Sidebar.tsx
+#: src/ui/Sidebar.tsx
+msgid "Group name and picture"
+msgstr "Nombre y foto del grupo"
+
+#: src/ui/Invites.tsx
+msgid "Group name saved."
+msgstr "Nombre del grupo guardado."
+
+#: src/ui/Invites.tsx
+msgid "Group picture removed."
+msgstr "Foto del grupo eliminada."
+
+#: src/ui/Invites.tsx
+msgid "Group picture updated."
+msgstr "Foto del grupo actualizada."
+
+#. placeholder {0}: m.displayName
+#: src/ui/Invites.tsx
+msgid "Hand this space to <0>{0}</0>? They become the owner and you become an admin. Only they can hand it back."
+msgstr "¿Pasar este espacio a <0>{0}</0>? Esa persona pasa a ser la dueña y tú pasas a ser admin. Solo ella puede devolvértelo."
 
 #: src/ui/EmojiPicker.tsx
 msgid "Hands"
@@ -436,6 +603,10 @@ msgstr "Espera mientras se establece la conexión."
 #: src/ui/Chat.tsx
 msgid "How to invite people"
 msgstr "Cómo invitar personas"
+
+#: src/ui/Sidebar.tsx
+msgid "In this voice room"
+msgstr "En esta sala de voz"
 
 #: src/ui/QuickDeviceMenu.tsx
 msgid "Input device"
@@ -516,6 +687,14 @@ msgid "lowercase, no spaces"
 msgstr "minúsculas, sin espacios"
 
 #: src/ui/Invites.tsx
+msgid "Make admin"
+msgstr "Hacer admin"
+
+#: src/ui/Invites.tsx
+msgid "Member"
+msgstr "Miembro"
+
+#: src/ui/Invites.tsx
 msgid "Members"
 msgstr "Miembros"
 
@@ -566,6 +745,27 @@ msgstr "Falta el token de renovación."
 msgid "More options"
 msgstr "Más opciones"
 
+#: src/ui/SpaceRail.tsx
+msgid "Move out of the folder"
+msgstr "Sacar de la carpeta"
+
+#: src/ui/SpaceRail.tsx
+msgid "Move to {nome}"
+msgstr "Mover a {nome}"
+
+#: src/ui/SpaceRail.tsx
+msgid "Moved out of the folder."
+msgstr "Salió de la carpeta."
+
+#: src/ui/SpaceRail.tsx
+#: src/ui/SpaceRail.tsx
+msgid "Moved to {nome}."
+msgstr "Se movió a {nome}."
+
+#: src/ui/SpaceRail.tsx
+msgid "Moving {nome} was cancelled."
+msgstr "Se canceló el movimiento de {nome}."
+
 #: src/ui/Call.tsx
 msgid "Mute"
 msgstr "Silenciar"
@@ -594,9 +794,22 @@ msgstr "Nuevo canal"
 msgid "New chat"
 msgstr "Nuevo chat"
 
+#: src/ui/SpaceRail.tsx
+#: src/ui/SpaceRail.tsx
+msgid "New folder"
+msgstr "Carpeta nueva"
+
+#: src/ui/SpaceRail.tsx
+msgid "New folder with this space"
+msgstr "Carpeta nueva con este espacio"
+
 #: src/ui/Invites.tsx
 msgid "New group"
 msgstr "Nuevo grupo"
+
+#: src/ui/Invites.tsx
+msgid "New invite code. The old one no longer works."
+msgstr "Código de invitación nuevo. El anterior dejó de funcionar."
 
 #: src/ui/Modals.tsx
 msgid "New space"
@@ -614,6 +827,11 @@ msgstr "No se encontró ninguna cámara. Entraste solo con audio."
 #: src/ui/QuickDeviceMenu.tsx
 msgid "No camera was found — the system default will be used."
 msgstr "No se encontró ninguna cámara: se usará la predeterminada del sistema."
+
+#: src/ui/FolderModal.tsx
+#: src/ui/FolderModal.tsx
+msgid "No colour"
+msgstr "Sin color"
 
 #: src/ui/Sidebar.tsx
 msgid "No conversations yet."
@@ -669,6 +887,10 @@ msgstr "¿No pasó nada? Seguramente la aplicación no está instalada en este e
 msgid "Nothing here matches that."
 msgstr "Aquí no hay nada que coincida."
 
+#: src/ui/FolderModal.tsx
+msgid "Nothing is in this folder yet. Drag a space onto it to put it in."
+msgstr "Todavía no hay nada en esta carpeta. Arrastra un espacio hasta ella para meterlo."
+
 #: src/ui/Chat.tsx
 msgid "Notifications turned back on."
 msgstr "Notificaciones reactivadas."
@@ -678,6 +900,8 @@ msgid "offline"
 msgstr "desconectado"
 
 #: src/ui/Auth.tsx
+#: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Modals.tsx
 msgid "One moment…"
@@ -691,6 +915,10 @@ msgstr "en línea"
 msgid "Only admins can add channels."
 msgstr "Solo los administradores pueden añadir canales."
 
+#: src/ui/Invites.tsx
+msgid "Only an admin or the owner can change who is here."
+msgstr "Solo un admin o la persona dueña puede cambiar quién está aquí."
+
 #: src/ui/InviteGate.tsx
 msgid "Open in the WhatsCord app"
 msgstr "Abrir en la aplicación WhatsCord"
@@ -698,6 +926,10 @@ msgstr "Abrir en la aplicación WhatsCord"
 #: src/ui/Call.tsx
 msgid "Open the call"
 msgstr "Abrir la llamada"
+
+#: src/ui/SpaceRail.tsx
+msgid "Open the folder {nome}"
+msgstr "Abrir la carpeta {nome}"
 
 #: src/ui/Chat.tsx
 msgid "Open the space from the left rail to invite people."
@@ -718,6 +950,14 @@ msgstr "Opcional"
 #: src/ui/Invites.tsx
 msgid "Or send just the code, for someone who would rather type it under <0>New space → Have an invite code?</0>"
 msgstr "O manda solo el código, para quien prefiera escribirlo en <0>Nuevo espacio → ¿Tienes un código de invitación?</0>"
+
+#: src/ui/SpaceRail.tsx
+msgid "Organise spaces"
+msgstr "Organizar espacios"
+
+#: src/ui/Invites.tsx
+msgid "Owner"
+msgstr "Dueño"
 
 #: src/ui/Auth.tsx
 #: src/ui/Auth.tsx
@@ -756,6 +996,14 @@ msgstr "Elige a alguien para escribirle."
 msgid "Pick who to add."
 msgstr "Elige a quién añadir."
 
+#: src/ui/SpaceRail.tsx
+msgid "Picked up {nome}. Use the arrow keys to move it, space to drop it, escape to cancel."
+msgstr "{nome} tomado. Usa las flechas para moverlo, espacio para soltarlo y escape para cancelar."
+
+#: src/ui/FolderModal.tsx
+msgid "Pink"
+msgstr "Rosa"
+
 #: src/ui/Sidebar.tsx
 msgid "Places"
 msgstr "Lugares"
@@ -767,6 +1015,10 @@ msgstr "Reproducir un sonido cuando alguien entre o salga de una llamada"
 #: src/ui/DevicePicker.tsx
 msgid "Play a test sound"
 msgstr "Reproducir un sonido de prueba"
+
+#: src/ui/SpaceRail.tsx
+msgid "Press space to pick this up, then the arrow keys to move it and space again to drop it. Press escape to leave it where it was. Press enter to open it instead."
+msgstr "Pulsa espacio para tomarlo, luego las flechas para moverlo y espacio otra vez para soltarlo. Pulsa escape para dejarlo donde estaba. Pulsa enter para abrirlo en su lugar."
 
 #: src/ui/Settings.tsx
 msgid "Profile saved."
@@ -792,18 +1044,44 @@ msgstr "Reacciones"
 msgid "Reconnecting…"
 msgstr "Reconectando…"
 
+#: src/ui/FolderModal.tsx
+msgid "Red"
+msgstr "Rojo"
+
 #: src/ui/Chat.tsx
+#: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 msgid "Remove"
 msgstr "Quitar"
+
+#. placeholder {0}: m.displayName
+#: src/ui/Invites.tsx
+msgid "Remove <0>{0}</0> from this space? They lose every channel here and can only come back with an invite code. Everything they wrote stays in the conversations."
+msgstr "¿Sacar a <0>{0}</0> de este espacio? Pierde todos los canales de aquí y solo vuelve con un código de invitación. Todo lo que escribió sigue en las conversaciones."
+
+#: src/ui/Invites.tsx
+msgid "Remove admin"
+msgstr "Quitar de admin"
 
 #: src/ui/Settings.tsx
 msgid "Remove photo"
 msgstr "Quitar foto"
 
+#: src/ui/Invites.tsx
+msgid "Remove the picture"
+msgstr "Quitar la foto"
+
 #: src/ui/Chat.tsx
 msgid "Remove your reaction"
 msgstr "Quitar tu reacción"
+
+#: src/ui/Invites.tsx
+msgid "Removing someone takes them out of every channel here. What they wrote stays where it is — messages are not deleted with the person."
+msgstr "Sacar a alguien de aquí la saca de todos los canales. Lo que escribió se queda donde está: los mensajes no se borran con la persona."
+
+#: src/ui/Invites.tsx
+msgid "Removing…"
+msgstr "Sacando…"
 
 #: src/ui/Chat.tsx
 msgid "Reply to this message"
@@ -814,10 +1092,18 @@ msgstr "Responder a este mensaje"
 msgid "Same as device"
 msgstr "Igual que el dispositivo"
 
+#: src/ui/FolderModal.tsx
+#: src/ui/Invites.tsx
+msgid "Save"
+msgstr "Guardar"
+
 #: src/ui/Settings.tsx
 msgid "Save changes"
 msgstr "Guardar cambios"
 
+#: src/ui/FolderModal.tsx
+#: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
 msgid "Saving…"
@@ -1011,10 +1297,14 @@ msgid "That conversation no longer exists."
 msgstr "Esa conversación ya no existe."
 
 #: src/ui/Chat.tsx
+#: src/ui/Invites.tsx
 msgid "That could not be changed."
 msgstr "No se pudo cambiar eso."
 
 #: src/ui/Settings.tsx
+#: src/ui/SpaceRail.tsx
+#: src/ui/SpaceRail.tsx
+#: src/ui/SpaceRail.tsx
 msgid "That could not be saved."
 msgstr "No se pudo guardar eso."
 
@@ -1052,6 +1342,14 @@ msgstr "Ese archivo está vacío."
 msgid "That file is no longer here."
 msgstr "Ese archivo ya no está aquí."
 
+#: src/ui/FolderModal.tsx
+msgid "That folder could not be deleted."
+msgstr "No se pudo eliminar esa carpeta."
+
+#: src/ui/FolderModal.tsx
+msgid "That folder could not be saved."
+msgstr "No se pudo guardar esa carpeta."
+
 #: src/ui/Invites.tsx
 msgid "That group could not be created."
 msgstr "No se pudo crear ese grupo."
@@ -1073,6 +1371,10 @@ msgstr "Eso no es una imagen válida."
 msgid "That message is gone."
 msgstr "Ese mensaje ya no existe."
 
+#: src/ui/Invites.tsx
+msgid "That name could not be saved."
+msgstr "No se pudo guardar ese nombre."
+
 #: src/lib/erros.ts
 msgid "That pagination cursor is not valid."
 msgstr "Ese cursor de paginación no es válido."
@@ -1087,6 +1389,14 @@ msgstr "No se pudo quitar esa foto."
 
 #: src/ui/Settings.tsx
 msgid "That photo could not be saved."
+msgstr "No se pudo guardar esa foto."
+
+#: src/ui/Invites.tsx
+msgid "That picture could not be removed."
+msgstr "No se pudo quitar esa foto."
+
+#: src/ui/Invites.tsx
+msgid "That picture could not be saved."
 msgstr "No se pudo guardar esa foto."
 
 #: src/lib/erros.ts
@@ -1141,6 +1451,10 @@ msgstr "El mensaje no puede estar vacío."
 msgid "The new setting applies the next time you start sharing."
 msgstr "El nuevo ajuste se aplica la próxima vez que compartas."
 
+#: src/ui/Invites.tsx
+msgid "The ownership could not be transferred."
+msgstr "No se pudo transferir la propiedad."
+
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
 msgid "Theme"
@@ -1150,6 +1464,10 @@ msgstr "Tema"
 msgid "They could not be added."
 msgstr "No se pudieron añadir."
 
+#: src/ui/Invites.tsx
+msgid "They could not be removed."
+msgstr "No se pudo sacar a esa persona."
+
 #: src/ui/EmojiPicker.tsx
 msgid "Things"
 msgstr "Cosas"
@@ -1157,6 +1475,11 @@ msgstr "Cosas"
 #: src/ui/DevicePicker.tsx
 msgid "This browser always uses the system's default speaker; change it in the operating system's sound settings."
 msgstr "Este navegador siempre usa la salida de sonido predeterminada del sistema; cámbiala en la configuración de sonido del sistema operativo."
+
+#. placeholder {0}: dentro.length
+#: src/ui/FolderModal.tsx
+msgid "This folder holds {0} of your spaces. Deleting it puts them back on the bar on their own — it never deletes a space."
+msgstr "Esta carpeta guarda {0} de tus espacios. Eliminarla los devuelve solos a la barra: nunca elimina un espacio."
 
 #: src/ui/Chat.tsx
 msgid "This is the start of the conversation"
@@ -1169,6 +1492,10 @@ msgstr "Este mensaje fue eliminado"
 #: src/ui/Sidebar.tsx
 msgid "This space has no channels yet."
 msgstr "Este espacio todavía no tiene canales."
+
+#: src/ui/Invites.tsx
+msgid "Transfer ownership"
+msgstr "Transferir la propiedad"
 
 #: src/ui/Chat.tsx
 msgid "Type a message"
@@ -1263,9 +1590,25 @@ msgstr "Escribe algo primero"
 msgid "Write something or attach a file."
 msgstr "Escribe algo o adjunta un archivo."
 
+#: src/ui/FolderModal.tsx
+msgid "Yes, delete the folder"
+msgstr "Sí, eliminar la carpeta"
+
 #: src/ui/Invites.tsx
 msgid "Yes, leave"
 msgstr "Sí, salir"
+
+#: src/ui/Invites.tsx
+msgid "Yes, remove them"
+msgstr "Sí, sacar del espacio"
+
+#: src/ui/Invites.tsx
+msgid "Yes, replace the code"
+msgstr "Sí, cambiar el código"
+
+#: src/ui/Invites.tsx
+msgid "Yes, transfer it"
+msgstr "Sí, transferir"
 
 #: src/ui/Call.tsx
 msgid "You"

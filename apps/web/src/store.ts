@@ -109,6 +109,8 @@ export type Room = {
   activityAt: string;
 };
 
+export type SpaceRole = "OWNER" | "ADMIN" | "MEMBER";
+
 export type Space = {
   id: string;
   name: string;
@@ -117,13 +119,62 @@ export type Space = {
   role: string;
   memberCount: number;
   channels: { id: string; name: string | null; kind: RoomKind; topic: string | null }[];
+  /*
+   * Ordem e pasta chegam do servidor, mas são OPCIONAIS de propósito: uma API
+   * mais antiga que este app não manda nenhum dos dois, e nesse caso a barra
+   * cai na ordem em que a lista veio — que é exatamente o que ela fazia antes
+   * de existir arrastar. Tornar obrigatório aqui deixaria o rail vazio contra
+   * um servidor desatualizado.
+   */
+  position?: number;
+  folderId?: string | null;
 };
+
+/** Uma pasta do rail. Só agrupa; apagá-la nunca apaga os espaços de dentro. */
+export type SpaceFolder = {
+  id: string;
+  name: string;
+  color: string | null;
+  position: number;
+};
+
+/** Quem está numa chamada. O servidor manda a pessoa inteira, não só o id. */
+export type VoiceUser = Pick<User, "id" | "username" | "displayName" | "avatarUrl">;
+
+/**
+ * Põe os espaços na ordem que a pessoa escolheu.
+ *
+ * O índice entra como desempate para o caso de `position` faltar ou repetir —
+ * duas posições iguais com `sort` instável trocariam de lugar a cada render, e
+ * um ícone que pisca de lugar sozinho parece defeito de rede.
+ */
+export function ordenarEspacos(spaces: Space[]): Space[] {
+  return spaces
+    .map((s, i) => ({ s, i }))
+    .sort((a, b) => (a.s.position ?? a.i) - (b.s.position ?? b.i) || a.i - b.i)
+    .map((x) => x.s);
+}
+
+/**
+ * Tudo que uma sessão precisa ter na tela logo depois de entrar.
+ *
+ * Estava escrito três vezes — entrar, criar conta e reabrir com token guardado
+ * — e cada nova coisa a carregar tinha que ser lembrada nos três. A presença de
+ * voz vem DEPOIS das salas de propósito: ela é buscada pelos ids das salas de
+ * voz, e sem elas a busca sairia vazia.
+ */
+async function carregarSessao(get: () => State) {
+  await Promise.all([get().refreshRooms(), get().refreshSpaces(), get().refreshSpaceFolders()]);
+  await get().refreshVoicePresence();
+}
 
 type State = {
   me: User | null;
   booting: boolean;
   rooms: Room[];
   spaces: Space[];
+  spaceFolders: SpaceFolder[];
+  openFolders: Set<string>;
   activeSpaceId: string | null;
   activeRoomId: string | null;
   messages: Record<string, Message[]>;
@@ -135,6 +186,12 @@ type State = {
   search: string;
   replyTo: Message | null;
   voicePresence: Record<string, string[]>;
+  /*
+   * A mesma presença da linha acima, mas com a pessoa inteira — é o que a barra
+   * lateral precisa para desenhar retrato e nome. Os ids continuam existindo à
+   * parte porque a contagem é usada em telas que não carregam pessoa nenhuma.
+   */
+  voicePeople: Record<string, VoiceUser[]>;
   toasts: Toast[];
   /** Claro, escuro ou igual ao dispositivo. Pintado no `<html>`. */
   theme: Theme;
@@ -153,6 +210,14 @@ type State = {
 
   refreshRooms: () => Promise<void>;
   refreshSpaces: () => Promise<void>;
+  refreshSpaceFolders: () => Promise<void>;
+  /** Quem está em cada sala de voz, buscado do servidor. Sobrevive ao F5. */
+  refreshVoicePresence: () => Promise<void>;
+  reorderSpaces: (items: { spaceId: string; position: number; folderId: string | null }[]) => Promise<void>;
+  createSpaceFolder: (name: string, color: string | null, spaceIds: string[]) => Promise<void>;
+  updateSpaceFolder: (id: string, patch: { name?: string; color?: string | null; position?: number }) => Promise<void>;
+  deleteSpaceFolder: (id: string) => Promise<void>;
+  toggleFolder: (id: string) => void;
   joinSpaceByCode: (code: string) => Promise<{ id: string; name: string }>;
   leaveSpace: (spaceId: string) => Promise<{ spaceDeleted: boolean }>;
   openRoom: (roomId: string) => Promise<void>;
@@ -177,6 +242,8 @@ type State = {
   setTyping: (roomId: string, userId: string, on: boolean) => void;
   setOnline: (userId: string, on: boolean) => void;
   setVoicePresence: (roomId: string, userIds: string[]) => void;
+  /** Presença completa de uma sala, vinda de `voice:presence` ou do GET. */
+  setVoiceRoster: (roomId: string, users: VoiceUser[]) => void;
 };
 
 /**
@@ -191,6 +258,8 @@ type State = {
 const blankSession = {
   rooms: [] as Room[],
   spaces: [] as Space[],
+  spaceFolders: [] as SpaceFolder[],
+  openFolders: new Set<string>(),
   activeSpaceId: null as string | null,
   activeRoomId: null as string | null,
   messages: {} as Record<string, Message[]>,
@@ -201,7 +270,8 @@ const blankSession = {
   filter: "all" as const,
   search: "",
   replyTo: null as Message | null,
-  voicePresence: {} as Record<string, string[]>
+  voicePresence: {} as Record<string, string[]>,
+  voicePeople: {} as Record<string, VoiceUser[]>
 };
 
 export const useStore = create<State>((set, get) => ({
@@ -222,7 +292,7 @@ export const useStore = create<State>((set, get) => ({
     try {
       const { user } = await api.get<{ user: User }>("/auth/me");
       set({ me: user, ...blankSession });
-      await Promise.all([get().refreshRooms(), get().refreshSpaces()]);
+      await carregarSessao(get);
     } catch {
       clearTokens();
       set({ me: null, ...blankSession });
@@ -238,7 +308,7 @@ export const useStore = create<State>((set, get) => ({
     );
     saveTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
     set({ me: res.user, ...blankSession });
-    await Promise.all([get().refreshRooms(), get().refreshSpaces()]);
+    await carregarSessao(get);
   },
 
   async signUp(input) {
@@ -248,7 +318,7 @@ export const useStore = create<State>((set, get) => ({
     );
     saveTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
     set({ me: res.user, ...blankSession });
-    await Promise.all([get().refreshRooms(), get().refreshSpaces()]);
+    await carregarSessao(get);
   },
 
   async signOut() {
@@ -265,7 +335,179 @@ export const useStore = create<State>((set, get) => ({
 
   async refreshSpaces() {
     const { spaces } = await api.get<{ spaces: Space[] }>("/spaces");
-    set({ spaces });
+    set({ spaces: ordenarEspacos(spaces) });
+  },
+
+  /*
+   * As pastas são um recurso novo da API. Um servidor que ainda não as tem
+   * responde 404, e isso NÃO pode derrubar a abertura do app — o rail sem
+   * pastas continua sendo um rail que funciona. Por isso o erro morre aqui.
+   */
+  async refreshSpaceFolders() {
+    try {
+      const { folders } = await api.get<{ folders: SpaceFolder[] }>("/space-folders");
+      set({ spaceFolders: [...folders].sort((a, b) => a.position - b.position) });
+    } catch {
+      set({ spaceFolders: [] });
+    }
+  },
+
+  /**
+   * Quem está em cada sala de voz, perguntado ao servidor.
+   *
+   * Este é o conserto do defeito central: a presença vivia só na memória, a
+   * partir dos eventos `call:joined`/`call:left` que chegam DEPOIS de o socket
+   * conectar. Quem recarregava a página via a sala de voz vazia mesmo com três
+   * pessoas conversando lá dentro, até alguém entrar ou sair.
+   */
+  async refreshVoicePresence() {
+    const ids = get()
+      .rooms.filter((r) => r.kind === "VOICE")
+      .map((r) => r.id);
+    if (ids.length === 0) return;
+
+    try {
+      const res = await api.get<{ presence: Record<string, VoiceUser[]> }>(
+        `/calls/presence?roomIds=${ids.map(encodeURIComponent).join(",")}`
+      );
+      const people: Record<string, VoiceUser[]> = {};
+      const idsPorSala: Record<string, string[]> = {};
+      for (const roomId of ids) {
+        const users = res.presence[roomId] ?? [];
+        people[roomId] = users;
+        idsPorSala[roomId] = users.map((u) => u.id);
+      }
+      set((s) => ({
+        voicePeople: { ...s.voicePeople, ...people },
+        voicePresence: { ...s.voicePresence, ...idsPorSala }
+      }));
+    } catch {
+      /* Servidor sem a rota ainda, ou rede fora: fica com o que já havia. */
+    }
+  },
+
+  /**
+   * Salva a ordem do rail, mudando a tela ANTES de perguntar ao servidor.
+   *
+   * Arrastar e esperar o ícone pular de volta meio segundo depois é a diferença
+   * entre um rail que responde e um que parece travado. Se o servidor recusar,
+   * a lista inteira volta ao estado anterior de uma vez — não item por item,
+   * porque um desfazer parcial deixaria a ordem numa mistura que ninguém pediu.
+   */
+  async reorderSpaces(items) {
+    const antes = get().spaces;
+    const porId = new Map(items.map((i) => [i.spaceId, i]));
+
+    set((s) => ({
+      spaces: ordenarEspacos(
+        s.spaces.map((sp) => {
+          const alvo = porId.get(sp.id);
+          return alvo ? { ...sp, position: alvo.position, folderId: alvo.folderId } : sp;
+        })
+      )
+    }));
+
+    try {
+      await api.patch("/spaces/order", { items });
+    } catch (err) {
+      set({ spaces: antes });
+      throw err;
+    }
+  },
+
+  /**
+   * Cria uma pasta e põe espaços dentro dela.
+   *
+   * São duas chamadas — criar a pasta, depois mover os espaços — porque só o
+   * servidor sabe o id da pasta. A tela é atualizada com uma pasta provisória
+   * enquanto isso, e a falha desfaz as duas metades juntas.
+   */
+  async createSpaceFolder(name, color, spaceIds) {
+    const espacosAntes = get().spaces;
+    const pastasAntes = get().spaceFolders;
+
+    const provisoria: SpaceFolder = {
+      id: `pending-${crypto.randomUUID()}`,
+      name,
+      color,
+      position: pastasAntes.length
+    };
+    set((s) => ({
+      spaceFolders: [...s.spaceFolders, provisoria],
+      spaces: s.spaces.map((sp) =>
+        spaceIds.includes(sp.id) ? { ...sp, folderId: provisoria.id } : sp
+      ),
+      openFolders: new Set([...s.openFolders, provisoria.id])
+    }));
+
+    try {
+      const { folder } = await api.post<{ folder: SpaceFolder }>("/space-folders", {
+        name,
+        color: color ?? undefined
+      });
+      set((s) => ({
+        spaceFolders: s.spaceFolders.map((f) => (f.id === provisoria.id ? folder : f)),
+        spaces: s.spaces.map((sp) =>
+          sp.folderId === provisoria.id ? { ...sp, folderId: folder.id } : sp
+        ),
+        openFolders: new Set(
+          [...s.openFolders].map((id) => (id === provisoria.id ? folder.id : id))
+        )
+      }));
+
+      const dentro = get().spaces.filter((sp) => sp.folderId === folder.id);
+      await api.patch("/spaces/order", {
+        items: dentro.map((sp, i) => ({ spaceId: sp.id, position: i, folderId: folder.id }))
+      });
+    } catch (err) {
+      set({ spaces: espacosAntes, spaceFolders: pastasAntes });
+      throw err;
+    }
+  },
+
+  async updateSpaceFolder(id, patch) {
+    const antes = get().spaceFolders;
+    set((s) => ({
+      spaceFolders: s.spaceFolders
+        .map((f) => (f.id === id ? { ...f, ...patch } : f))
+        .sort((a, b) => a.position - b.position)
+    }));
+    try {
+      await api.patch(`/space-folders/${encodeURIComponent(id)}`, patch);
+    } catch (err) {
+      set({ spaceFolders: antes });
+      throw err;
+    }
+  },
+
+  /*
+   * Apagar a pasta solta os espaços; não apaga nenhum deles. É o que o servidor
+   * faz, e a tela tem que mostrar a mesma coisa no mesmo instante — ver os
+   * ícones sumirem junto com a pasta, mesmo que voltassem no próximo carregar,
+   * é um susto que não se desfaz.
+   */
+  async deleteSpaceFolder(id) {
+    const espacosAntes = get().spaces;
+    const pastasAntes = get().spaceFolders;
+    set((s) => ({
+      spaceFolders: s.spaceFolders.filter((f) => f.id !== id),
+      spaces: s.spaces.map((sp) => (sp.folderId === id ? { ...sp, folderId: null } : sp))
+    }));
+    try {
+      await api.del(`/space-folders/${encodeURIComponent(id)}`);
+    } catch (err) {
+      set({ spaces: espacosAntes, spaceFolders: pastasAntes });
+      throw err;
+    }
+  },
+
+  toggleFolder(id) {
+    set((s) => {
+      const next = new Set(s.openFolders);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return { openFolders: next };
+    });
   },
 
   /**
@@ -545,6 +787,25 @@ export const useStore = create<State>((set, get) => ({
   },
 
   setVoicePresence(roomId, userIds) {
-    set((s) => ({ voicePresence: { ...s.voicePresence, [roomId]: userIds } }));
+    set((s) => ({
+      voicePresence: { ...s.voicePresence, [roomId]: userIds },
+      /*
+       * A lista de pessoas segue a de ids: `call:joined` só traz um id, e
+       * deixar as duas divergirem faria a barra lateral dizer "2 conectados"
+       * e desenhar um retrato só. Quem entrou e ainda não é conhecido aqui
+       * aparece no próximo `voice:presence`, que traz a pessoa inteira.
+       */
+      voicePeople: {
+        ...s.voicePeople,
+        [roomId]: (s.voicePeople[roomId] ?? []).filter((u) => userIds.includes(u.id))
+      }
+    }));
+  },
+
+  setVoiceRoster(roomId, users) {
+    set((s) => ({
+      voicePeople: { ...s.voicePeople, [roomId]: users },
+      voicePresence: { ...s.voicePresence, [roomId]: users.map((u) => u.id) }
+    }));
   }
 }));

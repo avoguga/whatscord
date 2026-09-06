@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
-import { api } from "../lib/api";
+import { useEffect, useRef, useState } from "react";
+import { api, uploadFile } from "../lib/api";
 import { inviteLink } from "../lib/deeplink";
-import { useStore, type User } from "../store";
+import { ImageError, squareThumbnail } from "../lib/image";
+import { useStore, type Room, type SpaceRole, type User } from "../store";
 import { Avatar } from "./Avatar";
 import { IconSearch, IconCopy, IconCheck, IconClose } from "./icons";
 import { Scrim } from "./Scrim";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { plural } from "@lingui/core/macro";
+import { msg, plural } from "@lingui/core/macro";
+import type { I18n } from "@lingui/core";
 
 /*
  * Getting people in.
@@ -63,10 +65,29 @@ function CopyField({ value, label }: { value: string; label: string }) {
   );
 }
 
+/** Um membro do espaço, com o papel que ele tem lá dentro. */
+type SpaceMember = User & { role: SpaceRole; joinedAt?: string };
+
+/*
+ * Os nomes dos papéis ficam em `msg` e são traduzidos com o `i18n` do hook.
+ * Uma tabela de strings já traduzidas no topo do módulo é avaliada na
+ * importação, antes de o catálogo existir, e não reage à troca de idioma.
+ */
+const NOME_DO_PAPEL = {
+  OWNER: msg`Owner`,
+  ADMIN: msg`Admin`,
+  MEMBER: msg`Member`
+} as const;
+
+function rotuloDoPapel(papel: SpaceRole, i18n: I18n) {
+  return i18n._(NOME_DO_PAPEL[papel] ?? NOME_DO_PAPEL.MEMBER);
+}
+
 /** A space's door: the invite code, who is already in, and a way to add channels. */
 export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () => void }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const spaces = useStore((s) => s.spaces);
+  const me = useStore((s) => s.me);
   const refreshSpaces = useStore((s) => s.refreshSpaces);
   const refreshRooms = useStore((s) => s.refreshRooms);
   const leaveSpace = useStore((s) => s.leaveSpace);
@@ -74,20 +95,112 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
   const space = spaces.find((s) => s.id === spaceId);
   const [confirmarSaida, setConfirmarSaida] = useState(false);
 
-  const [members, setMembers] = useState<User[]>([]);
+  const [members, setMembers] = useState<SpaceMember[]>([]);
   const [channelName, setChannelName] = useState("");
   const [channelKind, setChannelKind] = useState<"TEXT" | "VOICE">("TEXT");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Qual ação destrutiva está esperando confirmação. Só uma por vez. */
+  const [confirmar, setConfirmar] = useState<
+    { tipo: "remover" | "posse"; membro: SpaceMember } | { tipo: "convite" } | null
+  >(null);
+
+  async function carregarMembros() {
+    try {
+      const r = await api.get<{ members: SpaceMember[] }>(`/spaces/${spaceId}/members`);
+      setMembers(r.members);
+    } catch {
+      setMembers([]);
+    }
+  }
 
   useEffect(() => {
-    api
-      .get<{ members: User[] }>(`/spaces/${spaceId}/members`)
-      .then((r) => setMembers(r.members))
-      .catch(() => setMembers([]));
+    void carregarMembros();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spaceId]);
 
   if (!space) return null;
+
+  /*
+   * O papel vem de duas fontes e as duas podem estar desatualizadas por um
+   * instante: `space.role` é o que a listagem de espaços trouxe, e a linha da
+   * própria pessoa na lista de membros é o que o servidor acabou de dizer. A
+   * segunda ganha — é ela que muda quando alguém transfere a posse enquanto a
+   * janela está aberta.
+   */
+  const meuPapel = ((members.find((m) => m.id === me?.id)?.role ?? space.role) ||
+    "MEMBER") as SpaceRole;
+  const souDono = meuPapel === "OWNER";
+  const mando = souDono || meuPapel === "ADMIN";
+
+  async function mudarPapel(membro: SpaceMember, papel: SpaceRole) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.patch(`/spaces/${spaceId}/members/${encodeURIComponent(membro.id)}`, {
+        role: papel
+      });
+      await carregarMembros();
+      const quem = membro.displayName;
+      // Frase inteira por caso: em português e espanhol "promovido a
+      // administradora" concorda com a pessoa, e montar o papel por fora
+      // obrigaria a tradução a escolher um gênero e errar o outro.
+      notify(papel === "ADMIN" ? t`${quem} is now an admin.` : t`${quem} is now a member.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t`That could not be changed.`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remover(membro: SpaceMember) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.del(`/spaces/${spaceId}/members/${encodeURIComponent(membro.id)}`);
+      await carregarMembros();
+      await Promise.all([refreshSpaces(), refreshRooms()]);
+      const quem = membro.displayName;
+      notify(t`${quem} was removed from the space.`);
+      setConfirmar(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t`They could not be removed.`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function transferirPosse(membro: SpaceMember) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.post(`/spaces/${spaceId}/owner`, { userId: membro.id });
+      await carregarMembros();
+      await refreshSpaces();
+      const quem = membro.displayName;
+      notify(t`${quem} owns this space now.`);
+      setConfirmar(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t`The ownership could not be transferred.`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function regenerarConvite() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.post(`/spaces/${spaceId}/invite/regenerate`);
+      await refreshSpaces();
+      notify(t`New invite code. The old one no longer works.`);
+      setConfirmar(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t`A new code could not be created.`);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function addChannel() {
     if (!channelName.trim()) return;
@@ -140,22 +253,175 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
 
         <CopyField value={space.inviteCode} label={t`Invite code`} />
 
+        {/*
+          Trocar o código é destrutivo sem parecer: nada some da tela, mas todo
+          link que já foi mandado para alguém morre em silêncio. Por isso a
+          confirmação diz exatamente isso antes.
+        */}
+        {mando &&
+          (confirmar?.tipo === "convite" ? (
+            <div className="leave-confirm" style={{ marginTop: 12 }}>
+              <p>
+                <Trans>
+                  Create a new code? Every link and code you have already shared stops working
+                  right away, and anyone still holding one will be turned away. People who are
+                  already in the space stay in.
+                </Trans>
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn-ghost" onClick={() => setConfirmar(null)}>
+                  <Trans>Cancel</Trans>
+                </button>
+                <button
+                  className="btn-outline danger"
+                  disabled={busy}
+                  onClick={() => void regenerarConvite()}
+                >
+                  {busy ? <Trans>One moment…</Trans> : <Trans>Yes, replace the code</Trans>}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              className="btn-link"
+              style={{ marginTop: 10 }}
+              onClick={() => setConfirmar({ tipo: "convite" })}
+            >
+              <Trans>Create a new invite code</Trans>
+            </button>
+          ))}
+
         <div style={{ height: 1, background: "var(--divider)", margin: "20px 0" }} />
 
         <p className="section-label" style={{ padding: 0, marginBottom: 8 }}>
           <Trans>Members</Trans> · {members.length}
         </p>
-        {members.map((m) => (
-          <div key={m.id} className="row" style={{ height: 56, padding: 0 }}>
-            <Avatar name={m.displayName} url={m.avatarUrl} size={38} />
-            <div className="row-body">
-              <div className="row-name" style={{ fontSize: 15 }}>
-                {m.displayName}
+
+        {mando && (
+          <p className="settings-note" style={{ marginBottom: 10 }}>
+            <Trans>
+              Removing someone takes them out of every channel here. What they wrote stays where
+              it is — messages are not deleted with the person.
+            </Trans>
+          </p>
+        )}
+
+        {members.map((m) => {
+          const ehEu = m.id === me?.id;
+          /*
+           * Ninguém mexe no dono, nem ele em si mesmo por aqui: rebaixar o
+           * próprio dono deixaria o espaço sem quem possa promover alguém de
+           * volta. A saída dele é transferir a posse, logo abaixo.
+           */
+          const podeMexer = mando && !ehEu && m.role !== "OWNER";
+          return (
+            <div key={m.id} className="member-row">
+              <div className="row" style={{ height: 56, padding: 0 }}>
+                <Avatar name={m.displayName} url={m.avatarUrl} size={38} />
+                <div className="row-body">
+                  <div className="row-name" style={{ fontSize: 15 }}>
+                    {m.displayName}
+                  </div>
+                  <div className="row-preview">@{m.username}</div>
+                </div>
+                <span className={`role-tag role-${m.role.toLowerCase()}`}>
+                  {rotuloDoPapel(m.role, i18n)}
+                </span>
               </div>
-              <div className="row-preview">@{m.username}</div>
+
+              {podeMexer && (
+                <div className="member-actions">
+                  {m.role === "MEMBER" ? (
+                    <button
+                      className="btn-link"
+                      disabled={busy}
+                      onClick={() => void mudarPapel(m, "ADMIN")}
+                    >
+                      <Trans>Make admin</Trans>
+                    </button>
+                  ) : (
+                    <button
+                      className="btn-link"
+                      disabled={busy}
+                      onClick={() => void mudarPapel(m, "MEMBER")}
+                    >
+                      <Trans>Remove admin</Trans>
+                    </button>
+                  )}
+                  {souDono && (
+                    <button
+                      className="btn-link"
+                      disabled={busy}
+                      onClick={() => setConfirmar({ tipo: "posse", membro: m })}
+                    >
+                      <Trans>Transfer ownership</Trans>
+                    </button>
+                  )}
+                  <button
+                    className="btn-link danger"
+                    disabled={busy}
+                    onClick={() => setConfirmar({ tipo: "remover", membro: m })}
+                  >
+                    <Trans>Remove</Trans>
+                  </button>
+                </div>
+              )}
+
+              {confirmar?.tipo === "remover" && confirmar.membro.id === m.id && (
+                <div className="leave-confirm">
+                  <p>
+                    <Trans>
+                      Remove <b>{m.displayName}</b> from this space? They lose every channel here
+                      and can only come back with an invite code. Everything they wrote stays in
+                      the conversations.
+                    </Trans>
+                  </p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="btn-ghost" onClick={() => setConfirmar(null)}>
+                      <Trans>Cancel</Trans>
+                    </button>
+                    <button
+                      className="btn-outline danger"
+                      disabled={busy}
+                      onClick={() => void remover(m)}
+                    >
+                      {busy ? <Trans>Removing…</Trans> : <Trans>Yes, remove them</Trans>}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {confirmar?.tipo === "posse" && confirmar.membro.id === m.id && (
+                <div className="leave-confirm">
+                  <p>
+                    <Trans>
+                      Hand this space to <b>{m.displayName}</b>? They become the owner and you
+                      become an admin. Only they can hand it back.
+                    </Trans>
+                  </p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="btn-ghost" onClick={() => setConfirmar(null)}>
+                      <Trans>Cancel</Trans>
+                    </button>
+                    <button
+                      className="btn-outline danger"
+                      disabled={busy}
+                      onClick={() => void transferirPosse(m)}
+                    >
+                      {busy ? <Trans>One moment…</Trans> : <Trans>Yes, transfer it</Trans>}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
+
+        {!mando && (
+          <p className="settings-note" style={{ marginTop: 10 }}>
+            <Trans>Only an admin or the owner can change who is here.</Trans>
+          </p>
+        )}
 
         <div style={{ height: 1, background: "var(--divider)", margin: "20px 0" }} />
 
@@ -470,6 +736,163 @@ export function AddPeopleModal({ roomId, onClose }: { roomId: string; onClose: (
           ) : (
             <Trans>Add</Trans>
           )}
+        </button>
+      </footer>
+    </Scrim>
+  );
+}
+
+/**
+ * O grupo por dentro: nome, foto e quantas pessoas há nele.
+ *
+ * A foto de um grupo existia no banco e no tipo (`Room.iconUrl`) e já era
+ * desenhada na lista de conversas, mas NÃO havia como pôr uma — um campo que só
+ * o servidor conseguia preencher. Isto é a porta que faltava.
+ */
+export function GroupModal({ roomId, onClose }: { roomId: string; onClose: () => void }) {
+  const { t } = useLingui();
+  const rooms = useStore((s) => s.rooms);
+  const refreshRooms = useStore((s) => s.refreshRooms);
+  const notify = useStore((s) => s.notify);
+  const room = rooms.find((r) => r.id === roomId);
+
+  const [nome, setNome] = useState(room?.name ?? "");
+  const [busy, setBusy] = useState(false);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  if (!room) return null;
+
+  /**
+   * Troca a foto do grupo.
+   *
+   * Reduz para um quadrado de 256 px ANTES de subir, como a foto de perfil. O
+   * `POST /files` é genérico e não redimensiona nada: sem isto, uma foto de
+   * 4 MB tirada no celular seria baixada inteira em cada linha da lista de
+   * conversas de todo mundo do grupo.
+   */
+  async function trocarFoto(file: File) {
+    setEnviandoFoto(true);
+    setErro(null);
+    try {
+      const pequena = await squareThumbnail(file);
+      const enviado = await uploadFile(pequena);
+      await api.patch<{ room: Room }>(`/rooms/${roomId}`, { iconUrl: enviado.url });
+      await refreshRooms();
+      notify(t`Group picture updated.`);
+    } catch (err) {
+      setErro(
+        err instanceof ImageError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : t`That picture could not be saved.`
+      );
+    } finally {
+      setEnviandoFoto(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  async function removerFoto() {
+    setEnviandoFoto(true);
+    setErro(null);
+    try {
+      await api.patch<{ room: Room }>(`/rooms/${roomId}`, { iconUrl: null });
+      await refreshRooms();
+      notify(t`Group picture removed.`);
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : t`That picture could not be removed.`);
+    } finally {
+      setEnviandoFoto(false);
+    }
+  }
+
+  async function salvarNome() {
+    const limpo = nome.trim();
+    if (!limpo || limpo === room?.name) return;
+    setBusy(true);
+    setErro(null);
+    try {
+      await api.patch<{ room: Room }>(`/rooms/${roomId}`, { name: limpo });
+      await refreshRooms();
+      notify(t`Group name saved.`);
+      onClose();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : t`That name could not be saved.`);
+      setBusy(false);
+    }
+  }
+
+  const nomeDoGrupo = room.name ?? t`Group`;
+  const mudou = nome.trim().length > 0 && nome.trim() !== room.name;
+
+  return (
+    <Scrim onClose={onClose}>
+      <header>{nomeDoGrupo}</header>
+      <div className="modal-body">
+        {erro && <div className="form-error">{erro}</div>}
+
+        <div className="settings-id">
+          <button
+            className="avatar-edit"
+            onClick={() => fileRef.current?.click()}
+            disabled={enviandoFoto}
+            title={t`Change the group picture`}
+            aria-label={t`Change the group picture`}
+          >
+            <Avatar name={nomeDoGrupo} url={room.iconUrl} size={64} />
+            <span className="avatar-edit-hint">{enviandoFoto ? t`Saving…` : t`Change`}</span>
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void trocarFoto(f);
+            }}
+          />
+          <div>
+            <strong>{nomeDoGrupo}</strong>
+            <span>{plural(room.memberCount, { one: "# person", other: "# people" })}</span>
+            {room.iconUrl && (
+              <button
+                className="btn-link"
+                disabled={enviandoFoto}
+                onClick={() => void removerFoto()}
+              >
+                <Trans>Remove the picture</Trans>
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="field">
+          <label htmlFor="group-rename">
+            <Trans>Group name</Trans>
+          </label>
+          <input
+            id="group-rename"
+            value={nome}
+            maxLength={60}
+            onChange={(e) => setNome(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && void salvarNome()}
+          />
+        </div>
+
+        <p className="settings-note">
+          <Trans>Everyone in the group sees the name and the picture.</Trans>
+        </p>
+      </div>
+      <footer>
+        <button className="btn-ghost" onClick={onClose}>
+          <Trans>Done</Trans>
+        </button>
+        <button className="btn-ghost" disabled={busy || !mudou} onClick={() => void salvarNome()}>
+          {busy ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
         </button>
       </footer>
     </Scrim>
