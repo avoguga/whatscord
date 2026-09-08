@@ -156,6 +156,13 @@ fn render_badge_icon(count: u32) -> (Vec<u8>, u32, u32) {
 /// literal de string JS valido para qualquer conteudo.
 #[cfg(desktop)]
 fn deliver_deep_links<R: tauri::Runtime>(app: &tauri::AppHandle<R>, urls: Vec<String>) {
+    /*
+     * Com a janela escondida na bandeja, entregar o convite sem mostrar a
+     * janela faria o clique no link parecer que nao fez nada — o app estaria
+     * abrindo o espaco numa janela invisivel.
+     */
+    mostrar_janela(app);
+
     let Some(window) = app.get_webview_window("main") else {
         return;
     };
@@ -217,6 +224,142 @@ fn locale_do_sistema() -> tauri::plugin::TauriPlugin<tauri::Wry> {
     builder.build()
 }
 
+/**
+ * Se o app esta encerrando de verdade.
+ *
+ * Sem esta trava, "Sair" no menu da bandeja poderia NAO sair: `exit` pede o
+ * fechamento da janela, o interceptador de fechar cancela achando que e a
+ * pessoa clicando no X, e o app fica preso vivo — encerravel so pelo
+ * gerenciador de tarefas, que e como um app de bandeja vira um app odiado.
+ */
+#[cfg(desktop)]
+static ENCERRANDO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/**
+ * Mostra a janela e traz para a frente.
+ *
+ * Os tres passos sao necessarios e nenhum substitui o outro: `show` desfaz o
+ * esconder da bandeja, `unminimize` desfaz o minimizar do proprio Windows, e
+ * `set_focus` traz para a frente de outras janelas. Faltando um, a pessoa
+ * clica no icone e nada parece acontecer.
+ */
+#[cfg(desktop)]
+fn mostrar_janela<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    if let Some(janela) = app.get_webview_window("main") {
+        let _ = janela.show();
+        let _ = janela.unminimize();
+        let _ = janela.set_focus();
+    }
+}
+
+/**
+ * Avisa, UMA vez so, que fechar nao encerrou o app.
+ *
+ * Sem isto o primeiro fechar parece um bug: a janela some, nada acontece, e a
+ * pessoa acha que o programa travou ou fechou de vez. E depois reclama que
+ * "abriu duas vezes" quando encontra o icone.
+ *
+ * O marcador e um arquivo vazio na pasta de configuracao, e nao um contador em
+ * memoria: um aviso por execucao apareceria toda vez que o app fosse aberto, o
+ * que e exatamente o tipo de repeticao que faz a pessoa parar de ler avisos.
+ */
+#[cfg(desktop)]
+fn avisar_bandeja_uma_vez<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    use tauri::Manager;
+    let Ok(pasta) = app.path().app_config_dir() else {
+        return;
+    };
+    let marcador = pasta.join("bandeja-avisada");
+    if marcador.exists() {
+        return;
+    }
+    let _ = std::fs::create_dir_all(&pasta);
+    let _ = std::fs::write(&marcador, b"");
+
+    use tauri_plugin_notification::NotificationExt;
+    let _ = app
+        .notification()
+        .builder()
+        .title("WhatsCord continua aberto")
+        .body("A janela fechou, mas o app segue rodando na bandeja. Clique no icone para voltar, ou use Sair para encerrar de vez.")
+        .show();
+}
+
+/**
+ * O icone na bandeja, e fechar que esconde em vez de encerrar.
+ *
+ * E o que WhatsApp e Discord fazem, e a razao e a mesma nos tres: um app de
+ * conversa que encerra ao fechar a janela deixa de entregar mensagem, e a
+ * pessoa so descobre horas depois. Fechar a janela quer dizer "tire isto da
+ * minha frente", nao "pare de me avisar".
+ *
+ * O menu tem "Sair" de verdade. Sem ele, encerrar exigiria o gerenciador de
+ * tarefas — que e como um app de bandeja vira um app odiado.
+ */
+#[cfg(desktop)]
+fn montar_bandeja(app: &tauri::App) -> tauri::Result<()> {
+    use tauri::menu::{Menu, MenuItem};
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+
+    let abrir = MenuItem::with_id(app, "abrir", "Abrir WhatsCord", true, None::<&str>)?;
+    let sair = MenuItem::with_id(app, "sair", "Sair", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&abrir, &sair])?;
+
+    let mut construtor = TrayIconBuilder::with_id("principal")
+        .tooltip("WhatsCord")
+        .menu(&menu)
+        /*
+         * O menu NAO abre no clique esquerdo: no Windows o esquerdo e o gesto
+         * de "abrir o app" e o direito e o de "ver opcoes". Deixar o menu no
+         * esquerdo tiraria o unico gesto que a pessoa tenta primeiro.
+         */
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, evento| match evento.id.as_ref() {
+            "abrir" => mostrar_janela(app),
+            "sair" => {
+                ENCERRANDO.store(true, std::sync::atomic::Ordering::SeqCst);
+                app.exit(0);
+            }
+            _ => {}
+        })
+        .on_tray_icon_event(|bandeja, evento| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = evento
+            {
+                mostrar_janela(bandeja.app_handle());
+            }
+        });
+
+    // O mesmo icone da janela; nao ha por que ter dois.
+    if let Some(icone) = app.default_window_icon() {
+        construtor = construtor.icon(icone.clone());
+    }
+    construtor.build(app)?;
+
+    if let Some(janela) = app.get_webview_window("main") {
+        let escondida = janela.clone();
+        let alca = app.handle().clone();
+        janela.on_window_event(move |evento| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = evento {
+                // Encerrando de verdade: deixa fechar.
+                if ENCERRANDO.load(std::sync::atomic::Ordering::SeqCst) {
+                    return;
+                }
+                // Impede o fechamento ANTES de esconder: sem isto a janela some
+                // e o processo morre junto, e a bandeja fica com um icone morto.
+                api.prevent_close();
+                let _ = escondida.hide();
+                avisar_bandeja_uma_vez(&alca);
+            }
+        });
+    }
+
+    Ok(())
+}
+
 pub fn run() {
     let mut builder = tauri::Builder::default();
 
@@ -264,6 +407,8 @@ pub fn run() {
             #[cfg(desktop)]
             {
                 use tauri_plugin_deep_link::DeepLinkExt;
+
+                montar_bandeja(_app)?;
 
                 let handle = _app.handle().clone();
                 _app.deep_link().on_open_url(move |event| {

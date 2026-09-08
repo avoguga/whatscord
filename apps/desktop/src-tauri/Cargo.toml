@@ -16,7 +16,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
-tauri = { version = "2.11.5", features = [] }
+# `tray-icon`: fechar a janela esconde o app na bandeja em vez de encerrar,
+# como WhatsApp e Discord fazem. Sem esta feature o `TrayIconBuilder` nem
+# existe.
+tauri = { version = "2.11.5", features = ["tray-icon"] }
 tauri-plugin-shell = "2.3.6"
 tauri-plugin-dialog = "2.7.3"
 tauri-plugin-os = "2.3.2"
