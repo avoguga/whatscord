@@ -23,7 +23,12 @@ import {
 } from "../apps/web/src/lib/devices";
 import {
   CUES,
+  TIMBRES,
+  TOQUES,
   cueDataUrl,
+  ehTimbre,
+  toDataUrl,
+  type Timbre,
   encodeWav,
   renderTone,
   toBase64,
@@ -532,6 +537,73 @@ check(
 
 check("o resumo diz resolução e taxa", resumo(q(1080, 60), "Fonte") === "1080p · 60 fps");
 check("o resumo usa o nome dado para 'fonte'", resumo(q(0, 30), "Fonte") === "Fonte · 30 fps");
+
+// ---------------------------------------------------------------------------
+section("som por conversa — dá para saber de onde veio sem olhar");
+
+check("existem timbres suficientes para distinguir conversas", TIMBRES.length >= 4);
+check("todo timbre da lista é reconhecido", TIMBRES.every(ehTimbre));
+check("um timbre inventado é recusado", !ehTimbre("funk"));
+check("texto vazio não passa por timbre", !ehTimbre(""));
+
+for (const timbre of TIMBRES) {
+  const toques = TOQUES[timbre];
+  check(`[${timbre}] tem os três tipos de aviso`, Boolean(toques.join && toques.leave && toques.mensagem));
+  if (timbre === "mudo") continue;
+  check(
+    `[${timbre}] entrar SOBE e sair DESCE (a direção é o que carrega o sentido)`,
+    toques.join.at(-1)!.freq > toques.join[0].freq &&
+      toques.leave.at(-1)!.freq < toques.leave[0].freq,
+    "join sobe, leave desce",
+    { join: toques.join.map((x) => x.freq), leave: toques.leave.map((x) => x.freq) }
+  );
+}
+
+/*
+ * O ponto da funcionalidade: dois grupos NÃO podem soar igual. Se dois timbres
+ * tiverem a mesma nota inicial, a pessoa não distingue de costas para a tela —
+ * que é exatamente o uso.
+ */
+const primeirasNotas = TIMBRES.filter((v) => v !== "mudo").map((v) => TOQUES[v].mensagem[0].freq);
+check(
+  "cada timbre começa numa nota diferente",
+  new Set(primeirasNotas).size === primeirasNotas.length,
+  "todas distintas",
+  primeirasNotas
+);
+
+check(
+  "mudo é silêncio de verdade, e não volume zero",
+  TOQUES.mudo.join.length === 0 &&
+    TOQUES.mudo.leave.length === 0 &&
+    TOQUES.mudo.mensagem.length === 0
+);
+
+/*
+ * Silenciar a mensagem e continuar anunciando quem entrou na chamada daquele
+ * mesmo grupo seria incoerente — "não me interrompa" vale para os três.
+ */
+check(
+  "mudo cala os três tipos, não só a mensagem",
+  (["join", "leave", "mensagem"] as const).every((k) => TOQUES.mudo[k].length === 0)
+);
+
+for (const timbre of TIMBRES.filter((v) => v !== "mudo")) {
+  const url = toDataUrl(TOQUES[timbre as Timbre].mensagem);
+  check(
+    `[${timbre}] o toque de mensagem vira um WAV válido`,
+    url.startsWith("data:audio/wav;base64,") &&
+      Buffer.from(url.slice("data:audio/wav;base64,".length), "base64")
+        .subarray(0, 4)
+        .toString() === "RIFF"
+  );
+}
+
+check(
+  "o timbre padrão continua sendo o par de notas original da chamada",
+  JSON.stringify(TOQUES.padrao.join) === JSON.stringify(CUES.join) &&
+    JSON.stringify(TOQUES.padrao.leave) === JSON.stringify(CUES.leave)
+);
 
 // ---------------------------------------------------------------------------
 section("virar a câmera — de que lado é cada câmera");

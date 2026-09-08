@@ -25,6 +25,81 @@ export const CUES: Record<"join" | "leave", ToneStep[]> = {
   ]
 };
 
+/**
+ * Identidade sonora de uma conversa.
+ *
+ * A ideia não é "escolher um som bonito": é conseguir saber DE ONDE veio sem
+ * olhar a tela. Com um timbre por grupo e por pessoa, o trabalho e o time de
+ * futebol deixam de soar igual, e dá para ignorar um e atender o outro sem
+ * trocar de janela.
+ *
+ * Por isso os timbres se distinguem pela ALTURA e pelo intervalo, não por
+ * enfeite: agudo curto, médio, grave, e um arpejo. São diferenças que se
+ * reconhecem de costas para o computador, que é o ponto.
+ */
+export type Timbre = "padrao" | "agudo" | "grave" | "arpejo" | "mudo";
+
+export const TIMBRES: Timbre[] = ["padrao", "agudo", "grave", "arpejo", "mudo"];
+
+export type TipoDeAviso = "join" | "leave" | "mensagem";
+
+const VAZIO: ToneStep[] = [];
+
+export const TOQUES: Record<Timbre, Record<TipoDeAviso, ToneStep[]>> = {
+  padrao: {
+    join: CUES.join,
+    leave: CUES.leave,
+    mensagem: [{ freq: 784.0, ms: 70 }, { freq: 1046.5, ms: 90 }]
+  },
+  agudo: {
+    join: [{ freq: 987.77, ms: 70 }, { freq: 1318.51, ms: 110 }],
+    leave: [{ freq: 1318.51, ms: 70 }, { freq: 987.77, ms: 130 }],
+    mensagem: [{ freq: 1318.51, ms: 60 }, { freq: 1567.98, ms: 80 }]
+  },
+  grave: {
+    join: [{ freq: 261.63, ms: 100 }, { freq: 392.0, ms: 150 }],
+    leave: [{ freq: 392.0, ms: 100 }, { freq: 261.63, ms: 170 }],
+    mensagem: [{ freq: 329.63, ms: 80 }, { freq: 440.0, ms: 110 }]
+  },
+  arpejo: {
+    join: [{ freq: 523.25, ms: 60 }, { freq: 659.25, ms: 60 }, { freq: 783.99, ms: 120 }],
+    leave: [{ freq: 783.99, ms: 60 }, { freq: 659.25, ms: 60 }, { freq: 523.25, ms: 140 }],
+    mensagem: [{ freq: 659.25, ms: 55 }, { freq: 880.0, ms: 55 }, { freq: 1046.5, ms: 90 }]
+  },
+  /*
+   * Silêncio de verdade, e não "volume zero": é a forma de dizer "esta conversa
+   * não me interrompe" sem perder as mensagens. O silêncio vale para os três
+   * tipos de aviso — não faria sentido silenciar a mensagem e continuar
+   * anunciando quem entrou na chamada dali.
+   */
+  mudo: { join: VAZIO, leave: VAZIO, mensagem: VAZIO }
+};
+
+const TIMBRE_PREFIXO = "whatscord.timbre.";
+
+export function ehTimbre(v: unknown): v is Timbre {
+  return typeof v === "string" && (TIMBRES as string[]).includes(v);
+}
+
+/** O timbre escolhido para uma conversa, ou `null` quando segue o padrão. */
+export function timbreDaSala(roomId: string): Timbre | null {
+  try {
+    const v = localStorage.getItem(TIMBRE_PREFIXO + roomId);
+    return ehTimbre(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+export function salvarTimbreDaSala(roomId: string, timbre: Timbre | null): void {
+  try {
+    if (timbre === null) localStorage.removeItem(TIMBRE_PREFIXO + roomId);
+    else localStorage.setItem(TIMBRE_PREFIXO + roomId, timbre);
+  } catch {
+    /* a escolha só não sobrevive à aba */
+  }
+}
+
 const RATE = 44100;
 
 /**
@@ -97,7 +172,12 @@ export function toBase64(bytes: Uint8Array): string {
 }
 
 export function cueDataUrl(kind: "join" | "leave"): string {
-  return `data:audio/wav;base64,${toBase64(encodeWav(renderTone(CUES[kind])))}`;
+  return toDataUrl(CUES[kind]);
+}
+
+/** Um WAV pronto para um `<audio>`, a partir de qualquer sequência de notas. */
+export function toDataUrl(passos: ToneStep[]): string {
+  return `data:audio/wav;base64,${toBase64(encodeWav(renderTone(passos)))}`;
 }
 
 const SOUND_KEY = "whatscord.callSounds";
@@ -121,12 +201,18 @@ export function setCallSounds(on: boolean): void {
 /** Elements are reused so the WAV is decoded once, not on every arrival. */
 const players = new Map<string, HTMLAudioElement>();
 
-function playerFor(kind: "join" | "leave"): HTMLAudioElement {
-  let el = players.get(kind);
+function playerFor(timbre: Timbre, tipo: TipoDeAviso): HTMLAudioElement | null {
+  const passos = TOQUES[timbre][tipo];
+  // Timbre mudo não tem forma de onda; devolver um elemento vazio faria um
+  // `play()` inútil a cada mensagem.
+  if (passos.length === 0) return null;
+
+  const chave = `${timbre}:${tipo}`;
+  let el = players.get(chave);
   if (!el) {
-    el = new Audio(cueDataUrl(kind));
+    el = new Audio(toDataUrl(passos));
     el.preload = "auto";
-    players.set(kind, el);
+    players.set(chave, el);
   }
   return el;
 }
@@ -138,13 +224,20 @@ function playerFor(kind: "join" | "leave"): HTMLAudioElement {
  * switched off — that is how someone checks the speaker they just picked.
  */
 export async function playCue(
-  kind: "join" | "leave",
+  kind: TipoDeAviso,
   sinkId?: string,
-  force = false
+  force = false,
+  /*
+   * A conversa de onde o aviso veio. Sem ela cai no timbre padrão — que é o
+   * caso de quase todo aviso, e por isso o parâmetro é o último e opcional.
+   */
+  roomId?: string
 ): Promise<void> {
   if (!force && !callSoundsEnabled()) return;
   try {
-    const el = playerFor(kind);
+    const timbre = (roomId ? timbreDaSala(roomId) : null) ?? "padrao";
+    const el = playerFor(timbre, kind);
+    if (!el) return;
     const sinkable = el as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> };
     if (sinkId && sinkable.setSinkId) {
       await sinkable.setSinkId(sinkId).catch(() => undefined);

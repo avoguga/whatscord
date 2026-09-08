@@ -571,11 +571,27 @@ input, textarea { font: inherit; color: inherit; }
   highlight meant "muted" on the microphone and "camera on" right next to it.
 */
 
+/*
+  A chamada RECOLHIDA ocupa so o espaco da conversa.
+  ---------------------------------------------------------------------------
+  Antes ela era `inset: 0` e cobria tudo, entao trocar de espaco ou ler outro
+  grupo exigia minimiza-la — o que a reduz a uma tarja e some com o video. Com
+  a barra de espacos e a lista de conversas a vista, a chamada vira mais uma
+  parte do app em vez de um modo a parte, e da para navegar sem sair dela.
+
+  As medidas vem das mesmas variaveis que desenham o resto da tela, entao a
+  chamada acompanha sozinha quando o rail encolhe nos tamanhos menores.
+*/
 .call-sheet {
-  position: fixed; inset: 0; z-index: 40;
+  position: fixed; z-index: 40;
+  top: 0; bottom: 0; right: 0;
+  left: calc(var(--rail-w) + var(--list-w));
   background: var(--call-bg);
   display: flex; flex-direction: column;
+  border-left: 1px solid var(--divider);
 }
+/* Expandida: cobre a janela, que e o que se quer com alguem apresentando. */
+.call-sheet.expandida { left: 0; border-left: 0; }
 
 .call-top {
   flex: 0 0 auto;
@@ -734,6 +750,62 @@ input, textarea { font: inherit; color: inherit; }
   .row-slot.com-entrar .row { padding-right: 66px; }
 }
 
+/* ---- o som de cada conversa ---- */
+
+.timbre-lista { display: flex; flex-direction: column; min-width: 210px; }
+.timbre-titulo {
+  margin: 2px 10px 6px; font-size: 11.5px;
+  text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim);
+}
+.timbre-item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  padding: 8px 10px; border-radius: 6px; text-align: left;
+  font-size: 13.5px; color: var(--text);
+}
+.timbre-item em {
+  font-style: normal; font-size: 12px; color: var(--text-faint);
+}
+.timbre-item:hover { background: var(--hover); }
+.timbre-item.on { background: var(--accent-soft); }
+.timbre-feito {
+  margin-top: 4px; padding: 8px 10px; border-radius: 6px;
+  color: var(--accent-bright); font-size: 13.5px; text-align: left;
+}
+.timbre-feito:hover { background: var(--accent-softer); }
+
+/* ---- lado da lista de participantes, e recolher ---- */
+
+/*
+  O lado e resolvido com `order` no flex, e nao trocando a ordem no JSX: a
+  ordem do DOM continua sendo palco, conversa, lista — que e a ordem em que faz
+  sentido LER com um leitor de tela e navegar com Tab, independente de onde os
+  paineis foram parar visualmente.
+*/
+.call-sheet.roster-esquerda .call-roster { order: -1; border-left: 0; border-right: 1px solid var(--divider); }
+.call-sheet.roster-esquerda .call-chat { order: -2; }
+
+.roster-barra {
+  display: flex; align-items: center; gap: 2px;
+  padding: var(--gap-2) var(--gap-2) 0;
+}
+.roster-recolher, .roster-lado {
+  width: 28px; height: 28px; border-radius: 6px;
+  display: grid; place-items: center;
+  color: var(--text-dim); font-size: 13px;
+  position: relative;
+}
+.roster-recolher:hover, .roster-lado:hover { background: var(--hover); color: var(--text); }
+/* Fechada, a seta aponta para o lado de onde a lista vem — o gesto de trazer
+   de volta fica desenhado no proprio botao. */
+.call-roster.fechada .roster-recolher { transform: rotate(90deg); }
+.call-sheet.roster-esquerda .call-roster.fechada .roster-recolher { transform: rotate(-90deg); }
+
+/*
+  Fechada, sobra so a coluna do botao. Nao vira largura zero de proposito: sem
+  nada visivel nao haveria como reabrir, e "recolher" viraria "perder".
+*/
+.call-roster.fechada { flex: 0 0 44px; padding-top: 0; overflow: hidden; }
+
 /* ---- a conversa do canal, ao lado da chamada ---- */
 
 .call-chat {
@@ -871,8 +943,17 @@ input, textarea { font: inherit; color: inherit; }
 @keyframes live-pulse { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
 
 @media (max-width: 820px) {
+  /*
+    No telefone a chamada cobre tudo sempre: nao ha barra de espacos nem lista
+    de conversas ao lado para deixar a vista — o layout ja mostra um painel por
+    vez. Recolher aqui so deixaria a chamada num pedaco de tela sem ganho.
+  */
+  .call-sheet, .call-sheet.expandida { left: 0; border-left: 0; }
+
   /* The roster moves below the stage rather than eating half a phone screen. */
   .call-body { flex-direction: column; }
+  .call-roster.fechada { flex: 0 0 auto; }
+  .call-sheet.roster-esquerda .call-roster { order: 0; border-right: 0; }
   .call-roster {
     flex: 0 0 auto; max-height: 34vh;
     border-left: 0; border-top: 1px solid var(--divider);

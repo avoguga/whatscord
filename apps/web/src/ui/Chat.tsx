@@ -4,12 +4,13 @@ import { api, fileUrl, uploadFile } from "../lib/api";
 import { clock, daySeparator, fileSize, initials, isImage, isVideo, sameDay } from "../lib/format";
 import { signalTyping, stopTyping } from "../lib/socket";
 import { EmojiPicker } from "./EmojiPicker";
+import { TimbreDaConversa } from "./TimbreDaConversa";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { plural } from "@lingui/core/macro";
 import {
   IconAttach, IconEmoji, IconSend, IconSearch, IconMenu, IconPhone,
   IconVideo, IconChecks, IconCheck, IconClock, IconReply, IconClose, IconFile,
-  IconVoiceRoom, IconBack, IconHash, IconMute, IconUserPlus
+  IconVoiceRoom, IconBack, IconHash, IconMute, IconUserPlus, IconSpeaker
 } from "./icons";
 
 export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void }) {
@@ -38,6 +39,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
   const [draft, setDraft] = useState("");
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [timbreAberto, setTimbreAberto] = useState(false);
   const [findOpen, setFindOpen] = useState(false);
   const [findTerm, setFindTerm] = useState("");
   const [pendingFiles, setPendingFiles] = useState<
@@ -238,6 +240,25 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
                   <IconUserPlus size={17} /> <Trans>How to invite people</Trans>
                 </button>
               )}
+              {/*
+                O som fica aqui, junto de silenciar, porque as duas decisões são
+                a mesma pergunta feita de formas diferentes: quanto esta
+                conversa pode me interromper.
+              */}
+              <button onClick={() => setTimbreAberto(true)}>
+                <IconSpeaker size={17} /> <Trans>Sound for this conversation</Trans>
+              </button>
+            </div>
+          )}
+          {timbreAberto && (
+            <div className="pop-menu right">
+              <TimbreDaConversa
+                roomId={room.id}
+                onFeito={() => {
+                  setTimbreAberto(false);
+                  setMenuOpen(false);
+                }}
+              />
             </div>
           )}
         </div>

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { api, clearTokens, loadTokens, saveTokens } from "./lib/api";
 import { saveTheme, storedTheme, type Theme } from "./lib/theme";
 import { preferenciaSalva, salvarIdioma, type PreferenciaIdioma } from "./lib/i18n";
+import { playCue, timbreDaSala } from "./lib/sounds";
 
 /**
  * Collapses a message list to one entry per message and keeps it in time order.
@@ -725,6 +726,23 @@ export const useStore = create<State>((set, get) => ({
   },
 
   ingestMessage(m) {
+    /*
+     * O som da conversa de origem.
+     *
+     * Só toca quando a conversa TEM um timbre escolhido: um som de mensagem
+     * para tudo seria insuportável num app de grupos, e ninguém pediu isso. O
+     * que se pediu foi distinguir de onde veio — então o som existe só onde
+     * alguém decidiu que aquela conversa merece ser ouvida.
+     *
+     * Não toca para a própria mensagem (o eco do que você acabou de mandar) nem
+     * com a conversa aberta na tela, onde a mensagem já está à vista.
+     */
+    const propria = m.author.id === get().me?.id;
+    const olhando = get().activeRoomId === m.roomId;
+    if (!propria && !olhando && timbreDaSala(m.roomId)) {
+      void playCue("mensagem", undefined, false, m.roomId);
+    }
+
     set((s) => {
       const existing = s.messages[m.roomId];
       // Keep it even for a room whose history has not been fetched yet — the

@@ -332,6 +332,10 @@ msgstr "Chat"
 msgid "Chats"
 msgstr "Chats"
 
+#: src/ui/TimbreDaConversa.tsx
+msgid "Chime"
+msgstr "Chime"
+
 #: src/ui/Call.tsx
 #: src/ui/Modals.tsx
 #: src/ui/Settings.tsx
@@ -437,6 +441,10 @@ msgstr "Create with {0}"
 msgid "Dark"
 msgstr "Dark"
 
+#: src/ui/TimbreDaConversa.tsx
+msgid "Default"
+msgstr "Default"
+
 #. placeholder {0}: pasta.name
 #: src/ui/FolderModal.tsx
 msgid "Delete <0>{0}</0>? The spaces inside go back to the bar on their own. Nothing is removed and nobody is told."
@@ -477,6 +485,7 @@ msgstr "Don't have the desktop app yet? <0>Download it for Windows</0>"
 #: src/ui/Call.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
+#: src/ui/TimbreDaConversa.tsx
 msgid "Done"
 msgstr "Done"
 
@@ -507,6 +516,14 @@ msgstr "Enter your password."
 #: src/ui/Invites.tsx
 msgid "Everyone in the group sees the name and the picture."
 msgstr "Everyone in the group sees the name and the picture."
+
+#: src/ui/Call.tsx
+msgid "Expand the call"
+msgstr "Expand the call"
+
+#: src/ui/Call.tsx
+msgid "Expand to the whole window"
+msgstr "Expand to the whole window"
 
 #: src/ui/EmojiPicker.tsx
 msgid "Faces"
@@ -630,6 +647,15 @@ msgid "Have an invite code?"
 msgstr "Have an invite code?"
 
 #: src/ui/Call.tsx
+#: src/ui/Call.tsx
+msgid "Hide who is here"
+msgstr "Hide who is here"
+
+#: src/ui/TimbreDaConversa.tsx
+msgid "High"
+msgstr "High"
+
+#: src/ui/Call.tsx
 msgid "Hold on while the connection is set up."
 msgstr "Hold on while the connection is set up."
 
@@ -720,6 +746,10 @@ msgstr "Loading earlier messages…"
 msgid "Lounge"
 msgstr "Lounge"
 
+#: src/ui/TimbreDaConversa.tsx
+msgid "Low"
+msgstr "Low"
+
 #: src/ui/Auth.tsx
 msgid "lowercase, no spaces"
 msgstr "lowercase, no spaces"
@@ -775,6 +805,10 @@ msgstr "Microphone options"
 msgid "Minimise — the call keeps running and you go back to the messages"
 msgstr "Minimise — the call keeps running and you go back to the messages"
 
+#: src/ui/Call.tsx
+msgid "Minimise the call"
+msgstr "Minimise the call"
+
 #: src/lib/erros.ts
 msgid "Missing refresh token."
 msgstr "Missing refresh token."
@@ -787,6 +821,16 @@ msgstr "More options"
 #: src/ui/SpaceRail.tsx
 msgid "Move out of the folder"
 msgstr "Move out of the folder"
+
+#: src/ui/Call.tsx
+#: src/ui/Call.tsx
+msgid "Move the list to the left"
+msgstr "Move the list to the left"
+
+#: src/ui/Call.tsx
+#: src/ui/Call.tsx
+msgid "Move the list to the right"
+msgstr "Move the list to the right"
 
 #: src/ui/SpaceRail.tsx
 msgid "Move to {nome}"
@@ -889,6 +933,10 @@ msgstr "No microphone found. You can hear everyone, but they cannot hear you."
 msgid "No microphone was found — the system default will be used."
 msgstr "No microphone was found — the system default will be used."
 
+#: src/ui/TimbreDaConversa.tsx
+msgid "No sound for messages here"
+msgstr "No sound for messages here"
+
 #: src/ui/DevicePicker.tsx
 msgid "No speaker was found — the system default will be used."
 msgstr "No speaker was found — the system default will be used."
@@ -905,6 +953,10 @@ msgstr "Nobody here goes by that."
 #: src/ui/Sidebar.tsx
 msgid "Nobody here right now"
 msgstr "Nobody here right now"
+
+#: src/ui/TimbreDaConversa.tsx
+msgid "None"
+msgstr "None"
 
 #: src/lib/erros.ts
 msgid "None of those accounts exist."
@@ -1252,6 +1304,19 @@ msgstr "Sharing without sound. To include it, share again and tick “Also share
 #~ msgid "Sharpest for code, documents and spreadsheets. 15 frames per second."
 #~ msgstr "Sharpest for code, documents and spreadsheets. 15 frames per second."
 
+#: src/ui/Call.tsx
+#: src/ui/Call.tsx
+msgid "Show who is here"
+msgstr "Show who is here"
+
+#: src/ui/Call.tsx
+msgid "Shrink — show the other spaces"
+msgstr "Shrink — show the other spaces"
+
+#: src/ui/Call.tsx
+msgid "Shrink the call"
+msgstr "Shrink the call"
+
 #: src/ui/Auth.tsx
 #: src/ui/Auth.tsx
 msgid "Sign in"
@@ -1281,6 +1346,10 @@ msgstr "Signed out."
 msgid "Signing out clears this session on this device. Anything you sent stays where it is."
 msgstr "Signing out clears this session on this device. Anything you sent stays where it is."
 
+#: src/ui/TimbreDaConversa.tsx
+msgid "Silent"
+msgstr "Silent"
+
 #: src/ui/Call.tsx
 #~ msgid "Smoother for video and games, at the cost of some sharpness. 30 frames per second."
 #~ msgstr "Smoother for video and games, at the cost of some sharpness. 30 frames per second."
@@ -1298,6 +1367,11 @@ msgstr "Something broke on our side. Try again."
 #: src/lib/api.ts
 msgid "Something went wrong. Try again."
 msgstr "Something went wrong. Try again."
+
+#: src/ui/Chat.tsx
+#: src/ui/TimbreDaConversa.tsx
+msgid "Sound for this conversation"
+msgstr "Sound for this conversation"
 
 #: src/ui/Call.tsx
 #: src/ui/ShareQuality.tsx

@@ -111,6 +111,18 @@ export const IconMinimize = ({ size }: P) => (
 export const IconSpeaker = ({ size }: P) => (
   <svg {...base(size ?? 18)}><path d="M11 5 6 9H2v6h4l5 4V5z" /><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5" /></svg>
 );
+/*
+ * Expandir e recolher a chamada. Os dois desenhos sao o mesmo par de setas em
+ * sentidos opostos — quatro cantos apontando para FORA quer dizer "ocupe a tela
+ * toda", e para DENTRO quer dizer "volte para o painel".
+ */
+export const IconExpandir = ({ size }: P) => (
+  <svg {...base(size ?? 20)}><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+);
+export const IconRecolher = ({ size }: P) => (
+  <svg {...base(size ?? 20)}><path d="M14 10h6V4M10 14H4v6M20 4l-6 6M4 20l6-6" /></svg>
+);
+
 export const IconChevronDown = ({ size }: P) => (
   <svg {...base(size)}><path d="m6 9 6 6 6-6" /></svg>
 );

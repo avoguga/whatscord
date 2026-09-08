@@ -332,6 +332,10 @@ msgstr "Conversa"
 msgid "Chats"
 msgstr "Conversas"
 
+#: src/ui/TimbreDaConversa.tsx
+msgid "Chime"
+msgstr "Sino"
+
 #: src/ui/Call.tsx
 #: src/ui/Modals.tsx
 #: src/ui/Settings.tsx
@@ -437,6 +441,10 @@ msgstr "Criar com {0}"
 msgid "Dark"
 msgstr "Escuro"
 
+#: src/ui/TimbreDaConversa.tsx
+msgid "Default"
+msgstr "Padrão"
+
 #. placeholder {0}: pasta.name
 #: src/ui/FolderModal.tsx
 msgid "Delete <0>{0}</0>? The spaces inside go back to the bar on their own. Nothing is removed and nobody is told."
@@ -477,6 +485,7 @@ msgstr "Ainda não tem o aplicativo? <0>Baixe para Windows</0>"
 #: src/ui/Call.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
+#: src/ui/TimbreDaConversa.tsx
 msgid "Done"
 msgstr "Pronto"
 
@@ -507,6 +516,14 @@ msgstr "Digite sua senha."
 #: src/ui/Invites.tsx
 msgid "Everyone in the group sees the name and the picture."
 msgstr "Todo mundo do grupo vê o nome e a foto."
+
+#: src/ui/Call.tsx
+msgid "Expand the call"
+msgstr "Expandir a chamada"
+
+#: src/ui/Call.tsx
+msgid "Expand to the whole window"
+msgstr "Expandir para a janela toda"
 
 #: src/ui/EmojiPicker.tsx
 msgid "Faces"
@@ -630,6 +647,15 @@ msgid "Have an invite code?"
 msgstr "Tem um código de convite?"
 
 #: src/ui/Call.tsx
+#: src/ui/Call.tsx
+msgid "Hide who is here"
+msgstr "Esconder quem está aqui"
+
+#: src/ui/TimbreDaConversa.tsx
+msgid "High"
+msgstr "Agudo"
+
+#: src/ui/Call.tsx
 msgid "Hold on while the connection is set up."
 msgstr "Aguarde enquanto a conexão é estabelecida."
 
@@ -720,6 +746,10 @@ msgstr "Carregando mensagens anteriores…"
 msgid "Lounge"
 msgstr "Sala de estar"
 
+#: src/ui/TimbreDaConversa.tsx
+msgid "Low"
+msgstr "Grave"
+
 #: src/ui/Auth.tsx
 msgid "lowercase, no spaces"
 msgstr "minúsculas, sem espaços"
@@ -775,6 +805,10 @@ msgstr "Opções de microfone"
 msgid "Minimise — the call keeps running and you go back to the messages"
 msgstr "Minimizar — a chamada continua e você volta para as mensagens"
 
+#: src/ui/Call.tsx
+msgid "Minimise the call"
+msgstr "Minimizar a chamada"
+
 #: src/lib/erros.ts
 msgid "Missing refresh token."
 msgstr "Falta o token de renovação."
@@ -787,6 +821,16 @@ msgstr "Mais opções"
 #: src/ui/SpaceRail.tsx
 msgid "Move out of the folder"
 msgstr "Tirar da pasta"
+
+#: src/ui/Call.tsx
+#: src/ui/Call.tsx
+msgid "Move the list to the left"
+msgstr "Mover a lista para a esquerda"
+
+#: src/ui/Call.tsx
+#: src/ui/Call.tsx
+msgid "Move the list to the right"
+msgstr "Mover a lista para a direita"
 
 #: src/ui/SpaceRail.tsx
 msgid "Move to {nome}"
@@ -889,6 +933,10 @@ msgstr "Nenhum microfone encontrado. Você ouve todo mundo, mas ninguém ouve vo
 msgid "No microphone was found — the system default will be used."
 msgstr "Nenhum microfone foi encontrado — será usado o padrão do sistema."
 
+#: src/ui/TimbreDaConversa.tsx
+msgid "No sound for messages here"
+msgstr "Sem som para mensagens daqui"
+
 #: src/ui/DevicePicker.tsx
 msgid "No speaker was found — the system default will be used."
 msgstr "Nenhuma saída de som foi encontrada — será usada a padrão do sistema."
@@ -905,6 +953,10 @@ msgstr "Ninguém aqui atende por esse nome."
 #: src/ui/Sidebar.tsx
 msgid "Nobody here right now"
 msgstr "Ninguém aqui agora"
+
+#: src/ui/TimbreDaConversa.tsx
+msgid "None"
+msgstr "Nenhum"
 
 #: src/lib/erros.ts
 msgid "None of those accounts exist."
@@ -1252,6 +1304,19 @@ msgstr "Compartilhando sem som. Para incluí-lo, compartilhe de novo e marque �
 #~ msgid "Sharpest for code, documents and spreadsheets. 15 frames per second."
 #~ msgstr "Mais nítido para código, documentos e planilhas. 15 quadros por segundo."
 
+#: src/ui/Call.tsx
+#: src/ui/Call.tsx
+msgid "Show who is here"
+msgstr "Mostrar quem está aqui"
+
+#: src/ui/Call.tsx
+msgid "Shrink — show the other spaces"
+msgstr "Encolher — mostrar os outros espaços"
+
+#: src/ui/Call.tsx
+msgid "Shrink the call"
+msgstr "Encolher a chamada"
+
 #: src/ui/Auth.tsx
 #: src/ui/Auth.tsx
 msgid "Sign in"
@@ -1281,6 +1346,10 @@ msgstr "Sessão encerrada."
 msgid "Signing out clears this session on this device. Anything you sent stays where it is."
 msgstr "Sair da conta encerra esta sessão neste aparelho. O que você enviou continua onde está."
 
+#: src/ui/TimbreDaConversa.tsx
+msgid "Silent"
+msgstr "Mudo"
+
 #: src/ui/Call.tsx
 #~ msgid "Smoother for video and games, at the cost of some sharpness. 30 frames per second."
 #~ msgstr "Mais fluido para vídeo e jogos, com alguma perda de nitidez. 30 quadros por segundo."
@@ -1298,6 +1367,11 @@ msgstr "Algo quebrou do nosso lado. Tente de novo."
 #: src/lib/api.ts
 msgid "Something went wrong. Try again."
 msgstr "Algo deu errado. Tente de novo."
+
+#: src/ui/Chat.tsx
+#: src/ui/TimbreDaConversa.tsx
+msgid "Sound for this conversation"
+msgstr "Som desta conversa"
 
 #: src/ui/Call.tsx
 #: src/ui/ShareQuality.tsx

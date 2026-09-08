@@ -24,6 +24,15 @@ import {
 } from "../lib/devices";
 import { playCue } from "../lib/sounds";
 import {
+  chamadaExpandida,
+  ladoDoRoster,
+  rosterAberto,
+  salvarChamadaExpandida,
+  salvarLadoDoRoster,
+  salvarRosterAberto,
+  type LadoDoRoster
+} from "../lib/layoutChamada";
+import {
   canShareScreen,
   captureOptions,
   loadQualidade,
@@ -42,6 +51,7 @@ import { CallChat } from "./CallChat";
 import {
   IconMic, IconMicOff, IconVideo, IconVideoOff, IconScreen, IconChats,
   IconHangup, IconMinimize, IconSignal, IconSpeaker, IconSettings, IconClose,
+  IconExpandir, IconRecolher, IconChevronDown as IconSeta,
   IconChevronDown
 } from "./icons";
 
@@ -113,6 +123,9 @@ export function CallSheet({
   /* O menu rapido do botao de compartilhar, e o painel de conversa. */
   const [menuTela, setMenuTela] = useState(false);
   const [chatAberto, setChatAberto] = useState(false);
+  const [expandida, setExpandida] = useState(() => chamadaExpandida());
+  const [lado, setLado] = useState<LadoDoRoster>(() => ladoDoRoster());
+  const [listaAberta, setListaAberta] = useState(() => rosterAberto());
 
   /*
    * Uma chamada abre pela câmera frontal — é a de quem fala. Guardamos o lado em
@@ -126,6 +139,18 @@ export function CallSheet({
 
   const [revision, setRevision] = useState(0);
   const bump = () => setRevision((n) => n + 1);
+
+  /*
+   * Sair com som.
+   *
+   * Tem que tocar ANTES de `onClose`: quem fecha desmonta este componente, e um
+   * som disparado depois nunca chega a sair. Por isso a saída passa por aqui em
+   * vez de chamar `onClose` direto nos botões.
+   */
+  const sair = useCallback(() => {
+    void playCue("leave", outputRef.current, false, roomId);
+    onClose();
+  }, [onClose]);
 
   const onCloseRef = useRef(onClose);
   useEffect(() => {
@@ -181,12 +206,12 @@ export function CallSheet({
             // Sound plus a line on screen: someone arriving used to change
             // nothing but a number in the corner, which was easy to miss.
             pushEvent(`${nameFor(p.identity, p.name)} joined the call`);
-            void playCue("join", outputRef.current);
+            void playCue("join", outputRef.current, false, roomId);
             bump();
           })
           .on(RoomEvent.ParticipantDisconnected, (p: RemoteParticipant) => {
             pushEvent(`${nameFor(p.identity, p.name)} left the call`);
-            void playCue("leave", outputRef.current);
+            void playCue("leave", outputRef.current, false, roomId);
             bump();
           })
           .on(RoomEvent.LocalTrackPublished, () => bump())
@@ -237,6 +262,16 @@ export function CallSheet({
         await room.connect(res.url, res.token);
         if (cancelled) return;
         setStatus("connected");
+        /*
+         * O som de ENTRAR, para quem entrou.
+         *
+         * Os avisos sonoros só tocavam em `ParticipantConnected` e
+         * `ParticipantDisconnected` — ou seja, só quando OUTRA pessoa chegava
+         * ou saía. Quem entrava numa sala vazia não ouvia absolutamente nada, e
+         * ficava sem saber se a chamada tinha conectado. É o momento em que a
+         * confirmação mais importa, e era justamente o que faltava.
+         */
+        void playCue("join", outputRef.current, false, roomId);
         setAudioBlocked(!room.canPlaybackAudio);
 
         // Publishing is best effort: no microphone must not keep you out.
@@ -478,7 +513,7 @@ export function CallSheet({
           <button className="ribbon-open" onClick={() => setMinimized(false)}>
             <Trans>Open the call</Trans>
           </button>
-          <button className="ribbon-hangup" onClick={onClose}>
+          <button className="ribbon-hangup" onClick={sair}>
             Leave
           </button>
         </div>
@@ -487,22 +522,51 @@ export function CallSheet({
   }
 
   return (
-    <div className="call-sheet" role="dialog" aria-label={`Call in ${callName}`}>
+    <div
+      className={`call-sheet${expandida ? " expandida" : ""} roster-${lado}`}
+      role="dialog"
+      aria-label={`Call in ${callName}`}
+    >
       <RemoteAudio tracks={audioTracks} sinkId={outputId} />
 
       <header className="call-top">
         <button
           className="icon-btn"
           onClick={() => setMinimized(true)}
-          title={t`Minimise — the call keeps running and you go back to the messages`}
+          data-tip={t`Minimise — the call keeps running and you go back to the messages`}
+          aria-label={t`Minimise the call`}
         >
           <IconMinimize />
+        </button>
+        {/*
+          Expandir e recolher.
+          ---------------------------------------------------------------
+          Recolhida, a chamada ocupa só o espaço da conversa e a barra de
+          espaços e a lista de grupos continuam à vista — dá para trocar de
+          servidor sem sair da chamada. Expandida, cobre a janela toda, que é
+          o que se quer quando alguém está apresentando a tela.
+
+          Não é o mesmo que minimizar: minimizar troca o vídeo por uma tarja;
+          isto só decide quanta tela a chamada ocupa.
+        */}
+        <button
+          className="icon-btn"
+          onClick={() => {
+            const v = !expandida;
+            setExpandida(v);
+            salvarChamadaExpandida(v);
+          }}
+          data-tip={expandida ? t`Shrink — show the other spaces` : t`Expand to the whole window`}
+          aria-label={expandida ? t`Shrink the call` : t`Expand the call`}
+          aria-pressed={expandida}
+        >
+          {expandida ? <IconRecolher /> : <IconExpandir />}
         </button>
         <div className="call-top-title">
           <strong>{callName}</strong>
           <span className={status === "failed" ? "bad" : undefined}>{statusLabel}</span>
         </div>
-        <button className="call-leave-top" onClick={onClose} title={t`Leave the call`}>
+        <button className="call-leave-top" onClick={sair} title={t`Leave the call`}>
           <IconHangup size={18} /> Leave
         </button>
       </header>
@@ -574,7 +638,50 @@ export function CallSheet({
         {/* The roster is the answer to "who is here and who is not". */}
         {chatAberto && <CallChat roomId={roomId} onClose={() => setChatAberto(false)} />}
 
-        <aside className="call-roster" aria-label={t`Who is on the call`}>
+        <aside
+          className={`call-roster${listaAberta ? "" : " fechada"}`}
+          aria-label={t`Who is on the call`}
+        >
+          {/*
+            A barra fica mesmo com a lista fechada: é ela que devolve a lista.
+            Recolher para um estado sem volta seria pior do que não recolher.
+          */}
+          <div className="roster-barra">
+            <button
+              className="roster-recolher"
+              onClick={() => {
+                const v = !listaAberta;
+                setListaAberta(v);
+                salvarRosterAberto(v);
+              }}
+              aria-expanded={listaAberta}
+              data-tip={listaAberta ? t`Hide who is here` : t`Show who is here`}
+              aria-label={listaAberta ? t`Hide who is here` : t`Show who is here`}
+            >
+              <IconSeta size={16} />
+            </button>
+            {listaAberta && (
+              <button
+                className="roster-lado"
+                onClick={() => {
+                  const v: LadoDoRoster = lado === "direita" ? "esquerda" : "direita";
+                  setLado(v);
+                  salvarLadoDoRoster(v);
+                }}
+                data-tip={
+                  lado === "direita" ? t`Move the list to the left` : t`Move the list to the right`
+                }
+                aria-label={
+                  lado === "direita" ? t`Move the list to the left` : t`Move the list to the right`
+                }
+              >
+                {lado === "direita" ? "\u2190" : "\u2192"}
+              </button>
+            )}
+          </div>
+
+          {listaAberta && (
+            <>
           <p className="roster-head">In the call · {inCall.length || (status === "connected" ? 1 : 0)}</p>
           {inCall.length === 0 && status === "connected" && (
             <RosterRow
@@ -609,6 +716,8 @@ export function CallSheet({
               {away.map((u) => (
                 <RosterRow key={u.id} name={u.displayName} avatarUrl={u.avatarUrl} />
               ))}
+            </>
+          )}
             </>
           )}
         </aside>
@@ -757,7 +866,7 @@ export function CallSheet({
           onClick={() => setShowDevices((v) => !v)}
           icon={<IconSettings />}
         />
-        <CallButton label={t`Leave`} hangup onClick={onClose} icon={<IconHangup />} />
+        <CallButton label={t`Leave`} hangup onClick={sair} icon={<IconHangup />} />
       </div>
 
       {showDevices && (
