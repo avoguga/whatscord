@@ -609,7 +609,10 @@ input, textarea { font: inherit; color: inherit; }
 }
 .call-banner.bad { background: var(--danger-soft); color: var(--danger-text); }
 
-.call-body { flex: 1; min-height: 0; display: flex; }
+/* `position: relative` por causa da conversa no celular, que vira uma folha
+   posicionada sobre o palco. Sem isto ela se ancoraria na janela e cobriria a
+   barra de controles. */
+.call-body { flex: 1; min-height: 0; display: flex; position: relative; }
 
 .call-stage {
   flex: 1; min-width: 0; min-height: 0;
@@ -706,6 +709,84 @@ input, textarea { font: inherit; color: inherit; }
   border-radius: 6px; padding: 3px 5px; display: grid; place-items: center;
 }
 
+/* ---- entrar na chamada direto pela linha do canal ---- */
+
+.row-slot { position: relative; }
+/* Espaco para o botao nao pisar no nome do canal nem na previa. */
+.row-slot.com-entrar .row { padding-right: 56px; }
+.row-join {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  width: 34px; height: 34px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--input); color: var(--text-dim);
+  opacity: 0; transition: opacity 120ms ease, background 120ms ease;
+}
+.row-slot:hover .row-join,
+.row-join:focus-visible { opacity: 1; }
+.row-join:hover { background: var(--accent); color: var(--accent-ink); }
+/*
+  No toque nao existe passar o mouse: o botao fica sempre visivel, e com o alvo
+  de 44px que o resto do app usa. Esconder o unico caminho para entrar na
+  chamada atras de um gesto que o aparelho nao tem seria o mesmo que nao ter.
+*/
+@media (hover: none) {
+  .row-join { opacity: 1; width: 44px; height: 44px; }
+  .row-slot.com-entrar .row { padding-right: 66px; }
+}
+
+/* ---- a conversa do canal, ao lado da chamada ---- */
+
+.call-chat {
+  flex: 0 0 320px;
+  background: var(--panel);
+  border-left: 1px solid var(--divider);
+  display: flex; flex-direction: column; min-height: 0;
+}
+.call-chat > header {
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--gap-2);
+  padding: var(--gap-3) var(--gap-3) var(--gap-2);
+  border-bottom: 1px solid var(--divider);
+}
+.call-chat-list {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: var(--gap-3); display: flex; flex-direction: column; gap: var(--gap-3);
+}
+.call-chat-empty { margin: auto; color: var(--text-faint); font-size: 13px; }
+.call-chat-msg { display: flex; gap: var(--gap-2); align-items: flex-start; }
+.call-chat-msg > div { display: flex; flex-direction: column; min-width: 0; }
+.call-chat-quem { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.call-chat-quem em {
+  font-style: normal; font-weight: 400; font-size: 11px;
+  color: var(--text-faint); margin-left: 5px;
+}
+.call-chat-texto {
+  font-size: 13.5px; color: var(--text-dim);
+  white-space: pre-wrap; word-break: break-word;
+}
+/* A propria mensagem nao ganha balao verde: numa coluna estreita, ao lado de
+   video, um balao por linha vira ruido. O nome ja diz de quem e. */
+.call-chat-msg.mine .call-chat-quem { color: var(--accent-bright); }
+
+.call-chat-composer {
+  flex: 0 0 auto; display: flex; gap: var(--gap-2);
+  padding: var(--gap-2) var(--gap-3) var(--gap-3);
+  border-top: 1px solid var(--divider);
+}
+.call-chat-composer input {
+  flex: 1; min-width: 0;
+  background: var(--input); border: 1px solid transparent;
+  border-radius: 8px; padding: 9px 11px; outline: none;
+}
+.call-chat-composer input:focus-visible { border-color: var(--accent); }
+.call-chat-composer button {
+  flex: 0 0 auto; width: 38px; border-radius: 8px;
+  display: grid; place-items: center;
+  background: var(--accent); color: var(--accent-ink);
+}
+.call-chat-composer button:disabled { background: var(--divider); color: var(--text-faint); }
+
 /* ---- who is here and who is not ---- */
 
 .call-roster {
@@ -796,6 +877,22 @@ input, textarea { font: inherit; color: inherit; }
     flex: 0 0 auto; max-height: 34vh;
     border-left: 0; border-top: 1px solid var(--divider);
   }
+  /*
+    A conversa vira folha por cima do palco, e nao mais uma coluna: numa tela de
+    telefone, tirar 320px do video para caber texto deixa os dois inuteis. Fica
+    por cima do palco mas ACIMA da barra de controles, para nao cobrir o botao
+    de sair — que e o unico que a pessoa precisa achar as pressas.
+  */
+  .call-chat {
+    position: absolute; left: 0; right: 0;
+    top: 0; bottom: var(--call-bar-h);
+    flex: 1 1 auto; z-index: 6;
+    border-left: 0; border-top: 1px solid var(--divider);
+  }
+
+  /* Alvo de toque de 44px, o mesmo minimo usado no resto do app. */
+  .share-chip { min-height: 44px; padding: 10px 16px; }
+
   .call-bar { gap: var(--gap-4); padding: var(--gap-3) var(--gap-2) var(--gap-4); }
   .call-btn { width: 46px; height: 46px; }
   .call-btn.hangup { width: 58px; }
@@ -1041,6 +1138,16 @@ input, textarea { font: inherit; color: inherit; }
 /* 90ms, not the ~1s of a native title: the rail is unlabelled, so the tooltip
    is the label and it has to arrive at the speed of a glance. */
 [data-tip]:hover::after, [data-tip]:focus-visible::after { opacity: 1; }
+
+/*
+  A dica a direita serve ao rail, que fica colado na borda esquerda. Nos icones
+  do cabecalho da conversa — que ficam colados na borda DIREITA — ela sairia da
+  tela, entao esses pedem `data-tip-pos="baixo"`.
+*/
+[data-tip][data-tip-pos="baixo"]::after {
+  left: auto; right: 0; top: calc(100% + 8px);
+  transform: none;
+}
 
 .rail-badge {
   position: absolute; top: -2px; right: -2px;
@@ -1503,16 +1610,31 @@ input, textarea { font: inherit; color: inherit; }
 }
 
 /* Escolha entre nitidez e fluidez no compartilhamento de tela. */
-.share-modes { display: flex; flex-direction: column; gap: var(--gap-2); }
-.share-mode {
-  display: flex; align-items: flex-start; gap: var(--gap-2);
-  padding: var(--gap-2); border-radius: 8px; cursor: pointer;
+/* ---- qualidade do compartilhamento de tela ---- */
+
+.share-quality { display: flex; flex-direction: column; gap: var(--gap-3); }
+.share-row { display: flex; flex-direction: column; gap: 6px; }
+.share-row-label {
+  font-size: 12px; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.04em;
 }
-.share-mode:hover { background: var(--hover); }
-.share-mode input { margin-top: 3px; accent-color: var(--accent); flex: 0 0 auto; }
-.share-mode span { display: flex; flex-direction: column; gap: 2px; }
-.share-mode strong { font-size: 13.5px; font-weight: 500; color: var(--text); }
-.share-mode em { font-style: normal; font-size: 12.5px; color: var(--text-dim); line-height: 1.4; }
+.share-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.share-chip {
+  padding: 7px 12px; border-radius: 999px;
+  border: 1px solid var(--divider); background: transparent;
+  color: var(--text-dim); font-size: 13px; font-weight: 500;
+  /* 34px de altura util no mouse; no toque a regra de 44px vem mais abaixo. */
+  min-height: 34px;
+}
+.share-chip:hover { border-color: var(--accent); color: var(--text); }
+.share-chip.on {
+  background: var(--accent-soft); border-color: var(--accent); color: var(--text);
+}
+.share-note { margin: 0; font-size: 12.5px; color: var(--text-dim); line-height: 1.45; }
+
+/* O menu rapido do botao de compartilhar precisa de mais largura que o de
+   dispositivos: sao duas fileiras de pastilhas, e a 260px "Fonte" quebra. */
+.quick-menu.quick-menu-wide { width: 300px; }
 
 /* Um controle indisponivel tem que parecer indisponivel, nao quebrado. */
 .call-ctl:disabled { opacity: 0.4; cursor: not-allowed; }

@@ -25,6 +25,7 @@ const CallSheet = lazy(() => import("./ui/Call").then((m) => ({ default: m.CallS
 
 export default function App() {
   const { t } = useLingui();
+  const startCall = useStore((s) => s.startCall);
   const me = useStore((s) => s.me);
   const booting = useStore((s) => s.booting);
   const bootstrap = useStore((s) => s.bootstrap);
@@ -33,7 +34,8 @@ export default function App() {
   const joinSpaceByCode = useStore((s) => s.joinSpaceByCode);
   const notify = useStore((s) => s.notify);
 
-  const [call, setCall] = useState<{ roomId: string; video: boolean } | null>(null);
+  const call = useStore((s) => s.call);
+  const endCall = useStore((s) => s.endCall);
   /** Convite chegado pela web, esperando a pessoa escolher app ou navegador. */
   const [gate, setGate] = useState<string | null>(null);
 
@@ -111,10 +113,18 @@ export default function App() {
     return () => disconnectSocket();
   }, [me]);
 
-  // Leaving a conversation should not silently drop the call you are on.
-  useEffect(() => {
-    if (call && activeRoomId !== call.roomId) setCall(null);
-  }, [activeRoomId, call]);
+  /*
+   * Trocar de conversa NÃO derruba mais a chamada.
+   *
+   * O que existia aqui fechava a chamada assim que a pessoa abria outro canal —
+   * e o comentário que acompanhava dizia justamente o contrário do que o código
+   * fazia. Na prática, minimizar a chamada e clicar em qualquer conversa
+   * desligava o áudio de todo mundo sem aviso.
+   *
+   * Sair de uma chamada é uma decisão, não um efeito colateral de navegar. Agora
+   * só o botão de sair encerra, e a tarja de chamada em andamento continua
+   * visível enquanto se lê outro canal.
+   */
 
   if (gate) {
     return (
@@ -147,7 +157,7 @@ export default function App() {
     // after that. On a wide screen it has no effect.
     <div className="app" data-room-open={activeRoomId ? "true" : "false"}>
       <Sidebar />
-      <Chat onStartCall={(video) => activeRoomId && setCall({ roomId: activeRoomId, video })} />
+      <Chat onStartCall={(video) => activeRoomId && startCall(activeRoomId, video)} />
       {call && (
         <Suspense
           fallback={
@@ -156,7 +166,7 @@ export default function App() {
             </div>
           }
         >
-          <CallSheet roomId={call.roomId} withVideo={call.video} onClose={() => setCall(null)} />
+          <CallSheet roomId={call.roomId} withVideo={call.video} onClose={endCall} />
         </Suspense>
       )}
       <Toasts />

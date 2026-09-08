@@ -30,10 +30,19 @@ import {
   type ToneStep
 } from "../apps/web/src/lib/sounds";
 import {
+  bitrateDe,
   captureOptions,
-  loadShareMode,
+  ehFps,
+  ehResolucao,
+  loadQualidade,
   publishOptions,
-  type ShareMode
+  QUALIDADE_PADRAO,
+  RESOLUCOES,
+  TAXAS,
+  resumo,
+  type Fps,
+  type Qualidade,
+  type Resolucao
 } from "../apps/web/src/lib/screenshare";
 
 let passed = 0;
@@ -350,89 +359,179 @@ check(
 // ---------------------------------------------------------------------------
 section("compartilhamento de tela — o que se pede ao navegador");
 
-for (const mode of ["text", "motion"] as ShareMode[]) {
-  const c = captureOptions(mode);
-  check(`[${mode}] pede áudio junto`, c.audio === true);
+const q = (resolucao: Resolucao, fps: Fps): Qualidade => ({ resolucao, fps });
+
+for (const alvo of [q(720, 15), q(1080, 30), q(1440, 60), q(0, 60)]) {
+  const nome = `${alvo.resolucao}p${alvo.fps}`;
+  const c = captureOptions(alvo);
+  check(`[${nome}] pede áudio junto`, c.audio === true);
   check(
-    `[${mode}] pede que o som do sistema seja OFERECIDO no diálogo`,
+    `[${nome}] pede que o som do sistema seja OFERECIDO no diálogo`,
     c.systemAudio === "include",
     "include",
     c.systemAudio
   );
   check(
-    `[${mode}] não oferece compartilhar a própria aba (efeito túnel)`,
+    `[${nome}] não oferece compartilhar a própria aba (efeito túnel)`,
     c.selfBrowserSurface === "exclude"
   );
   check(
-    `[${mode}] deixa trocar a aba compartilhada sem recomeçar`,
+    `[${nome}] deixa trocar a aba compartilhada sem recomeçar`,
     c.surfaceSwitching === "include"
   );
   check(
-    `[${mode}] evita eco do próprio áudio em quem compartilha`,
+    `[${nome}] evita eco do próprio áudio em quem compartilha`,
     c.suppressLocalAudioPlayback === true
   );
 }
 
+/*
+ * O CORAÇÃO DA QUEIXA DE "POUCOS FPS".
+ *
+ * Sem `frameRate` na captura, nenhum ajuste do lado da publicação produz 60:
+ * o codificador não inventa quadro que a fonte não gerou. Este é o teste que
+ * trava a regressão.
+ */
+for (const fps of TAXAS) {
+  const c = captureOptions(q(1080, fps));
+  check(
+    `[${fps} fps] a captura PEDE a taxa ao navegador`,
+    c.resolution?.frameRate === fps,
+    fps,
+    c.resolution?.frameRate
+  );
+}
+
 check(
-  "texto pede contentHint 'text' (preserva borda, não borra letra)",
-  captureOptions("text").contentHint === "text",
+  "1080p pede 1920 de largura, mantendo 16:9",
+  captureOptions(q(1080, 30)).resolution?.width === 1920,
+  1920,
+  captureOptions(q(1080, 30)).resolution?.width
+);
+check(
+  "1440p pede 2560 de largura",
+  captureOptions(q(1440, 60)).resolution?.width === 2560,
+  2560,
+  captureOptions(q(1440, 60)).resolution?.width
+);
+check(
+  "'fonte' não manda medida nenhuma (um teto aqui seria o oposto do que a opção promete)",
+  captureOptions(q(0, 60)).resolution === undefined,
+  undefined,
+  captureOptions(q(0, 60)).resolution
+);
+
+check(
+  "15 quadros pede contentHint 'text' (preserva borda, não borra letra)",
+  captureOptions(q(1080, 15)).contentHint === "text",
   "text",
-  captureOptions("text").contentHint
+  captureOptions(q(1080, 15)).contentHint
 );
-check(
-  "movimento pede contentHint 'motion'",
-  captureOptions("motion").contentHint === "motion"
-);
+for (const fps of [30, 60] as Fps[]) {
+  check(
+    `${fps} quadros pede contentHint 'motion'`,
+    captureOptions(q(1080, fps)).contentHint === "motion"
+  );
+}
 
 // ---------------------------------------------------------------------------
 section("compartilhamento de tela — como se publica");
 
 /*
- * A correção que mais pesa: o padrão do LiveKit publica três camadas e reparte
- * entre elas o mesmo teto de banda, então a camada boa recebia uma fração dos
- * 2.5 Mbps. Se este teste falhar, a qualidade regrediu.
+ * A correção que mais pesa: o padrão do LiveKit publica duas camadas na tela e
+ * reparte entre elas o mesmo teto de banda, então a camada boa recebia uma
+ * fração. Se este teste falhar, a qualidade regrediu.
  */
-for (const mode of ["text", "motion"] as ShareMode[]) {
-  check(`[${mode}] simulcast DESLIGADO na tela`, publishOptions(mode).simulcast === false);
+for (const alvo of [q(720, 15), q(1080, 30), q(1440, 60)]) {
+  const nome = `${alvo.resolucao}p${alvo.fps}`;
+  check(`[${nome}] simulcast DESLIGADO na tela`, publishOptions(alvo).simulcast === false);
   check(
-    `[${mode}] banda declarada é positiva`,
-    publishOptions(mode).screenShareEncoding.maxBitrate > 0
+    `[${nome}] o teto de quadros publicado é o que a pessoa escolheu`,
+    publishOptions(alvo).screenShareEncoding.maxFramerate === alvo.fps,
+    alvo.fps,
+    publishOptions(alvo).screenShareEncoding.maxFramerate
+  );
+  check(
+    `[${nome}] a tela tem prioridade de rede alta (disputa com a câmera)`,
+    publishOptions(alvo).screenShareEncoding.priority === "high"
   );
 }
 
 check(
-  "texto prioriza resolução (letra ilegível é pior que letra que atualiza devagar)",
-  publishOptions("text").degradationPreference === "maintain-resolution",
+  "15 quadros prioriza resolução (letra ilegível é pior que letra que atualiza devagar)",
+  publishOptions(q(1080, 15)).degradationPreference === "maintain-resolution",
   "maintain-resolution",
-  publishOptions("text").degradationPreference
+  publishOptions(q(1080, 15)).degradationPreference
+);
+/*
+ * A 60 a preferência TEM de ser manter os quadros. O contrário é o defeito
+ * clássico: a rede aperta, o codificador segura a resolução, e os 60 viram 20
+ * sem ninguém ter pedido — exatamente a queixa que chegou.
+ */
+for (const fps of [30, 60] as Fps[]) {
+  check(
+    `${fps} quadros prioriza a taxa (engasgar é pior que perder nitidez)`,
+    publishOptions(q(1080, fps)).degradationPreference === "maintain-framerate"
+  );
+}
+
+check(
+  "mais quadros pedem mais banda",
+  bitrateDe(q(1080, 60)) > bitrateDe(q(1080, 30)) &&
+    bitrateDe(q(1080, 30)) > bitrateDe(q(1080, 15)),
+  "60 > 30 > 15",
+  [bitrateDe(q(1080, 15)), bitrateDe(q(1080, 30)), bitrateDe(q(1080, 60))]
 );
 check(
-  "movimento prioriza taxa de quadros (engasgar é pior que perder nitidez)",
-  publishOptions("motion").degradationPreference === "maintain-framerate"
+  "mais pixels pedem mais banda",
+  bitrateDe(q(1440, 30)) > bitrateDe(q(1080, 30)) &&
+    bitrateDe(q(1080, 30)) > bitrateDe(q(720, 30)),
+  "1440 > 1080 > 720",
+  [bitrateDe(q(720, 30)), bitrateDe(q(1080, 30)), bitrateDe(q(1440, 30))]
 );
 check(
-  "movimento tem mais quadros por segundo que texto",
-  publishOptions("motion").screenShareEncoding.maxFramerate >
-    publishOptions("text").screenShareEncoding.maxFramerate,
-  "motion > text",
-  {
-    motion: publishOptions("motion").screenShareEncoding.maxFramerate,
-    text: publishOptions("text").screenShareEncoding.maxFramerate
-  }
+  "dobrar os quadros NÃO dobra a banda (quadros vizinhos são parecidos)",
+  bitrateDe(q(1080, 60)) < bitrateDe(q(1080, 30)) * 2,
+  "< o dobro",
+  { f30: bitrateDe(q(1080, 30)), f60: bitrateDe(q(1080, 60)) }
 );
 check(
-  "movimento reserva mais banda que texto",
-  publishOptions("motion").screenShareEncoding.maxBitrate >
-    publishOptions("text").screenShareEncoding.maxBitrate
+  "'fonte' é orçada como 1440p, e não como infinito",
+  bitrateDe(q(0, 60)) === bitrateDe(q(1440, 60))
 );
+
+// ---------------------------------------------------------------------------
+section("compartilhamento de tela — a escolha guardada");
+
+check("toda resolução da lista é reconhecida", RESOLUCOES.every(ehResolucao));
+check("toda taxa da lista é reconhecida", TAXAS.every(ehFps));
+check("uma resolução inventada é recusada", !ehResolucao(900));
+check("uma taxa inventada é recusada", !ehFps(24));
+check("texto não passa por número", !ehFps("30" as unknown));
+
+/*
+ * O padrão MUDOU de propósito: era 15 quadros, e foi exatamente essa a queixa
+ * dos testes. Se alguém baixar de novo sem querer, este teste falha.
+ */
+check(
+  "o padrão são 30 quadros, e não 15",
+  QUALIDADE_PADRAO.fps === 30,
+  30,
+  QUALIDADE_PADRAO.fps
+);
+check("o padrão é 1080p", QUALIDADE_PADRAO.resolucao === 1080);
 
 // Sem localStorage (é o caso aqui no node) nada pode explodir: cai no padrão.
 check(
-  "sem armazenamento disponível, o modo padrão é 'text'",
-  loadShareMode() === "text",
-  "text",
-  loadShareMode()
+  "sem armazenamento disponível, cai no padrão",
+  loadQualidade().fps === QUALIDADE_PADRAO.fps &&
+    loadQualidade().resolucao === QUALIDADE_PADRAO.resolucao,
+  QUALIDADE_PADRAO,
+  loadQualidade()
 );
+
+check("o resumo diz resolução e taxa", resumo(q(1080, 60), "Fonte") === "1080p · 60 fps");
+check("o resumo usa o nome dado para 'fonte'", resumo(q(0, 30), "Fonte") === "Fonte · 30 fps");
 
 // ---------------------------------------------------------------------------
 section("virar a câmera — de que lado é cada câmera");

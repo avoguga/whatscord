@@ -4,7 +4,7 @@ import { fileUrl } from "../lib/api";
 import { initials, listStamp } from "../lib/format";
 import {
   IconChats, IconSearch, IconNewChat, IconMute, IconChecks,
-  IconVoiceRoom, IconSettings, IconUserPlus, IconGroup, IconSpaces, IconHash
+  IconVoiceRoom, IconPhone, IconSettings, IconUserPlus, IconGroup, IconSpaces, IconHash
 } from "./icons";
 import { NewChatModal, NewSpaceModal } from "./Modals";
 import { SpaceModal, NewGroupModal, AddPeopleModal, GroupModal } from "./Invites";
@@ -18,6 +18,7 @@ import { plural } from "@lingui/core/macro";
 
 export function Sidebar() {
   const { t } = useLingui();
+  const startCall = useStore((s) => s.startCall);
   const me = useStore((s) => s.me);
   const rooms = useStore((s) => s.rooms);
   const spaces = useStore((s) => s.spaces);
@@ -72,6 +73,16 @@ export function Sidebar() {
         online={room.counterpart ? online.has(room.counterpart.id) : false}
         inVoice={voicePresence[room.id]?.length ?? 0}
         meId={me?.id ?? ""}
+        /*
+         * Entrar na chamada sem passar pela conversa.
+         *
+         * Clicar na linha abre o canal — e era a UNICA coisa que dava para
+         * fazer daqui. Para entrar na voz era preciso abrir o canal e so entao
+         * achar o telefone no cabecalho, o que e um caminho que ninguem
+         * descobre sozinho: num canal de VOZ, entrar e o que se quer fazer.
+         * Agora as duas coisas cabem na mesma linha, como no Discord.
+         */
+        onJoinCall={room.kind === "VOICE" ? () => startCall(room.id, false) : undefined}
       />
       {room.kind === "VOICE" && <NaChamada users={voicePeople[room.id] ?? []} />}
     </div>
@@ -346,10 +357,12 @@ function EmptyList({
 }
 
 function RoomRow({
-  room, selected, onOpen, online, inVoice, meId
+  room, selected, onOpen, online, inVoice, meId, onJoinCall
 }: {
   room: Room; selected: boolean; onOpen: () => void;
   online: boolean; inVoice: number; meId: string;
+  /** Só existe em canal de voz. */
+  onJoinCall?: () => void;
 }) {
   const { t, i18n } = useLingui();
   const isVoice = room.kind === "VOICE";
@@ -372,7 +385,14 @@ function RoomRow({
         : last.content || " "
       : t`No messages yet`;
 
+  /*
+   * Um contêiner em volta porque a linha JÁ É um `<button>`, e botão dentro de
+   * botão é HTML inválido — o navegador desfaz o aninhamento e o clique passa a
+   * cair no lugar errado. Os dois viram irmãos, e o de entrar fica por cima da
+   * direita da linha.
+   */
   return (
+    <div className={`row-slot${onJoinCall ? " com-entrar" : ""}`}>
     <button className="row" aria-selected={selected} onClick={onOpen}>
       <div className={`avatar${isVoice ? " voice" : ""}${isChannel ? " channel" : ""}`}>
         {isVoice ? (
@@ -417,6 +437,18 @@ function RoomRow({
         </div>
       </div>
     </button>
+    {onJoinCall && (
+      <button
+        className="row-join"
+        onClick={onJoinCall}
+        data-tip={t`Join the call`}
+        data-tip-pos="baixo"
+        aria-label={t`Join the call`}
+      >
+        <IconPhone size={16} />
+      </button>
+    )}
+    </div>
   );
 }
 

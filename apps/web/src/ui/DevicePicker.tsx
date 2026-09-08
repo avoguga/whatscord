@@ -8,6 +8,8 @@ import {
   type DeviceKind
 } from "../lib/devices";
 import { callSoundsEnabled, playCue, setCallSounds } from "../lib/sounds";
+import { canShareScreen, loadQualidade, saveQualidade, type Qualidade } from "../lib/screenshare";
+import { QualidadeDeTela } from "./ShareQuality";
 import { IconMic, IconSpeaker, IconVideo } from "./icons";
 
 /**
@@ -98,6 +100,7 @@ export function DevicePicker({
     useDevices();
   const { t } = useLingui();
   const [sounds, setSounds] = useState(() => callSoundsEnabled());
+  const [qualidade, setQualidade] = useState<Qualidade>(() => loadQualidade());
   const [busy, setBusy] = useState<DeviceKind | null>(null);
   const [probe, setProbe] = useState<MediaStream | null>(null);
 
@@ -274,6 +277,26 @@ export function DevicePicker({
           <Trans>Play a sound when someone joins or leaves a call</Trans>
         </span>
       </label>
+
+      {/*
+        Aqui e nao so dentro da chamada: escolher a qualidade da tela no meio de
+        uma apresentacao, com todo mundo olhando, e o pior momento possivel. O
+        mesmo componente aparece no painel da chamada para quem so descobriu ali.
+      */}
+      {canShareScreen && (
+        <>
+          <h4 className="settings-head">
+            <Trans>Screen sharing</Trans>
+          </h4>
+          <QualidadeDeTela
+            valor={qualidade}
+            onChange={(q) => {
+              setQualidade(q);
+              saveQualidade(q);
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }

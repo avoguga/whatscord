@@ -159,7 +159,12 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
   return (
     <section className="chat">
       <header className="chat-header">
-        <button className="icon-btn back-btn" onClick={closeRoom} title={t`Back to conversations`}>
+        <button
+          className="icon-btn back-btn"
+          onClick={closeRoom}
+          data-tip={t`Back to conversations`}
+          aria-label={t`Back to conversations`}
+        >
           <IconBack />
         </button>
         <div className={`avatar${isVoiceRoom ? " voice" : ""}${isChannel ? " channel" : ""}`}>
@@ -179,21 +184,41 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
         </div>
 
         <div className="header-actions" style={{ position: "relative" }}>
-          <button className="icon-btn" title={t`Start a video call`} onClick={() => onStartCall(true)}>
+          <button
+            className="icon-btn"
+            data-tip={t`Start a video call`}
+            data-tip-pos="baixo"
+            aria-label={t`Start a video call`}
+            onClick={() => onStartCall(true)}
+          >
             <IconVideo />
           </button>
-          <button className="icon-btn" title={t`Start a voice call`} onClick={() => onStartCall(false)}>
+          <button
+            className="icon-btn"
+            data-tip={t`Start a voice call`}
+            data-tip-pos="baixo"
+            aria-label={t`Start a voice call`}
+            onClick={() => onStartCall(false)}
+          >
             <IconPhone />
           </button>
           <button
             className="icon-btn"
-            title={t`Search in this conversation`}
+            data-tip={t`Search in this conversation`}
+            data-tip-pos="baixo"
+            aria-label={t`Search in this conversation`}
             aria-pressed={findOpen}
             onClick={() => { setFindOpen((v) => !v); setFindTerm(""); }}
           >
             <IconSearch size={22} />
           </button>
-          <button className="icon-btn" title={t`More options`} onClick={() => setMenuOpen((v) => !v)}>
+          <button
+            className="icon-btn"
+            data-tip={t`More options`}
+            data-tip-pos="baixo"
+            aria-label={t`More options`}
+            onClick={() => setMenuOpen((v) => !v)}
+          >
             <IconMenu size={22} />
           </button>
 

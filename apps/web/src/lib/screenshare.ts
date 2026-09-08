@@ -18,24 +18,98 @@
 export const canShareScreen =
   typeof navigator !== "undefined" && !!navigator.mediaDevices?.getDisplayMedia;
 
-export type ShareMode = "text" | "motion";
+/** Altura em pixels. `0` quer dizer "a resolução da fonte, sem limitar". */
+export type Resolucao = 0 | 720 | 1080 | 1440;
+export type Fps = 15 | 30 | 60;
 
-const KEY = "whatscord.shareMode";
+export type Qualidade = { resolucao: Resolucao; fps: Fps };
 
-export function loadShareMode(): ShareMode {
-  try {
-    return localStorage.getItem(KEY) === "motion" ? "motion" : "text";
-  } catch {
-    return "text";
-  }
+export const RESOLUCOES: Resolucao[] = [720, 1080, 1440, 0];
+export const TAXAS: Fps[] = [15, 30, 60];
+
+/**
+ * O padrão.
+ *
+ * Era 15 quadros por segundo, e foi exatamente essa a queixa que chegou dos
+ * testes ("está com poucos FPS"). Quinze é uma escolha defensável para quem
+ * compartilha uma planilha, e péssima para todo o resto — e ninguém escolheu,
+ * era só o que vinha de fábrica. 1080p a 30 é o meio-termo que serve aos dois
+ * casos sem exigir rede de sobra; quem quiser 60 escolhe.
+ */
+export const QUALIDADE_PADRAO: Qualidade = { resolucao: 1080, fps: 30 };
+
+const KEY = "whatscord.shareQuality";
+
+/** Antes existia `whatscord.shareMode` com "text" | "motion". */
+const KEY_ANTIGA = "whatscord.shareMode";
+
+export function ehResolucao(v: unknown): v is Resolucao {
+  return typeof v === "number" && (RESOLUCOES as number[]).includes(v);
+}
+export function ehFps(v: unknown): v is Fps {
+  return typeof v === "number" && (TAXAS as number[]).includes(v);
 }
 
-export function saveShareMode(mode: ShareMode): void {
+export function loadQualidade(): Qualidade {
   try {
-    localStorage.setItem(KEY, mode);
+    const cru = localStorage.getItem(KEY);
+    if (cru) {
+      const v = JSON.parse(cru) as Partial<Qualidade>;
+      if (ehResolucao(v.resolucao) && ehFps(v.fps)) return { resolucao: v.resolucao, fps: v.fps };
+    }
+    /*
+     * Quem já usava o app tem a preferência antiga guardada. Traduzir em vez de
+     * ignorar: "motion" era 30 quadros e "text" era 15, então a escolha que a
+     * pessoa fez continua valendo — e quem tinha "text" não é jogado para 60
+     * sem pedir.
+     */
+    const antiga = localStorage.getItem(KEY_ANTIGA);
+    if (antiga === "motion") return { resolucao: 1080, fps: 30 };
+    if (antiga === "text") return { resolucao: 1080, fps: 15 };
+  } catch {
+    /* modo privado: fica o padrão */
+  }
+  return QUALIDADE_PADRAO;
+}
+
+export function saveQualidade(q: Qualidade): void {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(q));
   } catch {
     /* a escolha só não sobrevive à aba */
   }
+}
+
+/**
+ * A largura que acompanha cada altura, em 16:9.
+ *
+ * A captura não é esticada para essa medida: o navegador trata `width`/`height`
+ * como TETO e preserva a proporção da tela real. Uma tela 16:10 pedida como
+ * 1920x1080 volta 1728x1080, e é isso mesmo que se quer.
+ */
+function larguraDe(altura: Resolucao): number {
+  return Math.round((altura * 16) / 9);
+}
+
+/**
+ * Quanta banda cada combinação precisa.
+ *
+ * Não é uma tabela de gosto: abaixo do necessário, o codificador tem de
+ * escolher entre resolução e fluidez, e é aí que 60 vira 20 sem ninguém pedir.
+ * Os números partem dos presets do próprio LiveKit para tela (1080p30 ≈ 3,5
+ * Mbps) e crescem com a contagem de pixels e com a taxa — o dobro de quadros
+ * não custa o dobro de bits, porque quadros vizinhos são parecidos, então o
+ * fator de 60 é ~1,6 e não 2.
+ */
+export function bitrateDe({ resolucao, fps }: Qualidade): number {
+  // "Fonte" pode ser um monitor 4K; orça como 1440p, que é o teto que a rede
+  // de uma chamada comum aguenta sem derrubar todo mundo.
+  const altura = resolucao === 0 ? 1440 : resolucao;
+  const base = { 720: 1_800_000, 1080: 3_500_000, 1440: 6_000_000 }[
+    altura as 720 | 1080 | 1440
+  ];
+  const fator = fps === 60 ? 1.6 : fps === 30 ? 1 : 0.7;
+  return Math.round(base * fator);
 }
 
 export type ShareCaptureOptions = {
@@ -46,31 +120,36 @@ export type ShareCaptureOptions = {
   surfaceSwitching: "include" | "exclude";
   suppressLocalAudioPlayback: boolean;
   contentHint: "detail" | "text" | "motion";
+  resolution?: { width: number; height: number; frameRate: number };
 };
 
 export type SharePublishOptions = {
   simulcast: boolean;
   degradationPreference: "maintain-framerate" | "maintain-resolution" | "balanced";
-  screenShareEncoding: { maxBitrate: number; maxFramerate: number; priority: "medium" };
+  screenShareEncoding: { maxBitrate: number; maxFramerate: number; priority: "high" | "medium" };
 };
 
 /**
  * O que pedir ao navegador na hora de capturar.
  *
- * `contentHint` é a peça que mais muda o resultado e não estava sendo passada:
- * sem ela o codificador trata a tela como vídeo em movimento e borra texto para
- * economizar banda. Com "text" ele preserva bordas nítidas — que é o que
- * importa quando o que está na tela é código ou planilha.
+ * `resolution` é a correção central do FPS baixo. Sem ela — e ela NÃO estava
+ * sendo passada — o navegador escolhe sozinho, e o Chrome entrega em torno de
+ * 30 quadros na captura de tela, com queda livre quando a máquina aperta.
+ * Pedir 60 no `frameRate` é a única forma de a fonte sequer produzir 60: nenhum
+ * ajuste de codificador inventa quadro que a captura não gerou. É por isso que
+ * mexer só no `maxFramerate`, do lado da publicação, não resolveria nada.
+ *
+ * `contentHint` muda o que o codificador preserva quando falta banda. A 15
+ * quadros o que se compartilha é quase sempre texto parado, e "text" mantém as
+ * bordas nítidas; a 30 ou 60 o que se quer é fluidez, e "motion" aceita borrar
+ * um pouco para não engasgar.
  *
  * `systemAudio: "include"` faz o Chrome OFERECER a caixinha de som do sistema
  * no diálogo de compartilhamento. Sem isso, dependendo do caso, a opção nem
  * aparece — e o som nunca vai junto, por mais que se peça `audio: true`.
- *
- * `suppressLocalAudioPlayback` evita ouvir o próprio áudio compartilhado em eco
- * na máquina de quem compartilha.
  */
-export function captureOptions(mode: ShareMode): ShareCaptureOptions {
-  return {
+export function captureOptions(q: Qualidade): ShareCaptureOptions {
+  const base: ShareCaptureOptions = {
     audio: true,
     video: true,
     systemAudio: "include",
@@ -79,7 +158,21 @@ export function captureOptions(mode: ShareMode): ShareCaptureOptions {
     // Deixa trocar a aba compartilhada sem parar e recomeçar.
     surfaceSwitching: "include",
     suppressLocalAudioPlayback: true,
-    contentHint: mode === "text" ? "text" : "motion"
+    contentHint: q.fps >= 30 ? "motion" : "text"
+  };
+
+  /*
+   * Em "fonte" nenhuma medida é enviada, só a taxa. Um teto de resolução aqui
+   * seria o oposto do que a opção promete, e no Safari 17 passar QUALQUER
+   * resolução derruba a captura para um tamanho minúsculo (webkit#263015).
+   */
+  if (q.resolucao === 0) {
+    return { ...base, resolution: undefined };
+  }
+
+  return {
+    ...base,
+    resolution: { width: larguraDe(q.resolucao), height: q.resolucao, frameRate: q.fps }
   };
 }
 
@@ -89,39 +182,42 @@ export function captureOptions(mode: ShareMode): ShareCaptureOptions {
  * `simulcast: false` é a mudança que mais pesa. Para TELA o LiveKit publica
  * duas camadas: a original mais uma com metade da resolução
  * (`computeDefaultScreenShareSimulcastPresets`), e reparte entre elas o mesmo
- * teto de banda — então a camada boa recebia uma fração dos 2.5 Mbps e o
- * codificador fazia o trabalho duas vezes. Numa chamada pequena isso é só
- * desperdício: aqui a banda inteira vai para uma camada só.
+ * teto de banda — então a camada boa recebia uma fração e o codificador fazia o
+ * trabalho duas vezes. Numa chamada pequena isso é só desperdício: aqui a banda
+ * inteira vai para uma camada só.
  *
  * Cuidado ao ler o SDK: o comentário "defaults to h180, h360" no `.d.ts` é de
  * `videoSimulcastLayers` (câmera, 3 camadas). Ele NÃO vale para tela.
+ *
+ * `degradationPreference` é o que decide o que morre quando a banda não dá.
+ * A 60 quadros a resposta tem de ser "segure os quadros e perca nitidez" — o
+ * contrário transforma 60 em 15 no primeiro aperto, que é justamente a queixa.
+ * A 15 o raciocínio se inverte: texto ilegível é pior do que texto que atualiza
+ * devagar.
  *
  * Passado por publicação, e não em `publishDefaults`, para não desligar o
  * simulcast da câmera — lá ele é útil, porque quem tem rede ruim cai para uma
  * camada menor em vez de travar.
  */
-export function publishOptions(mode: ShareMode): SharePublishOptions {
-  return mode === "text"
-    ? {
-        simulcast: false,
-        // Texto ilegível é pior do que texto que atualiza devagar.
-        degradationPreference: "maintain-resolution",
-        screenShareEncoding: { maxBitrate: 2_500_000, maxFramerate: 15, priority: "medium" }
-      }
-    : {
-        simulcast: false,
-        // Em vídeo, o contrário: engasgar é pior do que perder nitidez.
-        degradationPreference: "maintain-framerate",
-        screenShareEncoding: { maxBitrate: 4_000_000, maxFramerate: 30, priority: "medium" }
-      };
+export function publishOptions(q: Qualidade): SharePublishOptions {
+  return {
+    simulcast: false,
+    degradationPreference: q.fps >= 30 ? "maintain-framerate" : "maintain-resolution",
+    screenShareEncoding: {
+      maxBitrate: bitrateDe(q),
+      maxFramerate: q.fps,
+      /*
+       * "high" e não "medium": é a prioridade de rede do navegador para esta
+       * track. Quando a câmera e a tela disputam a mesma subida, quem precisa
+       * de fluidez é a tela — a câmera continua legível a menos quadros.
+       */
+      priority: "high"
+    }
+  };
 }
 
-/**
- * A ordem em que os modos aparecem na tela.
- *
- * Os rótulos saíram daqui: um objeto de strings no escopo do módulo é avaliado
- * na importação, antes de o catálogo de tradução carregar, e não reavalia
- * quando o idioma muda — ficaria congelado em inglês. Quem desenha a lista é
- * quem traduz.
- */
-export const SHARE_MODES: ShareMode[] = ["text", "motion"];
+/** Um rótulo curto para a escolha atual, do tipo "1080p · 60 fps". */
+export function resumo(q: Qualidade, nomeDaFonte: string): string {
+  const res = q.resolucao === 0 ? nomeDaFonte : `${q.resolucao}p`;
+  return `${res} · ${q.fps} fps`;
+}

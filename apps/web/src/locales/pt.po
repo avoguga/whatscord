@@ -107,6 +107,11 @@ msgstr "Um espaço reúne canais de texto e salas de voz, e todo mundo que você
 msgid "A white background all day."
 msgstr "Fundo branco o dia todo."
 
+#. placeholder {0}: (bitrateDe(valor) / 1_000_000).toFixed(1)
+#: src/ui/ShareQuality.tsx
+msgid "About {0} Mbps of upload. More frames need more connection; if the picture stutters, drop to 30."
+msgstr "Cerca de {0} Mbps de subida. Mais quadros pedem mais conexão; se a imagem engasgar, baixe para 30."
+
 #: src/ui/Settings.tsx
 msgid "About you"
 msgstr "Sobre você"
@@ -240,6 +245,7 @@ msgid "Back"
 msgstr "Voltar"
 
 #: src/ui/Chat.tsx
+#: src/ui/Chat.tsx
 msgid "Back to conversations"
 msgstr "Voltar para as conversas"
 
@@ -313,6 +319,15 @@ msgstr "Trocar sua foto"
 msgid "Channel {nome} created."
 msgstr "Canal {nome} criado."
 
+#: src/ui/CallChat.tsx
+msgid "Channel chat"
+msgstr "Conversa do canal"
+
+#: src/ui/Call.tsx
+#: src/ui/CallChat.tsx
+msgid "Chat"
+msgstr "Conversa"
+
 #: src/ui/Sidebar.tsx
 msgid "Chats"
 msgstr "Conversas"
@@ -331,6 +346,10 @@ msgstr "Fechar dispositivos"
 #: src/ui/Chat.tsx
 msgid "Close search"
 msgstr "Fechar a busca"
+
+#: src/ui/CallChat.tsx
+msgid "Close the chat"
+msgstr "Fechar a conversa"
 
 #: src/ui/SpaceRail.tsx
 msgid "Close the folder {nome}"
@@ -455,6 +474,7 @@ msgstr "Documento"
 msgid "Don't have the desktop app yet? <0>Download it for Windows</0>"
 msgstr "Ainda não tem o aplicativo? <0>Baixe para Windows</0>"
 
+#: src/ui/Call.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 msgid "Done"
@@ -536,6 +556,11 @@ msgstr "Ajustes da pasta"
 #: src/ui/Settings.tsx
 msgid "Follows the light or dark mode of your system."
 msgstr "Acompanha o modo claro ou escuro do sistema."
+
+#: src/ui/ShareQuality.tsx
+#: src/ui/ShareQuality.tsx
+msgid "Frames per second"
+msgstr "Quadros por segundo"
 
 #: src/ui/Call.tsx
 msgid "Front camera"
@@ -648,6 +673,11 @@ msgstr "Convide pessoas para este espaço"
 msgid "Join that space"
 msgstr "Entrar nesse espaço"
 
+#: src/ui/Sidebar.tsx
+#: src/ui/Sidebar.tsx
+msgid "Join the call"
+msgstr "Entrar na chamada"
+
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
 msgid "Language"
@@ -749,6 +779,7 @@ msgstr "Minimizar — a chamada continua e você volta para as mensagens"
 msgid "Missing refresh token."
 msgstr "Falta o token de renovação."
 
+#: src/ui/Chat.tsx
 #: src/ui/Chat.tsx
 msgid "More options"
 msgstr "Mais opções"
@@ -898,6 +929,10 @@ msgstr "Nada aqui corresponde a isso."
 #: src/ui/FolderModal.tsx
 msgid "Nothing is in this folder yet. Drag a space onto it to put it in."
 msgstr "Ainda não há nada nesta pasta. Arraste um espaço até ela para pôr dentro."
+
+#: src/ui/CallChat.tsx
+msgid "Nothing written here yet."
+msgstr "Nada escrito aqui ainda."
 
 #: src/ui/Chat.tsx
 msgid "Notifications turned back on."
@@ -1123,6 +1158,11 @@ msgstr "Tirando…"
 msgid "Reply to this message"
 msgstr "Responder a esta mensagem"
 
+#: src/ui/ShareQuality.tsx
+#: src/ui/ShareQuality.tsx
+msgid "Resolution"
+msgstr "Resolução"
+
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
 msgid "Same as device"
@@ -1154,6 +1194,12 @@ msgid "screen"
 msgstr "tela"
 
 #: src/ui/Call.tsx
+#: src/ui/Call.tsx
+#: src/ui/Call.tsx
+msgid "Screen quality"
+msgstr "Qualidade da tela"
+
+#: src/ui/DevicePicker.tsx
 msgid "Screen sharing"
 msgstr "Compartilhamento de tela"
 
@@ -1176,6 +1222,7 @@ msgid "Search conversations"
 msgstr "Buscar conversas"
 
 #: src/ui/Chat.tsx
+#: src/ui/Chat.tsx
 msgid "Search in this conversation"
 msgstr "Buscar nesta conversa"
 
@@ -1184,6 +1231,7 @@ msgstr "Buscar nesta conversa"
 msgid "Search people"
 msgstr "Buscar pessoas"
 
+#: src/ui/CallChat.tsx
 #: src/ui/Chat.tsx
 msgid "Send"
 msgstr "Enviar"
@@ -1201,8 +1249,8 @@ msgid "Sharing without sound. To include it, share again and tick “Also share 
 msgstr "Compartilhando sem som. Para incluí-lo, compartilhe de novo e marque “Compartilhar áudio da guia” (ou “Compartilhar áudio do sistema”) na janela do navegador — no Windows o Chrome só oferece isso para uma guia ou a tela inteira, não para uma única janela."
 
 #: src/ui/Call.tsx
-msgid "Sharpest for code, documents and spreadsheets. 15 frames per second."
-msgstr "Mais nítido para código, documentos e planilhas. 15 quadros por segundo."
+#~ msgid "Sharpest for code, documents and spreadsheets. 15 frames per second."
+#~ msgstr "Mais nítido para código, documentos e planilhas. 15 quadros por segundo."
 
 #: src/ui/Auth.tsx
 #: src/ui/Auth.tsx
@@ -1234,8 +1282,8 @@ msgid "Signing out clears this session on this device. Anything you sent stays w
 msgstr "Sair da conta encerra esta sessão neste aparelho. O que você enviou continua onde está."
 
 #: src/ui/Call.tsx
-msgid "Smoother for video and games, at the cost of some sharpness. 30 frames per second."
-msgstr "Mais fluido para vídeo e jogos, com alguma perda de nitidez. 30 quadros por segundo."
+#~ msgid "Smoother for video and games, at the cost of some sharpness. 30 frames per second."
+#~ msgstr "Mais fluido para vídeo e jogos, com alguma perda de nitidez. 30 quadros por segundo."
 
 #: src/ui/Call.tsx
 #: src/ui/Call.tsx
@@ -1251,6 +1299,11 @@ msgstr "Algo quebrou do nosso lado. Tente de novo."
 msgid "Something went wrong. Try again."
 msgstr "Algo deu errado. Tente de novo."
 
+#: src/ui/Call.tsx
+#: src/ui/ShareQuality.tsx
+msgid "Source"
+msgstr "Da fonte"
+
 #: src/ui/Sidebar.tsx
 msgid "Space"
 msgstr "Espaço"
@@ -1264,9 +1317,11 @@ msgid "Speaker"
 msgstr "Saída de som"
 
 #: src/ui/Chat.tsx
+#: src/ui/Chat.tsx
 msgid "Start a video call"
 msgstr "Iniciar uma chamada de vídeo"
 
+#: src/ui/Chat.tsx
 #: src/ui/Chat.tsx
 msgid "Start a voice call"
 msgstr "Iniciar uma chamada de voz"
@@ -1313,8 +1368,8 @@ msgid "Text"
 msgstr "Texto"
 
 #: src/ui/Call.tsx
-msgid "Text and detail"
-msgstr "Texto e detalhe"
+#~ msgid "Text and detail"
+#~ msgstr "Texto e detalhe"
 
 #: src/ui/Sidebar.tsx
 msgid "Text channels"
@@ -1553,6 +1608,7 @@ msgstr "Esta pasta guarda {0} dos seus espaços. Apagá-la devolve todos eles so
 msgid "This is the start of the conversation"
 msgstr "Este é o começo da conversa"
 
+#: src/ui/CallChat.tsx
 #: src/ui/Chat.tsx
 msgid "This message was deleted"
 msgstr "Esta mensagem foi apagada"
@@ -1623,8 +1679,8 @@ msgid "Video"
 msgstr "Vídeo"
 
 #: src/ui/Call.tsx
-msgid "Video and motion"
-msgstr "Vídeo e movimento"
+#~ msgid "Video and motion"
+#~ msgstr "Vídeo e movimento"
 
 #: src/ui/QuickDeviceMenu.tsx
 msgid "Video settings"
@@ -1673,6 +1729,11 @@ msgstr "Escreva algo primeiro"
 #: src/lib/erros.ts
 msgid "Write something or attach a file."
 msgstr "Escreva algo ou anexe um arquivo."
+
+#: src/ui/CallChat.tsx
+#: src/ui/CallChat.tsx
+msgid "Write to the channel"
+msgstr "Escrever no canal"
 
 #: src/ui/FolderModal.tsx
 msgid "Yes, delete the folder"

@@ -26,19 +26,21 @@ import { playCue } from "../lib/sounds";
 import {
   canShareScreen,
   captureOptions,
-  loadShareMode,
+  loadQualidade,
   publishOptions,
-  saveShareMode,
-  SHARE_MODES,
-  type ShareMode
+  resumo,
+  saveQualidade,
+  type Qualidade
 } from "../lib/screenshare";
 import { Avatar } from "./Avatar";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { plural } from "@lingui/core/macro";
 import { DevicePicker } from "./DevicePicker";
 import { QuickDeviceMenu } from "./QuickDeviceMenu";
+import { QualidadeDeTela } from "./ShareQuality";
+import { CallChat } from "./CallChat";
 import {
-  IconMic, IconMicOff, IconVideo, IconVideoOff, IconScreen,
+  IconMic, IconMicOff, IconVideo, IconVideoOff, IconScreen, IconChats,
   IconHangup, IconMinimize, IconSignal, IconSpeaker, IconSettings, IconClose,
   IconChevronDown
 } from "./icons";
@@ -107,7 +109,10 @@ export function CallSheet({
   /** Short-lived "X joined" lines, the visual half of the arrival cue. */
   const [events, setEvents] = useState<{ id: number; text: string }[]>([]);
   const [outputId, setOutputId] = useState<string | undefined>(() => loadDevicePrefs().audiooutput);
-  const [shareMode, setShareMode] = useState<ShareMode>(() => loadShareMode());
+  const [qualidade, setQualidade] = useState<Qualidade>(() => loadQualidade());
+  /* O menu rapido do botao de compartilhar, e o painel de conversa. */
+  const [menuTela, setMenuTela] = useState(false);
+  const [chatAberto, setChatAberto] = useState(false);
 
   /*
    * Uma chamada abre pela câmera frontal — é a de quem fala. Guardamos o lado em
@@ -423,8 +428,8 @@ export function CallSheet({
     try {
       await room.localParticipant.setScreenShareEnabled(
         turningOn,
-        turningOn ? captureOptions(shareMode) : undefined,
-        turningOn ? publishOptions(shareMode) : undefined
+        turningOn ? captureOptions(qualidade) : undefined,
+        turningOn ? publishOptions(qualidade) : undefined
       );
       setSharing(turningOn);
 
@@ -567,6 +572,8 @@ export function CallSheet({
         )}
 
         {/* The roster is the answer to "who is here and who is not". */}
+        {chatAberto && <CallChat roomId={roomId} onClose={() => setChatAberto(false)} />}
+
         <aside className="call-roster" aria-label={t`Who is on the call`}>
           <p className="roster-head">In the call · {inCall.length || (status === "connected" ? 1 : 0)}</p>
           {inCall.length === 0 && status === "connected" && (
@@ -688,17 +695,61 @@ export function CallSheet({
             icon={<IconFlipCamera />}
           />
         )}
+        <div className="call-ctl-group">
+          <CallButton
+            label={sharing ? t`Stop sharing` : t`Share screen`}
+            active={sharing}
+            onClick={toggleShare}
+            disabled={!canShareScreen}
+            title={
+              canShareScreen
+                ? undefined
+                : t`Screen sharing is not available on this device — Android's WebView cannot capture the screen.`
+            }
+            icon={<IconScreen />}
+          />
+          {/*
+            A qualidade fica no proprio botao de compartilhar, e nao so nas
+            configuracoes: e ali que a pessoa esta quando descobre que os
+            quadros estao baixos, e mandar ela procurar num menu de dispositivos
+            no meio de uma apresentacao e o mesmo que nao oferecer.
+          */}
+          {canShareScreen && (
+            <button
+              className="call-caret"
+              title={t`Screen quality`}
+              aria-label={t`Screen quality`}
+              aria-expanded={menuTela}
+              onClick={() => setMenuTela((v) => !v)}
+            >
+              <IconChevronDown size={14} />
+            </button>
+          )}
+          {menuTela && (
+            <div className="quick-menu quick-menu-wide" role="dialog" aria-label={t`Screen quality`}>
+              <p className="quick-head">{resumo(qualidade, t`Source`)}</p>
+              <QualidadeDeTela
+                valor={qualidade}
+                compacto
+                onChange={(q) => {
+                  setQualidade(q);
+                  saveQualidade(q);
+                  if (sharing) {
+                    setNotice(t`The new setting applies the next time you start sharing.`);
+                  }
+                }}
+              />
+              <button className="quick-full" onClick={() => setMenuTela(false)}>
+                <Trans>Done</Trans>
+              </button>
+            </div>
+          )}
+        </div>
         <CallButton
-          label={sharing ? t`Stop sharing` : t`Share screen`}
-          active={sharing}
-          onClick={toggleShare}
-          disabled={!canShareScreen}
-          title={
-            canShareScreen
-              ? undefined
-              : t`Screen sharing is not available on this device — Android's WebView cannot capture the screen.`
-          }
-          icon={<IconScreen />}
+          label={t`Chat`}
+          active={chatAberto}
+          onClick={() => setChatAberto((v) => !v)}
+          icon={<IconChats />}
         />
         <CallButton
           label={t`Devices`}
@@ -736,42 +787,6 @@ export function CallSheet({
             }}
           />
 
-          {canShareScreen && (
-          <div className="share-modes">
-            <p className="settings-head">
-              <Trans>Screen sharing</Trans>
-            </p>
-            {SHARE_MODES.map((mode) => (
-              <label key={mode} className="share-mode">
-                <input
-                  type="radio"
-                  name="share-mode"
-                  checked={shareMode === mode}
-                  onChange={() => {
-                    setShareMode(mode);
-                    saveShareMode(mode);
-                    if (sharing) {
-                      setNotice(t`The new setting applies the next time you start sharing.`);
-                    }
-                  }}
-                />
-                <span>
-                  {/*
-                    Traduzido AQUI, dentro do render, e não numa tabela no topo
-                    do módulo: uma tabela de strings é avaliada na importação e
-                    ficaria congelada no idioma-fonte.
-                  */}
-                  <strong>{mode === "text" ? t`Text and detail` : t`Video and motion`}</strong>
-                  <em>
-                    {mode === "text"
-                      ? t`Sharpest for code, documents and spreadsheets. 15 frames per second.`
-                      : t`Smoother for video and games, at the cost of some sharpness. 30 frames per second.`}
-                  </em>
-                </span>
-              </label>
-            ))}
-          </div>
-          )}
         </aside>
       )}
     </div>

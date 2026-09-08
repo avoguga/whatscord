@@ -197,6 +197,12 @@ type State = {
   theme: Theme;
   /** Inglês, português, espanhol ou igual ao dispositivo. */
   locale: PreferenciaIdioma;
+  /*
+   * A chamada aberta. Mora aqui e não no `App` porque quem inicia deixou de
+   * ser só o cabeçalho da conversa: a barra lateral também entra numa sala de
+   * voz direto, sem abrir o canal antes.
+   */
+  call: { roomId: string; video: boolean } | null;
 
   bootstrap: () => Promise<void>;
   signIn: (identifier: string, password: string) => Promise<void>;
@@ -234,6 +240,8 @@ type State = {
   notify: (text: string, kind?: "ok" | "bad") => void;
   setTheme: (t: Theme) => void;
   setLocale: (l: PreferenciaIdioma) => Promise<void>;
+  startCall: (roomId: string, video: boolean) => void;
+  endCall: () => void;
   dismissToast: (id: string) => void;
 
   ingestMessage: (m: Message) => void;
@@ -285,6 +293,7 @@ export const useStore = create<State>((set, get) => ({
    */
   theme: storedTheme(),
   locale: preferenciaSalva(),
+  call: null,
   ...blankSession,
 
   async bootstrap() {
@@ -692,6 +701,14 @@ export const useStore = create<State>((set, get) => ({
    * estado só muda DEPOIS que o catálogo está ativo — mudar antes deixaria a
    * opção marcada com a tela ainda no idioma anterior.
    */
+  startCall(roomId, video) {
+    set({ call: { roomId, video } });
+  },
+
+  endCall() {
+    set({ call: null });
+  },
+
   async setLocale(l) {
     await salvarIdioma(l);
     set({ locale: l });
