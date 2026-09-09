@@ -111,6 +111,21 @@ export function CallSheet({
   const [sharing, setSharing] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [audioBlocked, setAudioBlocked] = useState(false);
+  /*
+   * Bloqueio dos NOSSOS elementos de audio, que e coisa diferente do
+   * `audioBlocked` acima.
+   *
+   * `room.canPlaybackAudio` so enxerga o que o LiveKit mesmo criou. Os <audio>
+   * daqui sao nossos, e um `play()` recusado neles nao mexe naquele sinalizador
+   * — o som simplesmente nao sai e nada na tela diz por que. E o caminho mais
+   * provavel para "o audio da transmissao nao funciona" com a voz funcionando:
+   * o elemento da voz nasce no clique que entrou na chamada, e o do som da tela
+   * nasce depois, longe de qualquer gesto, que e exatamente o caso que a
+   * politica de autoplay recusa.
+   */
+  const [saidaBloqueada, setSaidaBloqueada] = useState(false);
+  /** Muda para pedir a todos os elementos que tentem tocar de novo. */
+  const [retomar, setRetomar] = useState(0);
   const [speakers, setSpeakers] = useState<Set<string>>(new Set());
   /** Everyone who belongs to this conversation, in or out of the call. */
   const [roster, setRoster] = useState<User[]>([]);
@@ -554,7 +569,12 @@ export function CallSheet({
   if (minimized) {
     return (
       <>
-        <RemoteAudio tracks={audioTracks} sinkId={outputId} />
+        <RemoteAudio
+          tracks={audioTracks}
+          sinkId={outputId}
+          retomar={retomar}
+          onBloqueado={setSaidaBloqueada}
+        />
         <div className="call-ribbon" role="status">
           <span className="live-dot" aria-hidden="true" />
           <span className="ribbon-text">
@@ -577,7 +597,12 @@ export function CallSheet({
       role="dialog"
       aria-label={`Call in ${callName}`}
     >
-      <RemoteAudio tracks={audioTracks} sinkId={outputId} />
+      <RemoteAudio
+          tracks={audioTracks}
+          sinkId={outputId}
+          retomar={retomar}
+          onBloqueado={setSaidaBloqueada}
+        />
 
       <header className="call-top">
         <button
@@ -621,8 +646,21 @@ export function CallSheet({
         </button>
       </header>
 
-      {audioBlocked && (
-        <button className="call-banner" onClick={() => room.startAudio()}>
+      {(audioBlocked || saidaBloqueada) && (
+        /*
+         * O clique e o gesto que a politica de autoplay exige, entao ele tem de
+         * destravar OS DOIS lados: o audio interno do LiveKit e os nossos
+         * elementos. Antes so chamava `startAudio()`, e quem estava sem o som da
+         * tela clicava, a tarja sumia e continuava sem ouvir nada.
+         */
+        <button
+          className="call-banner"
+          onClick={() => {
+            void room.startAudio();
+            setSaidaBloqueada(false);
+            setRetomar((n) => n + 1);
+          }}
+        >
           <IconSpeaker /> Sound is blocked by the browser. Click here to turn it on.
         </button>
       )}
@@ -1062,21 +1100,41 @@ function CallButton({
  */
 function RemoteAudio({
   tracks,
-  sinkId
+  sinkId,
+  retomar,
+  onBloqueado
 }: {
   tracks: { id: string; track: Track }[];
   sinkId?: string;
+  retomar: number;
+  onBloqueado: (v: boolean) => void;
 }) {
   return (
     <div style={{ display: "none" }} aria-hidden="true">
       {tracks.map((t) => (
-        <AudioSink key={t.id} track={t.track} sinkId={sinkId} />
+        <AudioSink
+          key={t.id}
+          track={t.track}
+          sinkId={sinkId}
+          retomar={retomar}
+          onBloqueado={onBloqueado}
+        />
       ))}
     </div>
   );
 }
 
-function AudioSink({ track, sinkId }: { track: Track; sinkId?: string }) {
+function AudioSink({
+  track,
+  sinkId,
+  retomar,
+  onBloqueado
+}: {
+  track: Track;
+  sinkId?: string;
+  retomar: number;
+  onBloqueado: (v: boolean) => void;
+}) {
   const ref = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
@@ -1087,6 +1145,37 @@ function AudioSink({ track, sinkId }: { track: Track; sinkId?: string }) {
       track.detach(el);
     };
   }, [track]);
+
+  /*
+   * Tocar de verdade, e reclamar quando nao der.
+   *
+   * `autoPlay` no elemento nao basta: ele PEDE para tocar, e o navegador pode
+   * recusar em silencio. Nao havia nada aqui checando isso, entao uma faixa que
+   * chegava depois do gesto de entrar na chamada — o som da tela compartilhada e
+   * o caso classico — podia nascer muda sem uma linha de aviso.
+   *
+   * A promessa de `play()` e a unica forma de saber. Rejeitou, a tarja aparece;
+   * e como o clique dela mexe em `retomar`, este efeito roda de novo com o gesto
+   * do usuario ja no bolso, que e o que a politica de autoplay pede.
+   */
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let vivo = true;
+    /*
+     * So o FRACASSO e reportado. Se o sucesso tambem baixasse a tarja, o
+     * microfone que toca normalmente apagaria o aviso levantado pelo som da
+     * tela que nao toca — sao varios elementos correndo ao mesmo tempo, e quem
+     * respondesse por ultimo decidiria. A tarja baixa no clique, que e o unico
+     * momento em que se sabe que a pessoa pediu.
+     */
+    void el.play().catch(() => {
+      if (vivo) onBloqueado(true);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [track, retomar, onBloqueado]);
 
   /*
    * Choosing a speaker only means something if the elements the audio actually
