@@ -36,6 +36,17 @@ import {
   type ToneStep
 } from "../apps/web/src/lib/sounds";
 import {
+  ESPERA_MS,
+  SONS,
+  ehSomId,
+  empacotarSom,
+  favoritosDaSala,
+  lerRecadoDeSom,
+  ordenarBandeja,
+  salvarFavoritosDaSala,
+  type SomId
+} from "../apps/web/src/lib/soundboard";
+import {
   bitrateDe,
   captureOptions,
   ehFps,
@@ -445,12 +456,31 @@ check(
   2560,
   captureOptions(q(1440, 60)).resolution?.width
 );
+/*
+ * "Fonte" e o teto absurdo.
+ *
+ * Este teste dizia o contrário — que "fonte" não mandava medida nenhuma — e
+ * estava verificando um DEFEITO. Deixar `resolution` indefinido faz o LiveKit
+ * substituir por conta própria pelo preset h1080fps30, e junto com a resolução
+ * vai a TAXA: quem escolhia "Fonte" com 60 quadros recebia 30, sem nada na tela
+ * dizendo isso. Um `ideal` de 8K não amplia nada — nenhum navegador inventa
+ * pixel que a fonte não tem — então na prática continua sendo "o que a fonte
+ * der", e a taxa escolhida sobrevive, que era o ponto.
+ */
 check(
-  "'fonte' não manda medida nenhuma (um teto aqui seria o oposto do que a opção promete)",
-  captureOptions(q(0, 60)).resolution === undefined,
-  undefined,
-  captureOptions(q(0, 60)).resolution
+  "'fonte' pede um teto alto demais para limitar, e não medida nenhuma",
+  captureOptions(q(0, 60)).resolution?.height === 4320,
+  4320,
+  captureOptions(q(0, 60)).resolution?.height
 );
+for (const fps of TAXAS) {
+  check(
+    `'fonte' com ${fps} quadros carrega os ${fps} — sem isso o LiveKit troca por 30`,
+    captureOptions(q(0, fps)).resolution?.frameRate === fps,
+    fps,
+    captureOptions(q(0, fps)).resolution?.frameRate
+  );
+}
 
 check(
   "15 quadros pede contentHint 'text' (preserva borda, não borra letra)",
@@ -839,6 +869,186 @@ check(
   Math.abs(alturaSolta(168, 1280 / 1024) - 134.4) < 0.1,
   134.4,
   alturaSolta(168, 1280 / 1024)
+);
+
+// ---------------------------------------------------------------------------
+section("bandeja de sons — o recado que viaja pela chamada");
+
+/*
+ * Por que o recado, e não o áudio: apertar um som publica alguns bytes no canal
+ * de dados e cada aparelho sintetiza o mesmo som. Isso só funciona se as duas
+ * pontas concordarem — e é exatamente esse acordo que se verifica aqui, porque
+ * ele quebra em silêncio: um recado que não é entendido não dá erro, só não
+ * toca, e quem apertou continua ouvindo o próprio som achando que deu certo.
+ */
+
+for (const som of SONS) {
+  check(
+    `"${som.id}" volta inteiro do empacotamento`,
+    lerRecadoDeSom(empacotarSom(som.id)) === som.id,
+    som.id,
+    lerRecadoDeSom(empacotarSom(som.id))
+  );
+}
+
+check("o recado é pequeno o bastante para não pesar", empacotarSom("fanfarra").length < 64);
+
+const lixo = (texto: string) => new TextEncoder().encode(texto);
+
+check("lixo que não é JSON não derruba nada", lerRecadoDeSom(lixo("nada disso")) === null);
+check(
+  "outro tipo de recado no mesmo canal é ignorado",
+  lerRecadoDeSom(lixo(JSON.stringify({ tipo: "digitando", de: "x" }))) === null
+);
+/*
+ * O caso que importa de verdade: alguém com o app mais novo aperta um som que
+ * esta versão ainda não tem. Tem de virar silêncio, nunca exceção — uma exceção
+ * dentro do handler de dados derruba a chamada de quem ficou para trás.
+ */
+check(
+  "som desconhecido (app mais novo) vira silêncio, não erro",
+  lerRecadoDeSom(lixo(JSON.stringify({ tipo: "som", id: "trompete-do-futuro" }))) === null
+);
+check(
+  "e um id que não é texto também não passa",
+  lerRecadoDeSom(lixo(JSON.stringify({ tipo: "som", id: 7 }))) === null
+);
+check("ehSomId aceita os oito e recusa o resto", SONS.every((s) => ehSomId(s.id)) && !ehSomId("x"));
+
+check(
+  "todo som tem uma face para ser lido de relance",
+  SONS.every((s) => s.face.length > 0)
+);
+check(
+  "não há id repetido no catálogo",
+  new Set(SONS.map((s) => s.id)).size === SONS.length
+);
+
+/*
+ * A espera entre um som e outro. Sem ela a bandeja vira arma: alguém segura o
+ * botão e ninguém mais consegue conversar.
+ */
+check("existe espera entre um som e outro", ESPERA_MS >= 1000, ">= 1000", ESPERA_MS);
+check("e ela não é longa a ponto de matar a brincadeira", ESPERA_MS <= 5000, "<= 5000", ESPERA_MS);
+
+// ---------------------------------------------------------------------------
+section("bandeja de sons — o mesmo som em todo mundo");
+
+/*
+ * A promessa central: o som é gerado localmente em cada aparelho, então ele
+ * TEM de sair idêntico. Se a percussão usasse `Math.random()`, cada pessoa
+ * ouviria uma coisa diferente e ninguém descobriria — a chamada não tem como
+ * comparar. Renderizar duas vezes e exigir bytes iguais é o que prende isso.
+ */
+for (const som of SONS) {
+  const a = toDataUrl(som.passos);
+  const b = toDataUrl(som.passos);
+  check(`"${som.id}" sai byte a byte igual toda vez`, a === b && a.length > 100);
+}
+
+check(
+  "os oito sons são diferentes entre si",
+  new Set(SONS.map((s) => toDataUrl(s.passos))).size === SONS.length
+);
+
+// ---------------------------------------------------------------------------
+section("bandeja de sons — favoritos por conversa");
+
+/*
+ * `localStorage` não existe em Node. As funções são escritas para sobreviver a
+ * isso (modo privado do navegador faz o mesmo), então primeiro se confirma que
+ * a falta dele degrada em vez de explodir — e só depois se coloca um de mentira
+ * para verificar a ordenação.
+ */
+check("sem localStorage, os favoritos são uma lista vazia", favoritosDaSala("sala-1").length === 0);
+check("e a bandeja sai na ordem do catálogo", ordenarBandeja("sala-1")[0].id === SONS[0].id);
+
+const memoria = new Map<string, string>();
+(globalThis as { localStorage?: unknown }).localStorage = {
+  getItem: (k: string) => memoria.get(k) ?? null,
+  setItem: (k: string, v: string) => void memoria.set(k, v),
+  removeItem: (k: string) => void memoria.delete(k)
+};
+
+salvarFavoritosDaSala("trabalho", ["sino", "erro"]);
+salvarFavoritosDaSala("amigos", ["buzina"]);
+
+check(
+  "o favorito da conversa vai para a frente",
+  ordenarBandeja("trabalho")[0].id === "sino",
+  "sino",
+  ordenarBandeja("trabalho")[0].id
+);
+check(
+  "e o segundo favorito vem logo atrás, na ordem em que foi fixado",
+  ordenarBandeja("trabalho")[1].id === "erro",
+  "erro",
+  ordenarBandeja("trabalho")[1].id
+);
+check(
+  "cada conversa tem a sua — é essa a parte 'por grupo'",
+  ordenarBandeja("amigos")[0].id === "buzina",
+  "buzina",
+  ordenarBandeja("amigos")[0].id
+);
+check(
+  "uma conversa sem favorito não herda a das outras",
+  ordenarBandeja("sala-nova")[0].id === SONS[0].id
+);
+check(
+  "ordenar não perde nem duplica som nenhum",
+  ordenarBandeja("trabalho").length === SONS.length &&
+    new Set(ordenarBandeja("trabalho").map((s) => s.id)).size === SONS.length
+);
+/*
+ * Um favorito gravado por uma versão mais nova (ou um localStorage adulterado)
+ * não pode virar um botão fantasma na bandeja.
+ */
+memoria.set("whatscord.somsFavoritos.estranha", JSON.stringify(["sino", "som-que-nao-existe"]));
+check(
+  "favorito desconhecido é descartado na leitura",
+  favoritosDaSala("estranha").join(",") === "sino",
+  "sino",
+  favoritosDaSala("estranha").join(",")
+);
+memoria.set("whatscord.somsFavoritos.torta", "{isto nao e json");
+check("e um valor corrompido não derruba a bandeja", favoritosDaSala("torta").length === 0);
+
+const ids: SomId[] = SONS.map((s) => s.id);
+check("o catálogo continua com oito sons", ids.length === 8, 8, ids.length);
+
+// ---------------------------------------------------------------------------
+section("bandeja de sons — as regras de estilo que a bandeja depende");
+
+/*
+ * Mesma ideia da seção da tela esticada: o comportamento mora no CSS, então é
+ * o CSS que se verifica. Não substitui olhar a tela — e a aparência continua
+ * NÃO conferida em execução — mas impede a regressão silenciosa de alguém
+ * limpar a folha e a bandeja virar uma coluna só.
+ */
+const regraDaGrade = /\.soundboard-grade\s*\{[^}]*\}/.exec(css)?.[0] ?? "";
+
+check("a grade da bandeja existe na folha de estilo", regraDaGrade.length > 0);
+/*
+ * Três colunas FIXAS, e não `auto-fill`: a posição de cada som tem de ser a
+ * mesma toda vez que a bandeja abre, porque a mão aprende o lugar antes de o
+ * olho ler o nome. Uma grade que se reflui com a largura destrói isso.
+ */
+check(
+  "são três colunas fixas, para o som não mudar de lugar entre uma abertura e outra",
+  /grid-template-columns:\s*repeat\(3,\s*1fr\)/.test(regraDaGrade)
+);
+check(
+  "o botão esmaece durante a espera, em vez de só ignorar o clique",
+  /\.soundboard-som:disabled\s*\{[^}]*opacity:\s*0\.4/.test(css)
+);
+check(
+  "o som fixado se distingue pela borda, sem trocar de cor de fundo",
+  /\.soundboard-som\.fixado\s*\{[^}]*border-color:\s*var\(--accent-bright\)/.test(css)
+);
+check(
+  "nome comprido não alarga a coluna e desalinha a grade",
+  /\.soundboard-som em\s*\{[^}]*text-overflow:\s*ellipsis/.test(css)
 );
 
 // ---------------------------------------------------------------------------

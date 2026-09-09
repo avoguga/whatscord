@@ -2100,3 +2100,49 @@ input, textarea { font: inherit; color: inherit; }
   color: var(--text-dim);
 }
 .invite-strip-side:hover { background: var(--hover); color: var(--text); }
+
+/* ---------------------------------------------------------------------------
+   A BANDEJA DE SONS
+   ---------------------------------------------------------------------------
+   Grade fixa de tres colunas, e nao um `auto-fill`: a posicao de cada som tem
+   de ser a MESMA toda vez que a bandeja abre, porque a mao aprende o lugar
+   antes de o olho ler o nome. Uma grade que se reflui com a largura da janela
+   destroi exatamente essa memoria.
+--------------------------------------------------------------------------- */
+
+.soundboard-grade {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 2px 0 8px;
+}
+
+.soundboard-som {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 4px 8px;
+  border-radius: 8px;
+  background: var(--hover);
+  border: 1px solid transparent;
+  color: var(--text);
+  font-size: 11px; line-height: 1.15; text-align: center;
+}
+.soundboard-som span { font-size: 20px; line-height: 1; }
+.soundboard-som em {
+  font-style: normal; color: var(--text-dim);
+  /* Nome comprido nao pode alargar a coluna e desalinhar a grade inteira. */
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.soundboard-som:hover:not(:disabled) { border-color: var(--divider); }
+
+/* Fixado: uma marca discreta na borda, nao uma cor de fundo. O que distingue o
+   som favorito ja e a POSICAO — a marca so explica por que ele esta na frente. */
+.soundboard-som.fixado { border-color: var(--accent-bright); }
+
+/* A espera aparece. Um botao que simplesmente ignora o clique parece quebrado;
+   esmaecido, ele diz "ja vai" sem precisar de texto. */
+.soundboard-som:disabled { opacity: 0.4; cursor: default; }
+
+.soundboard-nota {
+  margin: 0 4px 2px;
+  font-size: 11.5px; line-height: 1.4; color: var(--text-dim);
+}

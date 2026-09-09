@@ -155,6 +155,10 @@ msgstr "Adicionando…"
 msgid "Admin"
 msgstr "Admin"
 
+#: src/ui/Soundboard.tsx
+msgid "Air horn"
+msgstr "Buzina"
+
 #: src/ui/Sidebar.tsx
 msgid "All"
 msgstr "Todas"
@@ -260,6 +264,10 @@ msgstr "Valores de paginação inválidos."
 #: src/ui/FolderModal.tsx
 msgid "Blurple"
 msgstr "Azul-violeta"
+
+#: src/ui/Soundboard.tsx
+msgid "Boing"
+msgstr "Boing"
 
 #: src/ui/Call.tsx
 msgid "Call"
@@ -437,6 +445,10 @@ msgstr "Criar espaço"
 msgid "Create with {0}"
 msgstr "Criar com {0}"
 
+#: src/ui/Soundboard.tsx
+msgid "Crickets"
+msgstr "Grilos"
+
 #: src/ui/Settings.tsx
 msgid "Dark"
 msgstr "Escuro"
@@ -466,6 +478,10 @@ msgstr "Time de design"
 msgid "Devices"
 msgstr "Dispositivos"
 
+#: src/ui/Soundboard.tsx
+msgid "Ding"
+msgstr "Blim"
+
 #: src/ui/Toasts.tsx
 msgid "Dismiss"
 msgstr "Dispensar"
@@ -485,6 +501,7 @@ msgstr "Ainda não tem o aplicativo? <0>Baixe para Windows</0>"
 #: src/ui/Call.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
+#: src/ui/Soundboard.tsx
 #: src/ui/TimbreDaConversa.tsx
 msgid "Done"
 msgstr "Pronto"
@@ -513,6 +530,10 @@ msgstr "Digite seu e-mail ou nome de usuário."
 msgid "Enter your password."
 msgstr "Digite sua senha."
 
+#: src/ui/Soundboard.tsx
+msgid "Everyone in the call hears it. Right-click to pin a sound to the front."
+msgstr "Todo mundo na chamada ouve. Clique com o botão direito para fixar um som na frente."
+
 #: src/ui/Invites.tsx
 msgid "Everyone in the group sees the name and the picture."
 msgstr "Todo mundo do grupo vê o nome e a foto."
@@ -528,6 +549,10 @@ msgstr "Expandir para a janela toda"
 #: src/ui/EmojiPicker.tsx
 msgid "Faces"
 msgstr "Rostos"
+
+#: src/ui/Soundboard.tsx
+msgid "Fanfare"
+msgstr "Fanfarra"
 
 #: src/lib/erros.ts
 msgid "Files have to be under {mb} MB."
@@ -1215,6 +1240,10 @@ msgstr "Responder a esta mensagem"
 msgid "Resolution"
 msgstr "Resolução"
 
+#: src/ui/Soundboard.tsx
+msgid "Rimshot"
+msgstr "Rufar de tambor"
+
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
 msgid "Same as device"
@@ -1373,6 +1402,15 @@ msgstr "Algo deu errado. Tente de novo."
 msgid "Sound for this conversation"
 msgstr "Som desta conversa"
 
+#: src/ui/Soundboard.tsx
+#: src/ui/Soundboard.tsx
+msgid "Soundboard"
+msgstr "Bandeja de sons"
+
+#: src/ui/Call.tsx
+msgid "Sounds"
+msgstr "Sons"
+
 #: src/ui/Call.tsx
 #: src/ui/ShareQuality.tsx
 msgid "Source"
@@ -1432,6 +1470,10 @@ msgstr "Passar para a câmera traseira"
 #: src/ui/QuickDeviceMenu.tsx
 msgid "System default"
 msgstr "Padrão do sistema"
+
+#: src/ui/Soundboard.tsx
+msgid "Ta-da"
+msgstr "Ta-dá"
 
 #: src/ui/DevicePicker.tsx
 msgid "Test microphone"
@@ -1812,6 +1854,10 @@ msgstr "Escreva algo ou anexe um arquivo."
 #: src/ui/CallChat.tsx
 msgid "Write to the channel"
 msgstr "Escrever no canal"
+
+#: src/ui/Soundboard.tsx
+msgid "Wrong"
+msgstr "Errou"
 
 #: src/ui/FolderModal.tsx
 msgid "Yes, delete the folder"

@@ -126,3 +126,14 @@ export const IconRecolher = ({ size }: P) => (
 export const IconChevronDown = ({ size }: P) => (
   <svg {...base(size)}><path d="m6 9 6 6 6-6" /></svg>
 );
+
+/*
+ * A bandeja de sons.
+ *
+ * Quatro pastilhas em grade mais uma onda saindo do canto: a grade e o que se
+ * aperta, a onda e o que sai. So a grade seria confundida com "aplicativos", e
+ * so a onda com "volume" — que ja e o alto-falante ali em cima.
+ */
+export const IconBandeja = ({ size }: P) => (
+  <svg {...base(size)}><rect x="3" y="4" width="7" height="7" rx="1.6" /><rect x="3" y="14" width="7" height="7" rx="1.6" /><rect x="13" y="14" width="7" height="7" rx="1.6" /><path d="M14 8.5a3.4 3.4 0 0 1 3-3.4M14 8.5a6.4 6.4 0 0 1 6-6.4" /></svg>
+);

@@ -11,7 +11,18 @@
  * waveform can be checked without a browser.
  */
 
-export type ToneStep = { freq: number; ms: number };
+/**
+ * Uma nota.
+ *
+ * `onda` existe por causa da bandeja de sons: com seno puro tudo soa como
+ * campainha de micro-ondas, e um soundboard vive de ter caráter — a diferença
+ * entre uma buzina e um sino não é a nota, é o timbre. Quadrada e serra dão o
+ * corpo áspero de buzina; ruído dá percussão. Ausente, continua seno, que é o
+ * que os avisos de chamada sempre usaram.
+ */
+export type Onda = "seno" | "quadrada" | "serra" | "ruido";
+
+export type ToneStep = { freq: number; ms: number; onda?: Onda; ganho?: number };
 
 /** Rising for arrivals, falling for departures — the direction carries the meaning. */
 export const CUES: Record<"join" | "leave", ToneStep[]> = {
@@ -114,16 +125,39 @@ export function renderTone(steps: ToneStep[], rate = RATE): Float32Array {
   const out = new Float32Array(total);
 
   let at = 0;
+  let semente = 0x9e3779b9;
   for (const step of steps) {
     const len = Math.round((step.ms / 1000) * rate);
     const fade = Math.min(Math.round(0.008 * rate), Math.floor(len / 2));
+    const onda = step.onda ?? "seno";
     for (let i = 0; i < len; i++) {
       const attack = i < fade ? i / fade : 1;
       const release = i > len - fade ? (len - i) / fade : 1;
       // Kept well below full scale: a notification that makes people flinch
       // gets muted, and then it stops doing its job.
-      const gain = 0.22 * attack * release;
-      out[at + i] = Math.sin((2 * Math.PI * step.freq * i) / rate) * gain;
+      const gain = (step.ganho ?? 0.22) * attack * release;
+
+      const fase = (step.freq * i) / rate;
+      let amostra: number;
+      if (onda === "seno") {
+        amostra = Math.sin(2 * Math.PI * fase);
+      } else if (onda === "quadrada") {
+        // Metade da amplitude: a quadrada tem muito mais energia que a seno na
+        // mesma escala, e sem isso a buzina sai duas vezes mais alta que o resto.
+        amostra = (fase % 1 < 0.5 ? 1 : -1) * 0.5;
+      } else if (onda === "serra") {
+        amostra = ((fase % 1) * 2 - 1) * 0.6;
+      } else {
+        /*
+         * Ruído com semente fixa, e não `Math.random()`: o mesmo som tem que
+         * sair idêntico em todo mundo da chamada. Com aleatório de verdade cada
+         * pessoa ouviria uma percussão diferente, e o teste não teria como
+         * comparar nada.
+         */
+        semente = (semente * 1664525 + 1013904223) >>> 0;
+        amostra = (semente / 0xffffffff) * 2 - 1;
+      }
+      out[at + i] = amostra * gain;
     }
     at += len;
   }

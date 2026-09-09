@@ -23,6 +23,7 @@ import {
   type FacingMode
 } from "../lib/devices";
 import { playCue } from "../lib/sounds";
+import { empacotarSom, lerRecadoDeSom, tocarSom, type SomId } from "../lib/soundboard";
 import {
   chamadaExpandida,
   ladoDoRoster,
@@ -48,10 +49,11 @@ import { DevicePicker } from "./DevicePicker";
 import { QuickDeviceMenu } from "./QuickDeviceMenu";
 import { QualidadeDeTela } from "./ShareQuality";
 import { CallChat } from "./CallChat";
+import { Soundboard } from "./Soundboard";
 import {
   IconMic, IconMicOff, IconVideo, IconVideoOff, IconScreen, IconChats,
   IconHangup, IconMinimize, IconSignal, IconSpeaker, IconSettings, IconClose,
-  IconExpandir, IconRecolher, IconChevronDown as IconSeta,
+  IconExpandir, IconRecolher, IconChevronDown as IconSeta, IconBandeja,
   IconChevronDown
 } from "./icons";
 
@@ -123,6 +125,8 @@ export function CallSheet({
   /* O menu rapido do botao de compartilhar, e o painel de conversa. */
   const [menuTela, setMenuTela] = useState(false);
   const [chatAberto, setChatAberto] = useState(false);
+  /** A bandeja de sons, aberta pelo botao da barra. */
+  const [bandeja, setBandeja] = useState(false);
   const [expandida, setExpandida] = useState(() => chamadaExpandida());
   const [lado, setLado] = useState<LadoDoRoster>(() => ladoDoRoster());
   const [listaAberta, setListaAberta] = useState(() => rosterAberto());
@@ -240,6 +244,19 @@ export function CallSheet({
           .on(RoomEvent.ActiveSpeakersChanged, (list: Participant[]) =>
             setSpeakers(new Set(list.map((p) => p.identity)))
           )
+          /*
+           * O som que outra pessoa apertou na bandeja.
+           *
+           * Chega como recado, nao como audio: alguns bytes dizendo QUAL som, e
+           * este aparelho sintetiza o mesmo. `lerRecadoDeSom` devolve `null`
+           * para tudo que nao reconhece — inclusive um som de uma versao mais
+           * nova do app — para que apertar um botao que ainda nao temos nao
+           * quebre a chamada de quem esta atras.
+           */
+          .on(RoomEvent.DataReceived, (payload: Uint8Array) => {
+            const id = lerRecadoDeSom(payload);
+            if (id) void tocarSom(id, outputRef.current);
+          })
           .on(RoomEvent.AudioPlaybackStatusChanged, () =>
             setAudioBlocked(!room.canPlaybackAudio)
           )
@@ -458,6 +475,24 @@ export function CallSheet({
     bump();
   }
 
+  /**
+   * Apertar um som da bandeja.
+   *
+   * Toca aqui e manda o recado no mesmo movimento, sem esperar volta do
+   * servidor: quem apertou precisa ouvir no instante do clique, senao parece
+   * que o botao nao pegou e a pessoa aperta de novo. `reliable` porque um
+   * efeito perdido tem o mesmo efeito — vira clique repetido.
+   */
+  const tocarNaBandeja = useCallback(
+    (id: SomId) => {
+      void tocarSom(id, outputRef.current);
+      room.localParticipant
+        .publishData(empacotarSom(id), { reliable: true })
+        .catch(() => undefined);
+    },
+    [room]
+  );
+
   async function toggleShare() {
     const turningOn = !sharing;
     try {
@@ -475,9 +510,24 @@ export function CallSheet({
          * nem oferece a opcao. Dizer isso na hora e melhor do que a outra
          * pessoa avisar depois que nao esta ouvindo nada.
          */
-        const comSom = !!room.localParticipant.getTrackPublication(
-          Track.Source.ScreenShareAudio
-        );
+        /*
+         * A publicação do áudio pode não estar registrada no instante em que
+         * `setScreenShareEnabled` resolve — o vídeo entra primeiro. Conferir na
+         * hora dava um "sem som" falso mesmo quando o som tinha sido capturado,
+         * e um aviso que mente é pior do que aviso nenhum: a pessoa vai mexer
+         * no diálogo de compartilhamento tentando consertar o que já estava
+         * certo.
+         *
+         * Duas leituras separadas por um quadro resolvem, e o custo é um
+         * instante antes de a mensagem aparecer.
+         */
+        const temAudio = () =>
+          !!room.localParticipant.getTrackPublication(Track.Source.ScreenShareAudio);
+        let comSom = temAudio();
+        if (!comSom) {
+          await new Promise((r) => setTimeout(r, 250));
+          comSom = temAudio();
+        }
         setNotice(
           comSom
             ? null
@@ -860,6 +910,26 @@ export function CallSheet({
           onClick={() => setChatAberto((v) => !v)}
           icon={<IconChats />}
         />
+        {/*
+          A bandeja de sons fica na barra, ao lado da conversa: e uma coisa que
+          se faz DURANTE a chamada, no meio da frase de outra pessoa. Enterrar
+          num menu de configuracoes seria o mesmo que nao ter.
+        */}
+        <div className="call-ctl-group">
+          <CallButton
+            label={t`Sounds`}
+            active={bandeja}
+            onClick={() => setBandeja((v) => !v)}
+            icon={<IconBandeja />}
+          />
+          {bandeja && (
+            <Soundboard
+              roomId={roomId}
+              onTocar={tocarNaBandeja}
+              onFechar={() => setBandeja(false)}
+            />
+          )}
+        </div>
         <CallButton
           label={t`Devices`}
           active={showDevices}

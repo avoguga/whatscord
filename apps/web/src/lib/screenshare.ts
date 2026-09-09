@@ -169,12 +169,20 @@ export function captureOptions(q: Qualidade): ShareCaptureOptions {
   };
 
   /*
-   * Em "fonte" nenhuma medida é enviada, só a taxa. Um teto de resolução aqui
-   * seria o oposto do que a opção promete, e no Safari 17 passar QUALQUER
-   * resolução derruba a captura para um tamanho minúsculo (webkit#263015).
+   * "Fonte" pede um teto absurdamente alto em vez de NENHUM teto.
+   *
+   * Parece contraditório e não é. Deixar `resolution` indefinido faz o LiveKit
+   * substituir por conta própria — `if (options.resolution === undefined)
+   * options.resolution = ScreenSharePresets.h1080fps30.resolution` — e junto
+   * com a resolução vai a TAXA daquele preset. Resultado: quem escolhia
+   * "Fonte" com 60 quadros recebia 1080p a 30, sem nada na tela dizendo isso.
+   *
+   * 8K como `ideal` não amplia nada (um `ideal` nunca faz o navegador inventar
+   * pixel), então na prática é "o que a fonte der" — e a taxa escolhida
+   * sobrevive, que era o ponto.
    */
   if (q.resolucao === 0) {
-    return { ...base, resolution: undefined };
+    return { ...base, resolution: { width: 7680, height: 4320, frameRate: q.fps } };
   }
 
   return {
