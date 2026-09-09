@@ -360,6 +360,74 @@ fn montar_bandeja(app: &tauri::App) -> tauri::Result<()> {
     Ok(())
 }
 
+/**
+ * Concede microfone e camera para a origem do app, de forma PERSISTIDA.
+ *
+ * O app ja passava `--auto-accept-camera-and-microphone-capture` para a
+ * WebView, e por isso a chamada sempre funcionou. So que esse sinalizador
+ * aceita o AVISO de permissao; ele nao GRAVA a permissao para a origem. E o
+ * navegador so revela nome e id dos dispositivos quando a permissao esta
+ * concedida — entao `enumerateDevices()` devolvia entradas fantasma, sem nome e
+ * sem id, e a tela de escolher microfone ficava vazia com um botao "permitir"
+ * que nao tinha como funcionar: ele chama `getUserMedia`, que era auto-aceito
+ * de novo e de novo nao gravava nada.
+ *
+ * Cuidado com uma armadilha na leitura do wry: ele registra um
+ * `PermissionRequested`, mas o handler dele so responde a CLIPBOARD_READ.
+ * Microfone e camera nao passam por ali — tirar o sinalizador para "deixar o
+ * wry cuidar" quebraria a chamada inteira.
+ *
+ * `SetPermissionState` e a API que grava de verdade. O sinalizador continua
+ * onde estava, como rede: se esta chamada falhar em alguma versao da WebView2,
+ * a chamada segue funcionando e o que se perde e so o nome dos dispositivos.
+ */
+#[cfg(target_os = "windows")]
+fn conceder_midia(janela: &tauri::WebviewWindow) {
+    use webview2_com::Microsoft::Web::WebView2::Win32::{
+        ICoreWebView2Profile4, ICoreWebView2_13, COREWEBVIEW2_PERMISSION_KIND_CAMERA,
+        COREWEBVIEW2_PERMISSION_KIND_MICROPHONE, COREWEBVIEW2_PERMISSION_STATE_ALLOW,
+    };
+    use webview2_com::SetPermissionStateCompletedHandler;
+    use windows::core::{Interface, HSTRING, PCWSTR};
+
+    let _ = janela.with_webview(|wv| unsafe {
+        let Ok(nucleo) = wv.controller().CoreWebView2() else {
+            return;
+        };
+        // `Profile` so existe da versao 13 em diante; numa WebView2 antiga o
+        // cast falha e ficamos com o comportamento de antes, que funciona.
+        let Ok(v13) = nucleo.cast::<ICoreWebView2_13>() else {
+            return;
+        };
+        let Ok(perfil) = v13.Profile() else {
+            return;
+        };
+        let Ok(perfil4) = perfil.cast::<ICoreWebView2Profile4>() else {
+            return;
+        };
+
+        /*
+         * As duas origens: o app e servido por `http://tauri.localhost` no
+         * Windows, mas o esquema muda entre versoes e plataformas. Conceder as
+         * duas custa uma chamada a mais e evita depender desse detalhe.
+         */
+        for origem in ["http://tauri.localhost", "https://tauri.localhost"] {
+            let texto = HSTRING::from(origem);
+            for tipo in [
+                COREWEBVIEW2_PERMISSION_KIND_MICROPHONE,
+                COREWEBVIEW2_PERMISSION_KIND_CAMERA,
+            ] {
+                let _ = perfil4.SetPermissionState(
+                    tipo,
+                    PCWSTR(texto.as_ptr()),
+                    COREWEBVIEW2_PERMISSION_STATE_ALLOW,
+                    &SetPermissionStateCompletedHandler::create(Box::new(|_| Ok(()))),
+                );
+            }
+        }
+    });
+}
+
 pub fn run() {
     let mut builder = tauri::Builder::default();
 
@@ -409,6 +477,11 @@ pub fn run() {
                 use tauri_plugin_deep_link::DeepLinkExt;
 
                 montar_bandeja(_app)?;
+
+                #[cfg(target_os = "windows")]
+                if let Some(janela) = _app.get_webview_window("main") {
+                    conceder_midia(&janela);
+                }
 
                 let handle = _app.handle().clone();
                 _app.deep_link().on_open_url(move |event| {

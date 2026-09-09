@@ -3,6 +3,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import {
   canChooseOutput,
   deviceLabel,
+  pedirPermissaoAdianta,
   resolveDeviceId,
   useDevices,
   type DeviceKind
@@ -96,11 +97,29 @@ export function DevicePicker({
   /** Lets the call follow the speaker choice without re-reading storage. */
   onChange?: (kind: DeviceKind, deviceId: string | undefined) => void;
 }) {
-  const { microphones, cameras, speakers, micBlocked, camBlocked, unsupported, prefs, error, reveal, choose } =
+  const { microphones, cameras, speakers, micBlocked, camBlocked, unsupported, prefs, error, refresh, reveal, choose } =
     useDevices();
+  /*
+   * Uma track de microfone viva prova que a permissão existe. Com ela em mãos,
+   * pedir de novo não muda nada — e o botão que promete resolver vira uma
+   * promessa vazia.
+   */
+  const adiantaPedir = pedirPermissaoAdianta(true, Boolean(micTrack));
   const { t } = useLingui();
   const [sounds, setSounds] = useState(() => callSoundsEnabled());
   const [qualidade, setQualidade] = useState<Qualidade>(() => loadQualidade());
+
+  /*
+   * Relê a lista quando o microfone da chamada aparece.
+   *
+   * A primeira leitura pode ter acontecido antes de a chamada abrir o
+   * microfone, e nesse instante o navegador ainda escondia os nomes. Sem esta
+   * releitura, a tela ficaria mostrando a lista velha — vazia — mesmo depois de
+   * a permissão passar a existir.
+   */
+  useEffect(() => {
+    if (micTrack) void refresh();
+  }, [micTrack, refresh]);
   const [busy, setBusy] = useState<DeviceKind | null>(null);
   const [probe, setProbe] = useState<MediaStream | null>(null);
 
@@ -170,7 +189,7 @@ export function DevicePicker({
     <div className="device-picker">
       {error && <p className="device-note bad">{error}</p>}
 
-      {(micBlocked || camBlocked) && (
+      {(micBlocked || camBlocked) && adiantaPedir && (
         <div className="device-reveal">
           <p>
             {micBlocked && camBlocked
@@ -187,6 +206,18 @@ export function DevicePicker({
                 : t`Allow the camera`}
           </button>
         </div>
+      )}
+
+      {/*
+        Microfone aberto e dispositivos sem nome ao mesmo tempo: a permissão
+        existe — a track viva é a prova — e é a plataforma que se recusa a
+        nomeá-los. Aqui não há botão, porque não há ação que resolva; o que a
+        pessoa precisa é saber que não está fazendo nada errado.
+      */}
+      {micBlocked && !adiantaPedir && (
+        <p className="device-note">
+          {t`This app cannot read the device names on this system, so only the system default can be picked. The call still works, and the microphone in use is the one Windows is set to.`}
+        </p>
       )}
 
       <Row

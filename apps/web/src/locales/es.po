@@ -1670,6 +1670,10 @@ msgid "Things"
 msgstr "Cosas"
 
 #: src/ui/DevicePicker.tsx
+msgid "This app cannot read the device names on this system, so only the system default can be picked. The call still works, and the microphone in use is the one Windows is set to."
+msgstr "Esta aplicación no puede leer los nombres de los dispositivos en este sistema, así que solo se puede elegir el predeterminado. La llamada funciona igual, y el micrófono en uso es el que tiene configurado Windows."
+
+#: src/ui/DevicePicker.tsx
 msgid "This browser always uses the system's default speaker; change it in the operating system's sound settings."
 msgstr "Este navegador siempre usa la salida de sonido predeterminada del sistema; cámbiala en la configuración de sonido del sistema operativo."
 

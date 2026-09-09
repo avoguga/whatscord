@@ -16,6 +16,7 @@ import {
   deviceLabel,
   facingDoRotulo,
   needsPermission,
+  pedirPermissaoAdianta,
   proximoFacingMode,
   resolveDeviceId,
   selectableDevices,
@@ -359,6 +360,31 @@ check(
   Buffer.from(url.slice("data:audio/wav;base64,".length), "base64")
     .subarray(0, 4)
     .toString() === "RIFF"
+);
+
+// ---------------------------------------------------------------------------
+section("pedir permissão só quando adianta");
+
+/*
+ * O caso que motivou isto: no app instalado a WebView recebe
+ * `--auto-accept-camera-and-microphone-capture`, que aceita o aviso sem gravar
+ * a permissão. A captura funciona e os nomes nunca aparecem — então a tela
+ * oferecia um botão "permitir" que chamava `getUserMedia`, era auto-aceito de
+ * novo, e nada mudava. Clicar dez vezes dava o mesmo nada.
+ */
+check(
+  "bloqueado e SEM track viva: pedir adianta",
+  pedirPermissaoAdianta(true, false) === true
+);
+check(
+  "bloqueado mas COM microfone aberto: pedir NÃO adianta (a permissão já existe)",
+  pedirPermissaoAdianta(true, true) === false,
+  false,
+  pedirPermissaoAdianta(true, true)
+);
+check(
+  "sem bloqueio nenhum, não há o que pedir",
+  pedirPermissaoAdianta(false, false) === false && pedirPermissaoAdianta(false, true) === false
 );
 
 // ---------------------------------------------------------------------------

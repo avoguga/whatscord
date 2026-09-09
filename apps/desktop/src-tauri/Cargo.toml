@@ -34,6 +34,15 @@ tauri-plugin-deep-link = "2.4.10"
 # maquina em portugues. 1 KB de crate resolve a primeira impressao do produto.
 sys-locale = "0.3"
 
+# Acesso direto a WebView2 para CONCEDER a permissao de microfone e camera de
+# forma persistida. Nao e enfeite: sem ela o `enumerateDevices` do navegador
+# devolve dispositivos sem nome e sem id, e a tela de escolher microfone fica
+# vazia. Ver `conceder_midia` em lib.rs. Ambas ja vinham como dependencia
+# transitiva do proprio Tauri; aqui so passam a ser diretas.
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.38"
+windows = { version = "0.61", features = ["Win32_Foundation"] }
+
 # single-instance is desktop-only: it has no mobile implementation and fails to
 # build for iOS/Android, so it is gated behind a target cfg (as the docs require).
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]

@@ -10,10 +10,17 @@
 /**
  * Se este aparelho consegue compartilhar tela.
  *
- * Falso na WebView do Android: o wry implementa `onPermissionRequest` para
- * camera e microfone, mas nao ha nada equivalente para `getDisplayMedia` — isso
- * exigiria a API MediaProjection nativa. Melhor desabilitar o botao e dizer o
- * motivo do que deixar a pessoa clicar e nao acontecer nada.
+ * Falso na WebView do Android: nao existe caminho para `getDisplayMedia` ali —
+ * capturar a tela exigiria a API MediaProjection nativa. Melhor desabilitar o
+ * botao e dizer o motivo do que deixar a pessoa clicar e nao acontecer nada.
+ *
+ * Correcao de um comentario que ficou aqui e estava errado: ele dizia que o wry
+ * concede permissao de camera e microfone. Nao concede — o
+ * `PermissionRequested` dele responde apenas a CLIPBOARD_READ. No Windows quem
+ * faz a captura funcionar e o sinalizador
+ * `--auto-accept-camera-and-microphone-capture` da WebView, e quem faz os
+ * dispositivos terem NOME e a concessao persistida em `conceder_midia`, no lado
+ * Rust.
  */
 export const canShareScreen =
   typeof navigator !== "undefined" && !!navigator.mediaDevices?.getDisplayMedia;

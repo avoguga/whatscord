@@ -96,6 +96,25 @@ export function needsPermission(raw: Pick<MediaDeviceInfo, "label">[]): boolean 
 }
 
 /**
+ * Se pedir permissao ainda pode resolver alguma coisa.
+ *
+ * Um microfone JA ABERTO prova que a permissao existe. Se mesmo assim os
+ * dispositivos vem sem nome, o problema nao e permissao — e a plataforma se
+ * recusando a nomea-los, e nenhum `getUserMedia` a mais vai mudar isso.
+ *
+ * Foi exatamente o que aconteceu no app instalado: a WebView do Windows recebe
+ * `--auto-accept-camera-and-microphone-capture`, que aceita o AVISO sem GRAVAR
+ * a permissao. A captura funcionava, os nomes nunca apareciam, e a tela oferecia
+ * um botao "permitir" que nao tinha como funcionar — ele chamava `getUserMedia`,
+ * era auto-aceito de novo, e nada mudava. Oferecer uma acao que nao pode dar
+ * certo e pior do que nao oferecer nada: a pessoa clica, clica, e conclui que o
+ * app esta quebrado.
+ */
+export function pedirPermissaoAdianta(bloqueado: boolean, temTrackViva: boolean): boolean {
+  return bloqueado && !temTrackViva;
+}
+
+/**
  * A readable name for a device, even before permission reveals the real one.
  *
  * Unlabelled devices all come back as "" — numbering them at least lets someone
