@@ -734,6 +734,10 @@ msgstr "Espera mientras se establece la conexión."
 msgid "How to invite people"
 msgstr "Cómo invitar personas"
 
+#: src/ui/ShareQuality.tsx
+msgid "If a game drops to your monitor's refresh rate while you share it, that is Windows composing the window — it happens at 30 or 60 alike. Running the game in exclusive full screen, or capping it in-game, avoids it."
+msgstr "Si un juego baja a la frecuencia de tu monitor mientras lo compartes, es Windows componiendo la ventana: pasa igual a 30 o a 60. Ejecutar el juego en pantalla completa exclusiva, o limitar los fps dentro del juego, lo evita."
+
 #: src/ui/Membros.tsx
 msgid "In a call"
 msgstr "En llamada"

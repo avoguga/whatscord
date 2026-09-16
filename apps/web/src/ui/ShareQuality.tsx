@@ -91,6 +91,22 @@ export function QualidadeDeTela({
           </Trans>
         </p>
       )}
+      {!compacto && (
+        <p className="share-note">
+          {/*
+            A queixa foi "coloquei 60 e o jogo travou em 60". Nao e o nosso 60:
+            capturar uma janela faz o Windows compor essa janela pelo DWM, e
+            janela composta e sincronizada com o monitor — o jogo cai para a
+            taxa de atualizacao do monitor (60 Hz na maioria), com 30 ou com 60
+            aqui. Dizer isso na hora poupa a pessoa de baixar o fps a toa.
+          */}
+          <Trans>
+            If a game drops to your monitor's refresh rate while you share it, that is Windows
+            composing the window — it happens at 30 or 60 alike. Running the game in exclusive
+            full screen, or capping it in-game, avoids it.
+          </Trans>
+        </p>
+      )}
     </div>
   );
 }
