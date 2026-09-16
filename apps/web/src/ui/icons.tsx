@@ -137,3 +137,25 @@ export const IconChevronDown = ({ size }: P) => (
 export const IconBandeja = ({ size }: P) => (
   <svg {...base(size)}><rect x="3" y="4" width="7" height="7" rx="1.6" /><rect x="3" y="14" width="7" height="7" rx="1.6" /><rect x="13" y="14" width="7" height="7" rx="1.6" /><path d="M14 8.5a3.4 3.4 0 0 1 3-3.4M14 8.5a6.4 6.4 0 0 1 6-6.4" /></svg>
 );
+
+/*
+ * Tela cheia, e sair dela.
+ *
+ * Desenho diferente do IconExpandir/IconRecolher de proposito, apesar de os dois
+ * pares quererem dizer "maior" e "menor": aqueles moram no cabecalho e decidem
+ * quanto da JANELA a chamada ocupa; estes moram em cima do video e decidem se
+ * ele toma a TELA. Usar o mesmo icone para as duas coisas, na mesma cena, faria
+ * a pessoa clicar num esperando o outro.
+ */
+export const IconTelaCheia = ({ size }: P) => (
+  <svg {...base(size ?? 18)}><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+);
+export const IconSairTelaCheia = ({ size }: P) => (
+  <svg {...base(size ?? 18)}><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /></svg>
+);
+export const IconVolume = ({ size }: P) => (
+  <svg {...base(size ?? 16)}><path d="M11 5 6 9H2v6h4l5 4V5z" /><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5" /><path d="M18 7a7 7 0 0 1 0 10" /></svg>
+);
+export const IconVolumeMudo = ({ size }: P) => (
+  <svg {...base(size ?? 16)}><path d="M11 5 6 9H2v6h4l5 4V5z" /><path d="m16 9 5 6M21 9l-5 6" /></svg>
+);

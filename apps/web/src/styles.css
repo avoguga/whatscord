@@ -2146,3 +2146,79 @@ input, textarea { font: inherit; color: inherit; }
   margin: 0 4px 2px;
   font-size: 11.5px; line-height: 1.4; color: var(--text-dim);
 }
+
+/* ---------------------------------------------------------------------------
+   CONTROLES EM CIMA DO QUADRO — tela cheia e volume
+   ---------------------------------------------------------------------------
+   Escondidos ate o ponteiro chegar. Em cima de uma apresentacao qualquer coisa
+   permanente vira sujeira, e o que se esta olhando e o conteudo, nao a moldura.
+   Mas `visibility`/`opacity` em vez de `display:none`: o foco do teclado tem de
+   alcanca-los, e um elemento com `display:none` nao existe para o Tab.
+--------------------------------------------------------------------------- */
+
+.tile-acoes {
+  position: absolute; right: 8px; bottom: 8px;
+  display: flex; align-items: center; gap: 6px;
+  opacity: 0; transition: opacity 120ms ease;
+}
+.tile:hover .tile-acoes,
+.tile:focus-within .tile-acoes { opacity: 1; }
+/* Em tela cheia o ponteiro costuma estar parado longe da borda; deixar os
+   controles sumirem ali seria prender a pessoa sem saida visivel (o Esc existe,
+   mas quem nao sabe disso fica preso). */
+.tile.cheia .tile-acoes { opacity: 1; }
+
+.tile-acao {
+  display: grid; place-items: center;
+  width: 28px; height: 28px; border-radius: 6px;
+  color: #fff; background: var(--media-scrim);
+}
+.tile-acao:hover { background: var(--media-scrim-forte, rgba(0, 0, 0, 0.72)); }
+
+.tile-volume {
+  display: flex; align-items: center; gap: 6px;
+  border-radius: 6px;
+}
+.tile-volume.aberto { background: var(--media-scrim); padding-right: 8px; }
+
+/* A barra so aparece depois do clique no alto-falante. Deixa-la sempre visivel
+   comeria a largura do quadro em grade, onde os tiles ja sao pequenos. */
+.tile-volume-barra { width: 92px; accent-color: var(--accent-bright); }
+.tile-volume-num {
+  font-size: 11px; color: #fff; min-width: 34px; text-align: right;
+  /* Largura minima para o numero nao empurrar a barra a cada 5%. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+   O QUADRO EM TELA CHEIA
+   ---------------------------------------------------------------------------
+   `:fullscreen` recebe o tile inteiro, entao o que vale aqui e desfazer o que
+   so faz sentido dentro da grade: a proporcao fixa, o canto arredondado e o
+   anel de quem esta falando (em tela cheia ele viraria uma moldura piscando em
+   volta da apresentacao).
+--------------------------------------------------------------------------- */
+
+.tile:fullscreen {
+  aspect-ratio: auto;
+  width: 100vw; height: 100vh;
+  border-radius: 0;
+  background: var(--media-ink);
+  box-shadow: none;
+}
+.tile:fullscreen video { object-fit: contain; }
+.tile:fullscreen .tile-name { left: 16px; bottom: 16px; font-size: 14px; }
+.tile:fullscreen .tile-acoes { right: 16px; bottom: 16px; }
+
+/* ---------------------------------------------------------------------------
+   SILENCIAR A BANDEJA
+--------------------------------------------------------------------------- */
+
+.soundboard-silencio {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin: 2px 4px 0; padding-top: 8px;
+  border-top: 1px solid var(--divider);
+  font-size: 12px; line-height: 1.4; color: var(--text-dim);
+  cursor: pointer;
+}
+.soundboard-silencio input { margin-top: 1px; accent-color: var(--accent-bright); }

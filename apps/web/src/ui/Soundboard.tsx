@@ -5,8 +5,10 @@ import type { MessageDescriptor } from "@lingui/core";
 import { useLingui as useLinguiRuntime } from "@lingui/react";
 import {
   ESPERA_MS,
+  bandejaSilenciada,
   favoritosDaSala,
   ordenarBandeja,
+  salvarBandejaSilenciada,
   salvarFavoritosDaSala,
   type SomId
 } from "../lib/soundboard";
@@ -60,6 +62,7 @@ export function Soundboard({
 
   const [favoritos, setFavoritos] = useState<SomId[]>(() => favoritosDaSala(roomId));
   const [esperandoAte, setEsperandoAte] = useState(0);
+  const [silenciada, setSilenciada] = useState(() => bandejaSilenciada());
   const [agora, setAgora] = useState(() => Date.now());
 
   // Um relógio só enquanto há espera correndo: sem isto o botão ficaria
@@ -120,6 +123,28 @@ export function Soundboard({
       <p className="soundboard-nota">
         <Trans>Everyone in the call hears it. Right-click to pin a sound to the front.</Trans>
       </p>
+
+      {/*
+        Silenciar fica DENTRO da bandeja, ao lado dos sons.
+        -----------------------------------------------------------------
+        Quem quer calar os efeitos procura onde eles estão, nao num painel de
+        configuracoes tres cliques adiante. E o proprio interruptor explica que
+        o que voce mesmo apertar continua tocando — sem isso a pessoa aperta um
+        som, nao ouve nada e conclui que a bandeja quebrou.
+      */}
+      <label className="soundboard-silencio">
+        <input
+          type="checkbox"
+          checked={silenciada}
+          onChange={(e) => {
+            setSilenciada(e.target.checked);
+            salvarBandejaSilenciada(e.target.checked);
+          }}
+        />
+        <span>
+          <Trans>Mute sounds other people play (yours still play)</Trans>
+        </span>
+      </label>
 
       <button className="quick-full" onClick={onFechar}>
         <Trans>Done</Trans>

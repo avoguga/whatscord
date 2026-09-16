@@ -608,6 +608,11 @@ msgstr "Fotogramas por segundo"
 msgid "Front camera"
 msgstr "Cámara frontal"
 
+#: src/ui/Call.tsx
+#: src/ui/Call.tsx
+msgid "Full screen"
+msgstr "Pantalla completa"
+
 #: src/lib/erros.ts
 msgid "Give the folder a name."
 msgstr "Ponle un nombre a la carpeta."
@@ -737,6 +742,14 @@ msgstr "Idioma"
 #: src/ui/Call.tsx
 msgid "Leave"
 msgstr "Salir"
+
+#: src/ui/Call.tsx
+msgid "Leave full screen"
+msgstr "Salir de pantalla completa"
+
+#: src/ui/Call.tsx
+msgid "Leave full screen (Esc)"
+msgstr "Salir de pantalla completa (Esc)"
 
 #: src/ui/Call.tsx
 msgid "Leave the call"
@@ -881,6 +894,14 @@ msgstr "Silenciar"
 #: src/ui/Chat.tsx
 msgid "Mute notifications"
 msgstr "Silenciar notificaciones"
+
+#: src/ui/Soundboard.tsx
+msgid "Mute sounds other people play (yours still play)"
+msgstr "Silenciar los sonidos que pongan los demás (los tuyos siguen sonando)"
+
+#: src/ui/Call.tsx
+msgid "muted"
+msgstr "silenciado"
 
 #: src/ui/Sidebar.tsx
 msgid "Muted"
@@ -1829,6 +1850,20 @@ msgstr "Sala de voz {nome} creada."
 #: src/ui/QuickDeviceMenu.tsx
 msgid "Voice settings"
 msgstr "Configuración de voz"
+
+#: src/ui/Call.tsx
+msgid "Volume"
+msgstr "Volumen"
+
+#: src/ui/Call.tsx
+#: src/ui/Call.tsx
+msgid "Volume of this person"
+msgstr "Volumen de esta persona"
+
+#: src/ui/Call.tsx
+#: src/ui/Call.tsx
+msgid "Volume of this screen share"
+msgstr "Volumen de esta pantalla compartida"
 
 #: src/ui/Call.tsx
 msgid "Weak connection"

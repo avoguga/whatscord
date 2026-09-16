@@ -254,3 +254,40 @@ export function ordenarBandeja(roomId: string): Som[] {
   };
   return [...SONS].sort((a, b) => peso(a.id) - peso(b.id));
 }
+
+/* ------------------------------------------------- silenciar a bandeja dos outros */
+
+const CHAVE_SILENCIO = "whatscord.bandejaSilenciada";
+
+/**
+ * Se os sons que os OUTROS tocam devem ficar calados aqui.
+ *
+ * A bandeja é engraçada até deixar de ser. Quem está trabalhando com a chamada
+ * aberta, ou dividindo a sala com mais alguém, precisa de uma forma de calar os
+ * efeitos sem sair da conversa e sem pedir para o grupo parar — pedir é
+ * constrangedor e nunca funciona por muito tempo.
+ *
+ * Silencia apenas o que vem de fora. Quem aperta um som continua ouvindo o
+ * próprio: um botão que não dá retorno nenhum parece quebrado, e ninguém aperta
+ * um som por acidente. A alternativa — calar tudo — faria a pessoa achar que a
+ * bandeja parou de funcionar.
+ *
+ * Por aparelho, não por sala: quem não quer ouvir, não quer ouvir em lugar
+ * nenhum.
+ */
+export function bandejaSilenciada(): boolean {
+  try {
+    return localStorage.getItem(CHAVE_SILENCIO) === "sim";
+  } catch {
+    return false;
+  }
+}
+
+export function salvarBandejaSilenciada(v: boolean): void {
+  try {
+    if (v) localStorage.setItem(CHAVE_SILENCIO, "sim");
+    else localStorage.removeItem(CHAVE_SILENCIO);
+  } catch {
+    /* a escolha só não sobrevive à aba */
+  }
+}

@@ -23,7 +23,20 @@ import {
   type FacingMode
 } from "../lib/devices";
 import { playCue } from "../lib/sounds";
-import { empacotarSom, lerRecadoDeSom, tocarSom, type SomId } from "../lib/soundboard";
+import {
+  bandejaSilenciada,
+  empacotarSom,
+  lerRecadoDeSom,
+  tocarSom,
+  type SomId
+} from "../lib/soundboard";
+import {
+  chaveDeAudio,
+  rotuloDeVolume,
+  salvarVolume,
+  volumeDe,
+  VOLUME_MAX
+} from "../lib/volumeDaChamada";
 import {
   chamadaExpandida,
   ladoDoRoster,
@@ -54,6 +67,7 @@ import {
   IconMic, IconMicOff, IconVideo, IconVideoOff, IconScreen, IconChats,
   IconHangup, IconMinimize, IconSignal, IconSpeaker, IconSettings, IconClose,
   IconExpandir, IconRecolher, IconChevronDown as IconSeta, IconBandeja,
+  IconTelaCheia, IconSairTelaCheia, IconVolume, IconVolumeMudo,
   IconChevronDown
 } from "./icons";
 
@@ -142,6 +156,15 @@ export function CallSheet({
   const [chatAberto, setChatAberto] = useState(false);
   /** A bandeja de sons, aberta pelo botao da barra. */
   const [bandeja, setBandeja] = useState(false);
+  /*
+   * O volume de cada fonte, por participante.
+   *
+   * Fica em estado E no armazenamento: o estado e o que faz a barra andar
+   * enquanto se arrasta, e o armazenamento e o que faz a escolha sobreviver a
+   * proxima chamada. Ler direto do armazenamento a cada render daria uma barra
+   * travada, porque `localStorage` nao avisa ninguem quando muda.
+   */
+  const [volumes, setVolumes] = useState<Record<string, number>>({});
   const [expandida, setExpandida] = useState(() => chamadaExpandida());
   const [lado, setLado] = useState<LadoDoRoster>(() => ladoDoRoster());
   const [listaAberta, setListaAberta] = useState(() => rosterAberto());
@@ -270,7 +293,9 @@ export function CallSheet({
            */
           .on(RoomEvent.DataReceived, (payload: Uint8Array) => {
             const id = lerRecadoDeSom(payload);
-            if (id) void tocarSom(id, outputRef.current);
+            // Lido na hora, e nao guardado em estado: quem acabou de silenciar
+            // espera que o PROXIMO som ja venha calado, nao o seguinte.
+            if (id && !bandejaSilenciada()) void tocarSom(id, outputRef.current);
           })
           .on(RoomEvent.AudioPlaybackStatusChanged, () =>
             setAudioBlocked(!room.canPlaybackAudio)
@@ -351,12 +376,18 @@ export function CallSheet({
   }, [room, revision, status]);
 
   const audioTracks = useMemo(() => {
-    const out: { id: string; track: Track }[] = [];
+    const out: { id: string; track: Track; chave: string }[] = [];
     room.remoteParticipants.forEach((p) => {
       (p.trackPublications as Map<string, RemoteTrackPublication>).forEach((pub) => {
         const isAudio =
           pub.source === Track.Source.Microphone || pub.source === Track.Source.ScreenShareAudio;
-        if (isAudio && pub.track) out.push({ id: `${p.identity}-${pub.source}`, track: pub.track });
+        if (isAudio && pub.track) {
+          out.push({
+            id: `${p.identity}-${pub.source}`,
+            track: pub.track,
+            chave: chaveDeAudio(p.identity, pub.source)
+          });
+        }
       });
     });
     return out;
@@ -408,6 +439,39 @@ export function CallSheet({
     return out.sort((a, b) => Number(b.isScreen) - Number(a.isScreen));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room, status, sharing, camOn, micOn, revision, speakers, roster, me]);
+
+  /*
+   * A fonte de audio de um tile. A tela tem a sua propria — e esse e o ponto:
+   * abaixar o jogo de alguem nao pode abaixar a voz da mesma pessoa.
+   */
+  const fonteDoTile = (tile: Tile) =>
+    tile.isScreen ? Track.Source.ScreenShareAudio : Track.Source.Microphone;
+
+  const volumeDoTile = (tile: Tile) => {
+    const k = chaveDeAudio(tile.participantId, fonteDoTile(tile));
+    return volumes[k] ?? volumeDe(k);
+  };
+
+  const mudarVolumeDoTile = (tile: Tile, v: number) => {
+    const k = chaveDeAudio(tile.participantId, fonteDoTile(tile));
+    setVolumes((m) => ({ ...m, [k]: v }));
+    salvarVolume(k, v);
+  };
+
+  const volumePara = (chave: string) => volumes[chave] ?? volumeDe(chave);
+
+  /*
+   * Um so lugar para montar um tile: ele aparece em tres arranjos diferentes
+   * (vazio, com palco, em grade) e as tres copias ja divergiram uma vez.
+   */
+  const montarTile = (tile: Tile) => (
+    <VideoTile
+      key={tile.key}
+      tile={tile}
+      volume={tile.isLocal ? null : volumeDoTile(tile)}
+      onVolume={(v) => mudarVolumeDoTile(tile, v)}
+    />
+  );
 
   const screenTiles = tiles.filter((t) => t.isScreen);
   const peopleTiles = tiles.filter((t) => !t.isScreen);
@@ -574,6 +638,7 @@ export function CallSheet({
           sinkId={outputId}
           retomar={retomar}
           onBloqueado={setSaidaBloqueada}
+          volumePara={volumePara}
         />
         <div className="call-ribbon" role="status">
           <span className="live-dot" aria-hidden="true" />
@@ -602,6 +667,7 @@ export function CallSheet({
           sinkId={outputId}
           retomar={retomar}
           onBloqueado={setSaidaBloqueada}
+          volumePara={volumePara}
         />
 
       <header className="call-top">
@@ -703,23 +769,17 @@ export function CallSheet({
            */
           <div className="call-stage focus">
             <div className="stage-main">
-              {screenTiles.map((tile) => (
-                <VideoTile key={tile.key} tile={tile} />
-              ))}
+              {screenTiles.map(montarTile)}
             </div>
             {peopleTiles.length > 0 && (
               <div className="stage-strip">
-                {peopleTiles.map((tile) => (
-                  <VideoTile key={tile.key} tile={tile} />
-                ))}
+                {peopleTiles.map(montarTile)}
               </div>
             )}
           </div>
         ) : (
           <div className="call-stage">
-            {tiles.map((tile) => (
-              <VideoTile key={tile.key} tile={tile} />
-            ))}
+            {tiles.map(montarTile)}
           </div>
         )}
 
@@ -1102,12 +1162,14 @@ function RemoteAudio({
   tracks,
   sinkId,
   retomar,
-  onBloqueado
+  onBloqueado,
+  volumePara
 }: {
-  tracks: { id: string; track: Track }[];
+  tracks: { id: string; track: Track; chave: string }[];
   sinkId?: string;
   retomar: number;
   onBloqueado: (v: boolean) => void;
+  volumePara: (chave: string) => number;
 }) {
   return (
     <div style={{ display: "none" }} aria-hidden="true">
@@ -1118,6 +1180,7 @@ function RemoteAudio({
           sinkId={sinkId}
           retomar={retomar}
           onBloqueado={onBloqueado}
+          volume={volumePara(t.chave)}
         />
       ))}
     </div>
@@ -1128,12 +1191,14 @@ function AudioSink({
   track,
   sinkId,
   retomar,
-  onBloqueado
+  onBloqueado,
+  volume
 }: {
   track: Track;
   sinkId?: string;
   retomar: number;
   onBloqueado: (v: boolean) => void;
+  volume: number;
 }) {
   const ref = useRef<HTMLAudioElement>(null);
 
@@ -1178,6 +1243,18 @@ function AudioSink({
   }, [track, retomar, onBloqueado]);
 
   /*
+   * O volume escolhido para esta fonte.
+   *
+   * E aqui que a barra vira som. O elemento e nosso, entao mexer em `.volume`
+   * atinge exatamente uma pessoa e exatamente um caminho — a tela de alguem sem
+   * mexer na voz dele, que e justamente o que o volume do sistema nao faz.
+   */
+  useEffect(() => {
+    const el = ref.current;
+    if (el) el.volume = volume;
+  }, [volume]);
+
+  /*
    * Choosing a speaker only means something if the elements the audio actually
    * plays through follow it. These are ours, created here, so they have to be
    * pointed at the chosen output by hand every time it changes.
@@ -1191,9 +1268,21 @@ function AudioSink({
   return <audio ref={ref} autoPlay />;
 }
 
-function VideoTile({ tile }: { tile: Tile }) {
+function VideoTile({
+  tile,
+  volume,
+  onVolume
+}: {
+  tile: Tile;
+  /** `null` quando nao ha audio remoto para mexer — o seu proprio tile. */
+  volume: number | null;
+  onVolume: (v: number) => void;
+}) {
   const { t } = useLingui();
   const ref = useRef<HTMLVideoElement>(null);
+  const caixa = useRef<HTMLDivElement>(null);
+  const [cheia, setCheia] = useState(false);
+  const [mexendoVolume, setMexendoVolume] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -1204,11 +1293,58 @@ function VideoTile({ tile }: { tile: Tile }) {
     };
   }, [tile.track]);
 
+  /*
+   * Tela cheia.
+   *
+   * `requestFullscreen` no tile INTEIRO, e nao no <video>: em tela cheia o nome
+   * de quem apresenta e o botao de sair precisam continuar existindo. Um <video>
+   * em tela cheia entrega o controle ao navegador e leva junto tudo o que
+   * desenhamos por cima.
+   *
+   * No app instalado isso tambem funciona, e sem precisar de nada do Tauri: o
+   * `tauri-runtime-wry` escuta o `ContainsFullScreenElementChanged` da WebView2
+   * e poe a JANELA em tela cheia sozinho. Por isso nao ha dependencia nova aqui.
+   *
+   * O estado vem do evento, nunca do clique. Sair pelo Esc e o caminho mais
+   * usado e nao passa por botao nenhum — confiar no clique deixaria o icone
+   * mentindo.
+   */
+  useEffect(() => {
+    const ver = () => setCheia(document.fullscreenElement === caixa.current);
+    document.addEventListener("fullscreenchange", ver);
+    return () => document.removeEventListener("fullscreenchange", ver);
+  }, []);
+
+  const alternarTelaCheia = () => {
+    const el = caixa.current;
+    if (!el) return;
+    if (document.fullscreenElement === el) {
+      void document.exitFullscreen().catch(() => undefined);
+    } else {
+      void el.requestFullscreen().catch(() => undefined);
+    }
+  };
+
   const poor =
     tile.quality === ConnectionQuality.Poor || tile.quality === ConnectionQuality.Lost;
 
+  /* So faz sentido em quadro de video — num avatar nao ha o que ampliar. */
+  const podeAmpliar = !!tile.track;
+  const mudo = volume === 0;
+
   return (
-    <div className={`tile${tile.isScreen ? " screen" : ""}${tile.speaking ? " speaking" : ""}`}>
+    <div
+      ref={caixa}
+      className={`tile${tile.isScreen ? " screen" : ""}${tile.speaking ? " speaking" : ""}${
+        cheia ? " cheia" : ""
+      }`}
+      /*
+       * Dois cliques ampliam. E o gesto que todo mundo ja tenta primeiro num
+       * video, e ele nao exige mirar num botao de 28px enquanto a apresentacao
+       * corre.
+       */
+      onDoubleClick={podeAmpliar ? alternarTelaCheia : undefined}
+    >
       {tile.track ? (
         <video ref={ref} autoPlay playsInline muted={tile.isLocal} />
       ) : (
@@ -1225,6 +1361,65 @@ function VideoTile({ tile }: { tile: Tile }) {
         {tile.isLocal && !tile.isScreen ? ` ${t`(you)`}` : ""}
         {tile.isScreen ? ` — ${t`screen`}` : ""}
       </span>
+
+      {/*
+        Os controles do quadro. Ficam escondidos ate o ponteiro chegar (ver
+        `.tile-acoes` no CSS) porque em cima de uma apresentacao qualquer coisa
+        permanente vira sujeira — mas continuam existindo para o teclado e para
+        o leitor de tela, que nao tem ponteiro para passar por cima.
+      */}
+      <div className="tile-acoes">
+        {volume !== null && (
+          <div className={`tile-volume${mexendoVolume ? " aberto" : ""}`}>
+            <button
+              className="tile-acao"
+              onClick={() => setMexendoVolume((v) => !v)}
+              aria-expanded={mexendoVolume}
+              title={
+                tile.isScreen
+                  ? t`Volume of this screen share`
+                  : t`Volume of this person`
+              }
+              aria-label={
+                tile.isScreen
+                  ? t`Volume of this screen share`
+                  : t`Volume of this person`
+              }
+            >
+              {mudo ? <IconVolumeMudo /> : <IconVolume />}
+            </button>
+            {mexendoVolume && (
+              <>
+                <input
+                  className="tile-volume-barra"
+                  type="range"
+                  min={0}
+                  max={VOLUME_MAX}
+                  step={0.05}
+                  value={volume}
+                  onChange={(e) => onVolume(Number(e.target.value))}
+                  aria-label={t`Volume`}
+                />
+                <span className="tile-volume-num">
+                  {rotuloDeVolume(volume, t`muted`)}
+                </span>
+              </>
+            )}
+          </div>
+        )}
+
+        {podeAmpliar && (
+          <button
+            className="tile-acao"
+            onClick={alternarTelaCheia}
+            title={cheia ? t`Leave full screen (Esc)` : t`Full screen`}
+            aria-label={cheia ? t`Leave full screen` : t`Full screen`}
+            aria-pressed={cheia}
+          >
+            {cheia ? <IconSairTelaCheia /> : <IconTelaCheia />}
+          </button>
+        )}
+      </div>
 
       {poor && !tile.isLocal && (
         <span className="tile-quality" title={t`Weak connection`}>

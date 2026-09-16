@@ -38,14 +38,25 @@ import {
 import {
   ESPERA_MS,
   SONS,
+  bandejaSilenciada,
   ehSomId,
   empacotarSom,
   favoritosDaSala,
   lerRecadoDeSom,
   ordenarBandeja,
+  salvarBandejaSilenciada,
   salvarFavoritosDaSala,
   type SomId
 } from "../apps/web/src/lib/soundboard";
+import {
+  VOLUME_MAX,
+  VOLUME_PADRAO,
+  chaveDeAudio,
+  limitarVolume,
+  rotuloDeVolume,
+  salvarVolume,
+  volumeDe
+} from "../apps/web/src/lib/volumeDaChamada";
 import {
   bitrateDe,
   captureOptions,
@@ -1049,6 +1060,150 @@ check(
 check(
   "nome comprido não alarga a coluna e desalinha a grade",
   /\.soundboard-som em\s*\{[^}]*text-overflow:\s*ellipsis/.test(css)
+);
+
+// ---------------------------------------------------------------------------
+section("silenciar a bandeja — para quem nao quer ouvir");
+
+/*
+ * O localStorage de mentira instalado na secao dos favoritos continua valendo
+ * daqui para baixo.
+ */
+check("por padrao a bandeja toca", bandejaSilenciada() === false);
+salvarBandejaSilenciada(true);
+check("silenciada, fica silenciada", bandejaSilenciada() === true);
+salvarBandejaSilenciada(false);
+check("e volta a tocar quando desmarcado", bandejaSilenciada() === false);
+/*
+ * Desligar apaga a chave em vez de gravar "nao". Sem isso, todo mundo que
+ * alguma vez abriu a bandeja carregaria uma entrada para sempre.
+ */
+salvarBandejaSilenciada(true);
+salvarBandejaSilenciada(false);
+check(
+  "desligar nao deixa lixo guardado",
+  memoria.get("whatscord.bandejaSilenciada") === undefined,
+  undefined,
+  memoria.get("whatscord.bandejaSilenciada")
+);
+
+// ---------------------------------------------------------------------------
+section("volume por participante e por fonte");
+
+/*
+ * O ponto inteiro: a tela de alguem e a voz da MESMA pessoa sao dois volumes
+ * diferentes. Se as duas coisas dividissem uma chave, abaixar o jogo mudo a
+ * pessoa junto — que e exatamente o que o volume do sistema faz de errado e o
+ * motivo de isto existir.
+ */
+const vozDoJoao = chaveDeAudio("joao", "microphone");
+const telaDoJoao = chaveDeAudio("joao", "screen_share_audio");
+check("voz e tela da mesma pessoa sao chaves diferentes", vozDoJoao !== telaDoJoao);
+
+salvarVolume(telaDoJoao, 0.3);
+check("a tela guardou o que foi escolhido", volumeDe(telaDoJoao) === 0.3, 0.3, volumeDe(telaDoJoao));
+check(
+  "e a voz da mesma pessoa continua intacta",
+  volumeDe(vozDoJoao) === VOLUME_PADRAO,
+  VOLUME_PADRAO,
+  volumeDe(vozDoJoao)
+);
+
+salvarVolume(vozDoJoao, 0);
+check("mudo e um volume valido, nao um valor invalido", volumeDe(vozDoJoao) === 0);
+check("e nao vazou para a tela", volumeDe(telaDoJoao) === 0.3);
+
+/*
+ * O padrao nao fica guardado: a lista nao pode crescer para sempre com gente
+ * que se ouviu uma vez, e "nunca mexi nisso" tem de continuar querendo dizer
+ * isso.
+ */
+salvarVolume(telaDoJoao, VOLUME_PADRAO);
+check(
+  "voltar ao padrao apaga a entrada em vez de grava-la",
+  memoria.get("whatscord.volume." + telaDoJoao) === undefined,
+  undefined,
+  memoria.get("whatscord.volume." + telaDoJoao)
+);
+check("e a leitura devolve o padrao", volumeDe(telaDoJoao) === VOLUME_PADRAO);
+
+check("acima do teto e cortado no teto", limitarVolume(9) === VOLUME_MAX, VOLUME_MAX, limitarVolume(9));
+check("abaixo de zero vira zero", limitarVolume(-3) === 0);
+check("no meio passa intacto", limitarVolume(0.42) === 0.42);
+/*
+ * O teto e 1 porque passar disso exigiria tirar o som do elemento e manda-lo
+ * por um GainNode, o que brigaria com a escolha de alto-falante (`setSinkId`
+ * vive no elemento). Uma barra que anda ate 200% sem efeito acima de 100% seria
+ * pior do que nao ter barra.
+ */
+check("o teto e 100%, e o codigo concorda com a barra", VOLUME_MAX === 1, 1, VOLUME_MAX);
+
+/*
+ * O fracasso que nao pode acontecer: silencio por acidente. Um valor ilegivel
+ * no armazenamento tem de virar o PADRAO, nunca zero — a pessoa nao ouviria
+ * ninguem, nao teria feito nada para isso e nao teria como desconfiar da causa.
+ */
+memoria.set("whatscord.volume." + chaveDeAudio("maria", "microphone"), "isto-nao-e-numero");
+check(
+  "valor corrompido volta ao padrao, e nao a zero",
+  volumeDe(chaveDeAudio("maria", "microphone")) === VOLUME_PADRAO,
+  VOLUME_PADRAO,
+  volumeDe(chaveDeAudio("maria", "microphone"))
+);
+memoria.set("whatscord.volume." + chaveDeAudio("maria", "microphone"), "");
+check(
+  "vazio tambem volta ao padrao",
+  volumeDe(chaveDeAudio("maria", "microphone")) === VOLUME_PADRAO,
+  VOLUME_PADRAO,
+  volumeDe(chaveDeAudio("maria", "microphone"))
+);
+memoria.set("whatscord.volume." + chaveDeAudio("maria", "microphone"), "5");
+check(
+  "um numero grande demais guardado por engano e cortado na leitura",
+  volumeDe(chaveDeAudio("maria", "microphone")) === VOLUME_MAX
+);
+
+check("o rotulo mostra porcentagem inteira", rotuloDeVolume(0.35, "mudo") === "35%");
+check("zero diz 'mudo', e nao '0%'", rotuloDeVolume(0, "mudo") === "mudo");
+check("cem por cento tambem tem rotulo", rotuloDeVolume(1, "mudo") === "100%");
+
+// ---------------------------------------------------------------------------
+section("tela cheia — as regras de estilo do quadro ampliado");
+
+check(
+  "o tile em tela cheia larga a proporcao fixa da grade",
+  /\.tile:fullscreen\s*\{[^}]*aspect-ratio:\s*auto/.test(css)
+);
+check(
+  "e ocupa a tela inteira",
+  /\.tile:fullscreen\s*\{[^}]*width:\s*100vw/.test(css) &&
+    /\.tile:fullscreen\s*\{[^}]*height:\s*100vh/.test(css)
+);
+check(
+  "o video continua encaixando por dentro, sem cortar",
+  /\.tile:fullscreen video\s*\{[^}]*object-fit:\s*contain/.test(css)
+);
+/*
+ * Em tela cheia o ponteiro costuma estar parado no meio do quadro. Se os
+ * controles so aparecessem no hover, a pessoa que nao conhece o Esc ficaria
+ * presa sem saida visivel.
+ */
+check(
+  "em tela cheia os controles ficam sempre a vista",
+  /\.tile\.cheia \.tile-acoes\s*\{[^}]*opacity:\s*1/.test(css)
+);
+/*
+ * `opacity` e nao `display:none`: um elemento com `display:none` nao existe
+ * para o Tab, e o botao de tela cheia precisa ser alcancavel pelo teclado.
+ */
+check(
+  "os controles escondidos continuam alcancaveis pelo teclado",
+  /\.tile-acoes\s*\{[^}]*opacity:\s*0/.test(css) &&
+    !/\.tile-acoes\s*\{[^}]*display:\s*none/.test(css)
+);
+check(
+  "e reaparecem quando algo dentro deles recebe foco",
+  /\.tile:focus-within \.tile-acoes/.test(css)
 );
 
 // ---------------------------------------------------------------------------
