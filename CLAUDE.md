@@ -1,3 +1,11 @@
+# CLAUDE.md
+
+## Antes de começar
+
+Leia `docs/guia-do-agente.md`. Ele explica a arquitetura, como rodar, como
+construir o instalador do Windows e o APK, onde tudo está hospedado, e as
+armadilhas que já custaram tempo neste projeto — incluindo as que não aparecem
+em nenhum erro de compilação.
 
 ## Regras de entrega
 
