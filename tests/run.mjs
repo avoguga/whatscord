@@ -2901,6 +2901,227 @@ function missingState(keys) {
   return keys.filter((k) => !state[k]);
 }
 
+/* =====================================================================
+   16. Sons da bandeja — por pessoa e por espaço
+   =====================================================================
+   O que se verifica aqui não é "subir arquivo funciona": é QUEM PODE O QUÊ.
+   Som de espaço aparece para todo mundo de lá e fica quando quem subiu sai, e
+   por isso a régua é a de quem administra. Se um membro comum pudesse publicar
+   som para todos, a sala viraria inutilizável em uma tarde — e esse é o tipo de
+   regra que quebra em silêncio, porque ninguém repara que passou a ser permitido.
+   ===================================================================== */
+async function secSons() {
+  console.log("\n=== 16. Sons da bandeja ===");
+  const { A, B, C } = state;
+
+  const criado = await POST("/spaces", { token: A.token, body: { name: "Espaco dos Sons" } });
+  const space = criado.json?.space;
+  check(
+    "espaço criado para os testes de som",
+    criado.status === 201 && Boolean(space?.id),
+    "201",
+    short(criado)
+  );
+  if (!space?.id) return;
+
+  await POST(`/spaces/join/${space.inviteCode}`, { token: B.token });
+  pass("B entrou no espaço (C fica de fora)");
+
+  /*
+   * Um WAV minúsculo, montado aqui. Um arquivo de verdade no repositório
+   * seria mais um binário para manter e não provaria nada a mais: o servidor
+   * não decodifica áudio, ele checa tipo e tamanho.
+   */
+  const wav = (() => {
+    const amostras = 800;
+    const b = Buffer.alloc(44 + amostras * 2);
+    b.write("RIFF", 0);
+    b.writeUInt32LE(36 + amostras * 2, 4);
+    b.write("WAVE", 8);
+    b.write("fmt ", 12);
+    b.writeUInt32LE(16, 16);
+    b.writeUInt16LE(1, 20);
+    b.writeUInt16LE(1, 22);
+    b.writeUInt32LE(8000, 24);
+    b.writeUInt32LE(16000, 28);
+    b.writeUInt16LE(2, 32);
+    b.writeUInt16LE(16, 34);
+    b.write("data", 36);
+    b.writeUInt32LE(amostras * 2, 40);
+    return b;
+  })();
+
+  const enviar = (token, { nome = "teste", emoji = "🔊", spaceId, corpo = wav, tipo = "audio/wav", arquivo = "teste.wav" } = {}) => {
+    const form = new FormData();
+    form.append("name", nome);
+    form.append("emoji", emoji);
+    if (spaceId) form.append("spaceId", spaceId);
+    form.append("file", new Blob([corpo], { type: tipo }), arquivo);
+    return POST("/sounds", { token, body: form });
+  };
+
+  let meuSom = null;
+  let somDoEspaco = null;
+
+  await t("som pessoal", async () => {
+    const r = await enviar(A.token, { nome: "meu som" });
+    meuSom = r.json?.som;
+    check("A sobe um som só dele (201)", r.status === 201 && Boolean(meuSom?.id), "201", short(r));
+    check(
+      "o som volta marcado como do usuário, sem espaço",
+      meuSom?.escopo === "usuario" && meuSom?.spaceId === null,
+      "escopo usuario, spaceId null",
+      JSON.stringify({ escopo: meuSom?.escopo, spaceId: meuSom?.spaceId })
+    );
+    /*
+     * A URL relativa é o contrato com o cliente: é ela que atravessa a chamada
+     * pelo canal de dados, e o cliente recusa qualquer coisa que não tenha
+     * exatamente esta forma.
+     */
+    check(
+      "a URL vem pronta e relativa, no formato /files/<chave>",
+      typeof meuSom?.url === "string" && /^\/files\/[A-Za-z0-9%._~-]+$/.test(meuSom.url),
+      "/files/<chave>",
+      meuSom?.url
+    );
+  });
+
+  await t("o arquivo realmente está lá", async () => {
+    const r = await GET(meuSom.url);
+    check("GET na URL do som devolve 200", r.status === 200, "200", String(r.status));
+    check(
+      "e com content-type de áudio",
+      (r.headers.get("content-type") ?? "").startsWith("audio/"),
+      "audio/*",
+      r.headers.get("content-type")
+    );
+  });
+
+  await t("o dono vê o som dele; quem não é dono, não", async () => {
+    const meu = await GET("/sounds", { token: A.token });
+    check(
+      "A vê o próprio som em `meus`",
+      meu.json?.meus?.some((x) => x.id === meuSom.id),
+      "o som na lista",
+      short(meu)
+    );
+    const outro = await GET("/sounds", { token: B.token });
+    check(
+      "B não vê o som pessoal de A",
+      !outro.json?.meus?.some((x) => x.id === meuSom.id),
+      "lista sem o som de A",
+      short(outro)
+    );
+  });
+
+  await t("som do espaço: só quem administra", async () => {
+    const deMembro = await enviar(B.token, { nome: "som do B", spaceId: space.id });
+    check(
+      "MEMBER não sobe som para o espaço (403)",
+      deMembro.status === 403,
+      "403",
+      short(deMembro)
+    );
+
+    const deFora = await enviar(C.token, { nome: "som do C", spaceId: space.id });
+    check(
+      "quem nem é do espaço também não (403)",
+      deFora.status === 403,
+      "403",
+      short(deFora)
+    );
+
+    const doDono = await enviar(A.token, { nome: "som da casa", spaceId: space.id });
+    somDoEspaco = doDono.json?.som;
+    check(
+      "OWNER sobe (201) e o som volta marcado como do espaço",
+      doDono.status === 201 && somDoEspaco?.escopo === "espaco" && somDoEspaco?.spaceId === space.id,
+      "201, escopo espaco",
+      short(doDono)
+    );
+  });
+
+  await t("quem enxerga a bandeja do espaço", async () => {
+    const membro = await GET(`/sounds?spaceId=${space.id}`, { token: B.token });
+    check(
+      "membro do espaço vê o som da casa",
+      membro.json?.doEspaco?.some((x) => x.id === somDoEspaco.id),
+      "o som na lista",
+      short(membro)
+    );
+    /*
+     * O caso que um id chutado exploraria: sem a checagem de associação, pedir a
+     * bandeja de um espaço qualquer devolveria os sons de um servidor de que a
+     * pessoa nem participa.
+     */
+    const forasteiro = await GET(`/sounds?spaceId=${space.id}`, { token: C.token });
+    check(
+      "quem não é do espaço recebe a bandeja dele VAZIA, não 500",
+      forasteiro.status === 200 && forasteiro.json?.doEspaco?.length === 0,
+      "200 com doEspaco vazio",
+      short(forasteiro)
+    );
+  });
+
+  await t("o que não é áudio não entra", async () => {
+    const r = await enviar(A.token, {
+      nome: "nao e som",
+      corpo: Buffer.from("<html><script>alert(1)</script>"),
+      tipo: "text/html",
+      arquivo: "x.html"
+    });
+    check("HTML disfarçado de som é recusado (415)", r.status === 415, "415", short(r));
+    check("e com código que o cliente sabe traduzir", r.json?.code === "sounds.not_audio", "sounds.not_audio", r.json?.code);
+  });
+
+  await t("o limite de tamanho é do servidor, não do cliente", async () => {
+    /*
+     * 700 KB contra um teto de 512 KB. O `Content-Length` vem do cliente e não
+     * serve de prova; quem precisa recusar é o servidor, lendo o corpo.
+     */
+    const grande = Buffer.concat([wav, Buffer.alloc(700 * 1024)]);
+    const r = await enviar(A.token, { nome: "gigante", corpo: grande });
+    check(
+      "arquivo acima do teto é recusado (413)",
+      r.status === 413,
+      "413",
+      short(r)
+    );
+  });
+
+  await t("nome vazio não passa", async () => {
+    const r = await enviar(A.token, { nome: "   " });
+    check("nome só com espaços é recusado (400)", r.status === 400, "400", short(r));
+  });
+
+  await t("apagar: o seu sim, o dos outros não", async () => {
+    const alheio = await DEL(`/sounds/${meuSom.id}`, { token: B.token });
+    check("B não apaga o som pessoal de A (403)", alheio.status === 403, "403", short(alheio));
+
+    const doEspacoPorMembro = await DEL(`/sounds/${somDoEspaco.id}`, { token: B.token });
+    check(
+      "MEMBER não apaga som do espaço (403)",
+      doEspacoPorMembro.status === 403,
+      "403",
+      short(doEspacoPorMembro)
+    );
+
+    const meu = await DEL(`/sounds/${meuSom.id}`, { token: A.token });
+    check("A apaga o próprio som (200)", meu.status === 200, "200", short(meu));
+
+    const denovo = await DEL(`/sounds/${meuSom.id}`, { token: A.token });
+    check("apagar duas vezes vira 404, não 500", denovo.status === 404, "404", short(denovo));
+
+    const daCasa = await DEL(`/sounds/${somDoEspaco.id}`, { token: A.token });
+    check("o dono do espaço apaga o som da casa (200)", daCasa.status === 200, "200", short(daCasa));
+  });
+
+  await t("sem token não se mexe em nada", async () => {
+    const lista = await GET("/sounds");
+    check("GET /sounds exige autenticação (401)", lista.status === 401, "401", short(lista));
+  });
+}
+
 async function main() {
   const only = process.argv
     .filter((a) => a.startsWith("--only="))
@@ -2934,7 +3155,8 @@ async function main() {
     ["presencavoz", secPresencaDeVoz, ["A", "B", "C", "space"]],
     ["ordem", secOrdemEPastas, ["A", "B", "C", "space"]],
     ["grupo", secGrupo, ["A", "B", "C", "dmAB", "generalId"]],
-    ["papeis", secPapeis, ["A", "B", "C", "D"]]
+    ["papeis", secPapeis, ["A", "B", "C", "D"]],
+    ["sons", secSons, ["A", "B", "C"]]
   ];
 
   for (const [name, section, needs] of sections) {
