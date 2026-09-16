@@ -39,6 +39,7 @@ import {
   ESPERA_MS,
   SONS,
   bandejaSilenciada,
+  ehEnderecoNosso,
   ehSomId,
   empacotarSom,
   favoritosDaSala,
@@ -896,13 +897,17 @@ section("bandeja de sons — o recado que viaja pela chamada");
 for (const som of SONS) {
   check(
     `"${som.id}" volta inteiro do empacotamento`,
-    lerRecadoDeSom(empacotarSom(som.id)) === som.id,
+    lerRecadoDeSom(empacotarSom(som.id))?.id === som.id,
     som.id,
-    lerRecadoDeSom(empacotarSom(som.id))
+    lerRecadoDeSom(empacotarSom(som.id))?.id
   );
 }
 
 check("o recado é pequeno o bastante para não pesar", empacotarSom("fanfarra").length < 64);
+check(
+  "um embutido não carrega endereço — ele é sintetizado dos dois lados",
+  lerRecadoDeSom(empacotarSom("sino"))?.url === null
+);
 
 const lixo = (texto: string) => new TextEncoder().encode(texto);
 
@@ -924,6 +929,70 @@ check(
   "e um id que não é texto também não passa",
   lerRecadoDeSom(lixo(JSON.stringify({ tipo: "som", id: 7 }))) === null
 );
+
+// ---------------------------------------------------------------------------
+section("bandeja de sons — o endereço que chega pelo canal de dados");
+
+/*
+ * A parte perigosa do recurso, e o motivo de estes testes existirem.
+ *
+ * Um som que alguém subiu não pode ser sintetizado do outro lado — o arquivo é
+ * dele. Então o recado carrega um ENDEREÇO, e quem recebe vai buscar e tocar.
+ * Ou seja: qualquer pessoa da chamada consegue fazer o aparelho de todo mundo
+ * baixar algo. Sem a validação, bastaria mandar um `https://` qualquer para
+ * transformar cada participante em cliente de um servidor escolhido por ela —
+ * e o dono desse servidor veria o IP de todos.
+ *
+ * A regra é: só passa endereço RELATIVO, com a forma exata que a nossa API
+ * emite. O host final é montado do lado de cá, contra a nossa própria base.
+ */
+const comUrl = (url: unknown) =>
+  lerRecadoDeSom(lixo(JSON.stringify({ tipo: "som", id: "abc123", url })));
+
+check(
+  "um endereço nosso passa, e volta junto com o id",
+  comUrl("/files/9f8e7d6c-1234")?.url === "/files/9f8e7d6c-1234",
+  "/files/9f8e7d6c-1234",
+  comUrl("/files/9f8e7d6c-1234")?.url
+);
+check("e um som subido não precisa ser um id embutido", comUrl("/files/abc")?.id === "abc123");
+
+for (const perigo of [
+  "https://malicioso.example/rastreador.mp3",
+  "http://127.0.0.1:9/algo.mp3",
+  "//malicioso.example/x.mp3",
+  "/files/../../etc/passwd",
+  "/outra-rota/arquivo.mp3",
+  "javascript:alert(1)",
+  "data:audio/wav;base64,AAAA",
+  "files/sem-barra",
+  "/files/",
+  ""
+]) {
+  check(`endereço recusado: ${JSON.stringify(perigo)}`, comUrl(perigo) === null, null, comUrl(perigo));
+}
+check("endereço que não é texto também cai", comUrl(42) === null);
+/*
+ * Um endereço ruim descarta o recado INTEIRO, em vez de cair para "toca o
+ * embutido com esse id". Se caísse, um id embutido com url maliciosa tocaria —
+ * e a próxima pessoa a mexer no código concluiria que a url é confiável.
+ */
+check(
+  "url ruim invalida o recado todo, mesmo com id de embutido",
+  lerRecadoDeSom(lixo(JSON.stringify({ tipo: "som", id: "sino", url: "https://x.example/a.mp3" }))) ===
+    null
+);
+
+const empacotado = lerRecadoDeSom(empacotarSom("cuid123", "/files/xyz"));
+check(
+  "empacotar com endereço leva o endereço",
+  empacotado?.id === "cuid123" && empacotado?.url === "/files/xyz",
+  { id: "cuid123", url: "/files/xyz" },
+  empacotado
+);
+
+check("ehEnderecoNosso aceita o que a API emite", ehEnderecoNosso("/files/abc-123_x.mp3"));
+check("e recusa barra a mais", !ehEnderecoNosso("/files/a/b"));
 check("ehSomId aceita os oito e recusa o resto", SONS.every((s) => ehSomId(s.id)) && !ehSomId("x"));
 
 check(

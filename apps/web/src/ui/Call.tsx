@@ -25,11 +25,12 @@ import {
 import { playCue } from "../lib/sounds";
 import {
   bandejaSilenciada,
+  ehSomId,
   empacotarSom,
   lerRecadoDeSom,
-  tocarSom,
-  type SomId
+  tocarSom
 } from "../lib/soundboard";
+import { tocarEndereco } from "../lib/sonsDaNuvem";
 import {
   chaveDeAudio,
   rotuloDeVolume,
@@ -292,10 +293,22 @@ export function CallSheet({
            * quebre a chamada de quem esta atras.
            */
           .on(RoomEvent.DataReceived, (payload: Uint8Array) => {
-            const id = lerRecadoDeSom(payload);
+            const pedido = lerRecadoDeSom(payload);
+            if (!pedido) return;
             // Lido na hora, e nao guardado em estado: quem acabou de silenciar
             // espera que o PROXIMO som ja venha calado, nao o seguinte.
-            if (id && !bandejaSilenciada()) void tocarSom(id, outputRef.current);
+            if (bandejaSilenciada()) return;
+            /*
+             * Com endereco, e um som que alguem subiu — e provavelmente um que
+             * este aparelho nunca viu, porque o som pessoal de outra pessoa nao
+             * aparece na bandeja de ninguem. Sem endereco, e um dos oito
+             * embutidos, sintetizado aqui mesmo.
+             *
+             * O endereco ja passou pela validacao dentro de `lerRecadoDeSom`:
+             * so entra o que tem a forma exata que a NOSSA API emite.
+             */
+            if (pedido.url) void tocarEndereco(pedido.url, outputRef.current);
+            else if (ehSomId(pedido.id)) void tocarSom(pedido.id, outputRef.current);
           })
           .on(RoomEvent.AudioPlaybackStatusChanged, () =>
             setAudioBlocked(!room.canPlaybackAudio)
@@ -563,10 +576,11 @@ export function CallSheet({
    * efeito perdido tem o mesmo efeito — vira clique repetido.
    */
   const tocarNaBandeja = useCallback(
-    (id: SomId) => {
-      void tocarSom(id, outputRef.current);
+    (id: string, url: string | null) => {
+      if (url) void tocarEndereco(url, outputRef.current);
+      else if (ehSomId(id)) void tocarSom(id, outputRef.current);
       room.localParticipant
-        .publishData(empacotarSom(id), { reliable: true })
+        .publishData(empacotarSom(id, url), { reliable: true })
         .catch(() => undefined);
     },
     [room]
@@ -1023,6 +1037,11 @@ export function CallSheet({
           {bandeja && (
             <Soundboard
               roomId={roomId}
+              /*
+               * Numa conversa direta nao ha espaco, e por isso nao ha bandeja de
+               * espaco — so a da propria pessoa e os embutidos.
+               */
+              spaceId={roomMeta?.space?.id ?? null}
               onTocar={tocarNaBandeja}
               onFechar={() => setBandeja(false)}
             />

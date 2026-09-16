@@ -97,6 +97,21 @@ const MENSAGENS: Record<string, MessageDescriptor> = {
 
   "users.missing": msg`That account does not exist.`,
 
+  /*
+   * Sons da bandeja. Dois deles carregam número (`kb`, `limite`) porque a frase
+   * muda de lugar entre idiomas — em português o número fica no meio, e colar o
+   * valor na frase aqui obrigaria a tradução a manter a ordem do inglês.
+   */
+  "sounds.none": msg`Pick an audio file first.`,
+  "sounds.needs_name": msg`Give the sound a short name and pick an emoji for it.`,
+  "sounds.not_audio": msg`That file is not audio. Use MP3, OGG, WAV, WebM or M4A.`,
+  "sounds.too_big": msg`Sounds have to be under {kb} KB, so they play the instant someone presses the button.`,
+  "sounds.empty": msg`That file is empty.`,
+  "sounds.space_full": msg`This space already has its {limite} sounds. Remove one to add another.`,
+  "sounds.you_are_full": msg`You already have your {limite} sounds. Remove one to add another.`,
+  "sounds.not_yours": msg`That sound is not yours to remove.`,
+  "sounds.gone": msg`That sound is no longer here.`,
+
   "validation.email": msg`Enter a valid email address.`,
   "validation.username_short": msg`Usernames are at least 3 characters.`,
   "validation.username_chars": msg`Use lowercase letters, numbers, dots and underscores.`,

@@ -174,8 +174,45 @@ export async function tocarSom(id: SomId, sinkId?: string): Promise<void> {
 
 /* ------------------------------------------------------------------ recado */
 
-/** O que viaja pelo canal de dados. */
-export type RecadoDeSom = { tipo: "som"; id: SomId; de?: string };
+/**
+ * O endereço veio de um recado da chamada. Ele presta?
+ *
+ * Esta é a linha de defesa do canal de dados. Qualquer pessoa na chamada pode
+ * mandar bytes por ele, e um deles é um ENDEREÇO que este aparelho vai buscar e
+ * tocar. Sem esta checagem, alguém mandaria `https://…` para um servidor
+ * qualquer e transformaria cada participante num cliente do que quisesse —
+ * revelando o IP de todo mundo de quebra.
+ *
+ * Por isso só passa o que é relativo e tem a forma exata que a nossa API emite:
+ * `/files/<chave>`, com a chave sendo um id aleatório. O endereço final é
+ * montado por quem toca, contra a nossa própria base — o recado nunca escolhe o
+ * servidor, só o arquivo.
+ *
+ * Mora AQUI, e não junto das funções que buscam os sons, por um motivo que já
+ * custou caro uma vez: aquele arquivo fala com a API, e a API arrasta o macro
+ * do Lingui, que não existe fora do build. Uma regra de segurança que não pode
+ * ser testada sem navegador é uma regra que ninguém testa.
+ */
+export function ehEnderecoNosso(u: unknown): u is string {
+  return typeof u === "string" && /^\/files\/[A-Za-z0-9%._~-]+$/.test(u);
+}
+
+/**
+ * O que viaja pelo canal de dados.
+ *
+ * `url` só existe para som que alguém subiu, e é o que torna a coisa possível:
+ * quem RECEBE o recado pode nunca ter ouvido aquele som. Um som pessoal meu não
+ * está na bandeja de ninguém mais — se o recado levasse só o id, o efeito
+ * tocaria para mim e para mais ninguém, que é o oposto da funcionalidade.
+ *
+ * Os oito embutidos não levam `url`: eles são sintetizados dos dois lados, e
+ * mandar endereço para eles seria pedir um download para produzir um som que já
+ * existe localmente.
+ */
+export type RecadoDeSom = { tipo: "som"; id: string; url?: string; de?: string };
+
+/** O que se consegue tirar de um recado que presta. */
+export type SomPedido = { id: string; url: string | null };
 
 /*
  * Sem anotar o retorno de proposito. `TextEncoder.encode` devolve um
@@ -184,29 +221,42 @@ export type RecadoDeSom = { tipo: "som"; id: SomId; de?: string };
  * `publishData` do LiveKit. Deixar inferir mantem o tipo estreito sem prender o
  * arquivo a sintaxe generica de uma versao especifica do TypeScript.
  */
-export function empacotarSom(id: SomId) {
-  return new TextEncoder().encode(JSON.stringify({ tipo: "som", id } satisfies RecadoDeSom));
+export function empacotarSom(id: string, url?: string | null) {
+  const recado: RecadoDeSom = { tipo: "som", id };
+  if (url) recado.url = url;
+  return new TextEncoder().encode(JSON.stringify(recado));
 }
 
 /**
- * Lê um recado do canal de dados, se for um som que conhecemos.
+ * Lê um recado do canal de dados, se for um som que dá para tocar.
  *
  * Devolve `null` para qualquer outra coisa, e isso é deliberado: o canal é
  * compartilhado e um dia vai carregar outros recados. Um som que não existe
  * nesta versão também cai aqui — alguém com o app mais novo apertando um botão
  * que ainda não temos não pode derrubar a chamada de quem está atrás.
+ *
+ * Um recado com ENDEREÇO passa por `ehEnderecoNosso` antes de valer. Qualquer
+ * pessoa na chamada pode mandar bytes por este canal, e sem essa checagem
+ * bastaria mandar um `https://…` qualquer para transformar todo mundo em
+ * cliente de um servidor escolhido por ela — revelando o IP de cada
+ * participante de quebra. Endereço que não tenha a forma exata que a nossa API
+ * emite é descartado junto com o recado inteiro.
  */
-export function lerRecadoDeSom(bytes: Uint8Array): SomId | null {
+export function lerRecadoDeSom(bytes: Uint8Array): SomPedido | null {
   try {
     const cru = JSON.parse(new TextDecoder().decode(bytes)) as unknown;
-    if (
-      cru &&
-      typeof cru === "object" &&
-      (cru as RecadoDeSom).tipo === "som" &&
-      ehSomId((cru as RecadoDeSom).id)
-    ) {
-      return (cru as RecadoDeSom).id;
+    if (!cru || typeof cru !== "object") return null;
+    const r = cru as RecadoDeSom;
+    if (r.tipo !== "som" || typeof r.id !== "string" || r.id === "") return null;
+
+    if (r.url !== undefined) {
+      if (!ehEnderecoNosso(r.url)) return null;
+      return { id: r.id, url: r.url };
     }
+
+    // Sem endereço, só vale um dos embutidos — que é o único que este aparelho
+    // sabe produzir sozinho.
+    return ehSomId(r.id) ? { id: r.id, url: null } : null;
   } catch {
     /* não era JSON nosso */
   }

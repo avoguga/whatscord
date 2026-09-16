@@ -26,6 +26,18 @@ enum MemberRole {
   MEMBER
 }
 
+/**
+ * De quem é um som da bandeja.
+ * Duas donas possíveis e nunca as duas: o som é de uma PESSOA (vai com ela para
+ * qualquer conversa) ou de um ESPAÇO (todo mundo de lá pode tocar, e some junto
+ * com o espaço). Um campo só, com dono opcional em cada lado, deixaria o estado
+ * "de ninguém" ser representável — e alguém acabaria criando um.
+ */
+enum SoundScope {
+  USER
+  SPACE
+}
+
 enum Presence {
   ONLINE
   IDLE
@@ -53,8 +65,47 @@ model User {
   reactions     Reaction[]
   ownedSpaces   Space[]        @relation("SpaceOwner")
   spaceFolders  SpaceFolder[]
+  sounds        Sound[]        @relation("SoundOwner")
+  soundsCreated Sound[]        @relation("SoundAuthor")
 
   @@index([username])
+}
+
+/**
+ * Um som da bandeja.
+ * O ÁUDIO não fica aqui: fica no mesmo armazenamento dos anexos, e `key` é o
+ * ponteiro. Guardar bytes no banco faria cada listagem de bandeja arrastar
+ * megabytes por uma tela que só precisa de nome e carinha.
+ * `bytes` é copiado do upload de propósito, em vez de consultado no
+ * armazenamento: a tela precisa somar o que cada um já gastou da cota, e ir
+ * perguntar o tamanho de vinte objetos para desenhar um painel seria caro à toa.
+ */
+model Sound {
+  id    String     @id @default(cuid())
+  name  String
+  emoji String
+  scope SoundScope
+
+  // Exatamente um destes dois é preenchido. A migração impõe isso por CHECK,
+  // porque o Prisma não sabe expressar "um ou outro" no schema.
+  userId  String?
+  spaceId String?
+
+  // Quem subiu. Separado do dono: um administrador sobe um som PARA o espaço, e
+  // depois pode deixar de ser administrador sem que o som fique órfão.
+  createdById String
+
+  key       String
+  mime      String
+  bytes     Int
+  createdAt DateTime @default(now())
+
+  user      User?  @relation("SoundOwner", fields: [userId], references: [id], onDelete: Cascade)
+  space     Space? @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("SoundAuthor", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([spaceId])
 }
 
 model RefreshToken {
@@ -82,6 +133,7 @@ model Space {
   owner   User          @relation("SpaceOwner", fields: [ownerId], references: [id])
   members SpaceMember[]
   rooms   Room[]
+  sounds  Sound[]
 }
 
 model SpaceMember {
@@ -108,7 +160,6 @@ model SpaceMember {
 
 /**
  * Pasta da barra lateral, privada de cada pessoa.
- *
  * Apagar a pasta NÃO pode apagar o que estava dentro — são espaços inteiros,
  * com as conversas de todo mundo. Daí o `SetNull` na relação: os espaços
  * voltam a ficar soltos e nada se perde.
@@ -164,10 +215,10 @@ model RoomMember {
 }
 
 model Message {
-  id       String @id @default(cuid())
-  roomId   String
-  authorId String
-  content  String @db.Text
+  id          String    @id @default(cuid())
+  roomId      String
+  authorId    String
+  content     String    @db.Text
   // Minted by the client before sending. It is what makes a retry idempotent
   // and what lets the client tell its own optimistic bubble apart from the
   // copy that comes back over the socket — without it, one send shows twice.
@@ -196,16 +247,16 @@ model Message {
 }
 
 model Attachment {
-  id        String   @id @default(cuid())
-  messageId String
-  url       String
-  name      String
-  mime      String
-  size      Int
-  width     Int?
-  height    Int?
+  id         String   @id @default(cuid())
+  messageId  String
+  url        String
+  name       String
+  mime       String
+  size       Int
+  width      Int?
+  height     Int?
   durationMs Int?
-  createdAt DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
 

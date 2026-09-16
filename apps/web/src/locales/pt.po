@@ -138,6 +138,10 @@ msgstr "Adicionar {0}"
 msgid "Add a channel"
 msgstr "Adicionar um canal"
 
+#: src/ui/Soundboard.tsx
+msgid "Add a sound…"
+msgstr "Adicionar um som…"
+
 #: src/ui/Invites.tsx
 msgid "Add people"
 msgstr "Adicionar pessoas"
@@ -148,6 +152,7 @@ msgid "Add people to {0}"
 msgstr "Adicionar pessoas a {0}"
 
 #: src/ui/Invites.tsx
+#: src/ui/Soundboard.tsx
 msgid "Adding…"
 msgstr "Adicionando…"
 
@@ -268,6 +273,10 @@ msgstr "Azul-violeta"
 #: src/ui/Soundboard.tsx
 msgid "Boing"
 msgstr "Boing"
+
+#: src/ui/Soundboard.tsx
+msgid "Built in"
+msgstr "Embutidos"
 
 #: src/ui/Call.tsx
 msgid "Call"
@@ -531,8 +540,12 @@ msgid "Enter your password."
 msgstr "Digite sua senha."
 
 #: src/ui/Soundboard.tsx
-msgid "Everyone in the call hears it. Right-click to pin a sound to the front."
-msgstr "Todo mundo na chamada ouve. Clique com o botão direito para fixar um som na frente."
+msgid "Everyone in the call hears it. Right-click a built-in sound to pin it."
+msgstr "Todo mundo na chamada ouve. Clique com o botão direito num som embutido para fixá-lo."
+
+#: src/ui/Soundboard.tsx
+#~ msgid "Everyone in the call hears it. Right-click to pin a sound to the front."
+#~ msgstr "Todo mundo na chamada ouve. Clique com o botão direito para fixar um som na frente."
 
 #: src/ui/Invites.tsx
 msgid "Everyone in the group sees the name and the picture."
@@ -620,6 +633,10 @@ msgstr "Dê um nome à pasta."
 #: src/lib/erros.ts
 msgid "Give the group a name."
 msgstr "Dê um nome ao grupo."
+
+#: src/lib/erros.ts
+msgid "Give the sound a short name and pick an emoji for it."
+msgstr "Dê um nome curto ao som e escolha um emoji para ele."
 
 #: src/lib/erros.ts
 msgid "Give the space a name."
@@ -839,6 +856,10 @@ msgstr "Microfone ligado"
 msgid "Microphone options"
 msgstr "Opções de microfone"
 
+#: src/ui/Soundboard.tsx
+msgid "Mine"
+msgstr "Meus"
+
 #: src/ui/Call.tsx
 msgid "Minimise — the call keeps running and you go back to the messages"
 msgstr "Minimizar — a chamada continua e você volta para as mensagens"
@@ -982,6 +1003,11 @@ msgstr "Nenhum microfone foi encontrado — será usado o padrão do sistema."
 #: src/ui/TimbreDaConversa.tsx
 msgid "No sound for messages here"
 msgstr "Sem som para mensagens daqui"
+
+#. placeholder {0}: nuvem.limites.porEspaco
+#: src/ui/Soundboard.tsx
+msgid "No sounds here yet. Admins can add up to {0}."
+msgstr "Nenhum som aqui ainda. Os administradores podem adicionar até {0}."
 
 #: src/ui/DevicePicker.tsx
 msgid "No speaker was found — the system default will be used."
@@ -1146,6 +1172,10 @@ msgid "Pick a role: admin or member."
 msgstr "Escolha um papel: administrador ou membro."
 
 #: src/lib/erros.ts
+msgid "Pick an audio file first."
+msgstr "Escolha um arquivo de áudio primeiro."
+
+#: src/lib/erros.ts
 msgid "Pick an emoji."
 msgstr "Escolha um emoji."
 
@@ -1223,6 +1253,11 @@ msgstr "Vermelho"
 msgid "Remove"
 msgstr "Remover"
 
+#. placeholder {0}: b.nome
+#: src/ui/Soundboard.tsx
+msgid "Remove {0}"
+msgstr "Remover {0}"
+
 #. placeholder {0}: m.displayName
 #: src/ui/Invites.tsx
 msgid "Remove <0>{0}</0> from this space? They lose every channel here and can only come back with an invite code. Everything they wrote stays in the conversations."
@@ -1239,6 +1274,10 @@ msgstr "Remover foto"
 #: src/ui/Invites.tsx
 msgid "Remove the picture"
 msgstr "Remover a foto"
+
+#: src/ui/Soundboard.tsx
+msgid "Remove this sound"
+msgstr "Remover este som"
 
 #: src/ui/Chat.tsx
 msgid "Remove your reaction"
@@ -1432,6 +1471,14 @@ msgstr "Bandeja de sons"
 msgid "Sounds"
 msgstr "Sons"
 
+#: src/lib/erros.ts
+msgid "Sounds have to be under {kb} KB, so they play the instant someone presses the button."
+msgstr "Os sons precisam ter menos de {kb} KB, para tocarem no instante em que alguém aperta o botão."
+
+#: src/ui/Soundboard.tsx
+msgid "Sounds you add travel with you into any call."
+msgstr "Os sons que você adicionar vão com você para qualquer chamada."
+
 #: src/ui/Call.tsx
 #: src/ui/ShareQuality.tsx
 msgid "Source"
@@ -1571,12 +1618,17 @@ msgid "That file could not be uploaded."
 msgstr "Não foi possível enviar esse arquivo."
 
 #: src/lib/erros.ts
+#: src/lib/erros.ts
 msgid "That file is empty."
 msgstr "Esse arquivo está vazio."
 
 #: src/lib/erros.ts
 msgid "That file is no longer here."
 msgstr "Esse arquivo não está mais aqui."
+
+#: src/lib/erros.ts
+msgid "That file is not audio. Use MP3, OGG, WAV, WebM or M4A."
+msgstr "Esse arquivo não é áudio. Use MP3, OGG, WAV, WebM ou M4A."
 
 #: src/ui/FolderModal.tsx
 msgid "That folder could not be deleted."
@@ -1658,6 +1710,22 @@ msgstr "Não foi possível atender esse pedido."
 #: src/lib/erros.ts
 msgid "That send already exists in another conversation."
 msgstr "Esse envio já existe em outra conversa."
+
+#: src/ui/Soundboard.tsx
+msgid "That sound could not be added."
+msgstr "Não deu para adicionar esse som."
+
+#: src/ui/Soundboard.tsx
+msgid "That sound could not be removed."
+msgstr "Não deu para remover esse som."
+
+#: src/lib/erros.ts
+msgid "That sound is no longer here."
+msgstr "Esse som não está mais aqui."
+
+#: src/lib/erros.ts
+msgid "That sound is not yours to remove."
+msgstr "Esse som não é seu para remover."
 
 #: src/lib/erros.ts
 msgid "That space does not exist."
@@ -1754,6 +1822,15 @@ msgstr "Este é o começo da conversa"
 msgid "This message was deleted"
 msgstr "Esta mensagem foi apagada"
 
+#: src/ui/Soundboard.tsx
+#: src/ui/Soundboard.tsx
+msgid "This space"
+msgstr "Este espaço"
+
+#: src/lib/erros.ts
+msgid "This space already has its {limite} sounds. Remove one to add another."
+msgstr "Este espaço já tem os {limite} sons dele. Remova um para adicionar outro."
+
 #: src/ui/Sidebar.tsx
 msgid "This space has no channels yet."
 msgstr "Este espaço ainda não tem canais."
@@ -1794,6 +1871,11 @@ msgstr "Reativar notificações"
 #: src/ui/Sidebar.tsx
 msgid "Unread"
 msgstr "Não lidas"
+
+#. placeholder {0}: Math.round(nuvem.limites.bytes / 1024)
+#: src/ui/Soundboard.tsx
+msgid "Up to {0} KB, so it plays instantly."
+msgstr "Até {0} KB, para tocar na hora."
 
 #: src/lib/erros.ts
 msgid "Use at least 8 characters."
@@ -1873,6 +1955,10 @@ msgstr "Conexão fraca"
 msgid "Weekend plans"
 msgstr "Planos do fim de semana"
 
+#: src/ui/Soundboard.tsx
+msgid "Where the sound goes"
+msgstr "Para onde o som vai"
+
 #: src/ui/Call.tsx
 msgid "Who is on the call"
 msgstr "Quem está na chamada"
@@ -1917,6 +2003,10 @@ msgstr "Sim, transferir"
 #: src/ui/Call.tsx
 msgid "You"
 msgstr "Você"
+
+#: src/lib/erros.ts
+msgid "You already have your {limite} sounds. Remove one to add another."
+msgstr "Você já tem os seus {limite} sons. Remova um para adicionar outro."
 
 #: src/ui/Call.tsx
 msgid "You are connected."
@@ -2011,3 +2101,7 @@ msgstr "Seu nome"
 #: src/lib/erros.ts
 msgid "Your session expired. Sign in again."
 msgstr "Sua sessão expirou. Entre de novo."
+
+#: src/ui/Soundboard.tsx
+msgid "Yours"
+msgstr "Seus"
