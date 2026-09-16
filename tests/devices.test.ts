@@ -50,6 +50,15 @@ import {
   type SomId
 } from "../apps/web/src/lib/soundboard";
 import {
+  ORDEM_DOS_GRUPOS,
+  agruparMembros,
+  contarOnline,
+  painelDeMembrosAberto,
+  salvarPainelDeMembros,
+  vozPorPessoa,
+  type MembroCru
+} from "../apps/web/src/lib/membros";
+import {
   VOLUME_MAX,
   VOLUME_PADRAO,
   chaveDeAudio,
@@ -1274,6 +1283,120 @@ check(
   "e reaparecem quando algo dentro deles recebe foco",
   /\.tile:focus-within \.tile-acoes/.test(css)
 );
+
+// ---------------------------------------------------------------------------
+section("quem está aqui — o agrupamento do painel de membros");
+
+const pessoa = (id: string, displayName: string, role?: MembroCru["role"]): MembroCru => ({
+  id,
+  username: id,
+  displayName,
+  avatarUrl: null,
+  role
+});
+
+const dona = pessoa("ana", "Ana", "OWNER");
+const adm = pessoa("bia", "Bia", "ADMIN");
+const carlos = pessoa("carlos", "Carlos", "MEMBER");
+const dora = pessoa("dora", "Dora", "MEMBER");
+const eu = pessoa("eu", "Eu", "MEMBER");
+const todos = [dora, carlos, eu, adm, dona];
+
+const semVoz = new Map();
+
+{
+  const g = agruparMembros(todos, new Set(["ana", "carlos", "eu"]), semVoz, "eu");
+  const nomes = (grupo: string) =>
+    g.find((x) => x.grupo === grupo)?.membros.map((m) => m.displayName) ?? [];
+
+  check("quem administra e está online vai para o próprio grupo", nomes("administracao").join(",") === "Ana", "Ana", nomes("administracao").join(","));
+  check(
+    "membros online ficam em 'online', por nome",
+    nomes("online").join(",") === "Carlos,Eu",
+    "Carlos,Eu",
+    nomes("online").join(",")
+  );
+  check(
+    "quem não está aparece em offline — a lista também diz quem faz parte daqui",
+    nomes("offline").join(",") === "Bia,Dora",
+    "Bia,Dora",
+    nomes("offline").join(",")
+  );
+  check("sem ninguém em chamada, o grupo 'chamada' nem aparece", !g.some((x) => x.grupo === "chamada"));
+  check("a própria pessoa vem marcada", g.flatMap((x) => x.membros).find((m) => m.id === "eu")?.souEu === true);
+  check("e as outras não", g.flatMap((x) => x.membros).find((m) => m.id === "ana")?.souEu === false);
+  check(
+    "os grupos saem sempre na mesma ordem",
+    g.map((x) => x.grupo).join(",") === "administracao,online,offline",
+    "administracao,online,offline",
+    g.map((x) => x.grupo).join(",")
+  );
+  check("3 online, contando por grupo", contarOnline(g) === 3, 3, contarOnline(g));
+}
+
+/*
+ * Dentro do grupo offline, quem administra também vem antes: a pessoa que se
+ * procura para resolver algo tem de ser fácil de achar mesmo quando não está.
+ */
+{
+  const g = agruparMembros(todos, new Set(), semVoz, null);
+  const off = g.find((x) => x.grupo === "offline")?.membros.map((m) => m.displayName) ?? [];
+  check(
+    "todo mundo offline: dona, admin, depois membros por nome",
+    off.join(",") === "Ana,Bia,Carlos,Dora,Eu",
+    "Ana,Bia,Carlos,Dora,Eu",
+    off.join(",")
+  );
+  check("com ninguém online, o contador diz 0", contarOnline(g) === 0);
+}
+
+/*
+ * Estar em chamada PROVA presença. A presença de voz e a de conexão viajam por
+ * caminhos diferentes e podem chegar fora de ordem — sem isto, alguém apareceria
+ * em "Em chamada" e, um instante depois, também em "Offline".
+ */
+{
+  const voz = vozPorPessoa({ "sala-1": ["dora", "ana"] }, new Map([["sala-1", "salve"]]));
+  const g = agruparMembros(todos, new Set(["ana"]), voz, null);
+  const emChamada = g.find((x) => x.grupo === "chamada")?.membros ?? [];
+  check(
+    "quem está numa sala de voz vai para 'chamada', mesmo sem evento de online",
+    emChamada.map((m) => m.displayName).join(",") === "Ana,Dora",
+    "Ana,Dora",
+    emChamada.map((m) => m.displayName).join(",")
+  );
+  check("e é contada como online", emChamada.every((m) => m.online));
+  check(
+    "a linha sabe em que canal a pessoa está, e a sala para entrar junto",
+    emChamada[1]?.canalDeVoz?.nome === "salve" && emChamada[1]?.canalDeVoz?.salaId === "sala-1"
+  );
+  check("Dora não aparece também em offline", !(g.find((x) => x.grupo === "offline")?.membros.some((m) => m.id === "dora")));
+  check("'chamada' vem primeiro na ordem", g[0].grupo === "chamada");
+}
+
+/*
+ * A virada de "sala → ids" para "id → canal". Sala que não é deste espaço não
+ * conta, e uma pessoa em duas salas (dois aparelhos) fica com a primeira.
+ */
+{
+  const voz = vozPorPessoa(
+    { "sala-1": ["ana"], "sala-2": ["ana", "bia"], "de-outro-espaco": ["carlos"] },
+    new Map([["sala-1", "geral"], ["sala-2", "salve"]])
+  );
+  check("sala desconhecida é ignorada", !voz.has("carlos"));
+  check("pessoa em duas salas fica com a primeira", voz.get("ana")?.nome === "geral", "geral", voz.get("ana")?.nome);
+  check("e quem está só na segunda fica nela", voz.get("bia")?.nome === "salve");
+}
+
+check("um espaço vazio não produz grupo nenhum", agruparMembros([], new Set(), semVoz, null).length === 0);
+check("a ordem dos grupos tem quatro posições fixas", ORDEM_DOS_GRUPOS.join(",") === "chamada,administracao,online,offline");
+
+// O localStorage de mentira instalado mais acima continua valendo.
+check("o painel nasce aberto", painelDeMembrosAberto() === true);
+salvarPainelDeMembros(false);
+check("fechado, fica fechado", painelDeMembrosAberto() === false);
+salvarPainelDeMembros(true);
+check("reabrir apaga a chave em vez de gravar 'aberto'", memoria.get("whatscord.painelDeMembros") === undefined);
 
 // ---------------------------------------------------------------------------
 console.log(`\n${passed} passaram, ${failures.length} falharam`);

@@ -8,7 +8,7 @@ import { TimbreDaConversa } from "./TimbreDaConversa";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { plural } from "@lingui/core/macro";
 import {
-  IconAttach, IconEmoji, IconSend, IconSearch, IconMenu, IconPhone,
+  IconAttach, IconEmoji, IconSend, IconSearch, IconMenu, IconPhone, IconGroup,
   IconVideo, IconChecks, IconCheck, IconClock, IconReply, IconClose, IconFile,
   IconVoiceRoom, IconBack, IconHash, IconMute, IconUserPlus, IconSpeaker
 } from "./icons";
@@ -31,6 +31,8 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
   const closeRoom = useStore((s) => s.closeRoom);
   const refreshRooms = useStore((s) => s.refreshRooms);
   const notify = useStore((s) => s.notify);
+  const membersOpen = useStore((s) => s.membersOpen);
+  const setMembersOpen = useStore((s) => s.setMembersOpen);
 
   const room = rooms.find((r) => r.id === activeRoomId);
   const scroller = useRef<HTMLDivElement>(null);
@@ -204,6 +206,23 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
           >
             <IconPhone />
           </button>
+          {/*
+            Quem está aqui. Só existe onde há "aqui" para mostrar: um canal de
+            espaço ou um grupo. Numa conversa direta a outra pessoa já está no
+            cabeçalho, e um painel com um nome só seria um painel vazio.
+          */}
+          {(room.space || room.kind === "GROUP") && (
+            <button
+              className="icon-btn"
+              data-tip={membersOpen ? t`Hide who is here` : t`Show who is here`}
+              data-tip-pos="baixo"
+              aria-label={membersOpen ? t`Hide who is here` : t`Show who is here`}
+              aria-pressed={membersOpen}
+              onClick={() => setMembersOpen(!membersOpen)}
+            >
+              <IconGroup size={22} />
+            </button>
+          )}
           <button
             className="icon-btn"
             data-tip={t`Search in this conversation`}

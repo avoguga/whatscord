@@ -12,6 +12,7 @@ import {
 import { Auth } from "./ui/Auth";
 import { Sidebar } from "./ui/Sidebar";
 import { Chat } from "./ui/Chat";
+import { PainelDeMembros } from "./ui/Membros";
 import { Toasts } from "./ui/Toasts";
 import { InviteGate } from "./ui/InviteGate";
 
@@ -158,6 +159,7 @@ export default function App() {
     <div className="app" data-room-open={activeRoomId ? "true" : "false"}>
       <Sidebar />
       <Chat onStartCall={(video) => activeRoomId && startCall(activeRoomId, video)} />
+      <PainelDeMembros />
       {call && (
         <Suspense
           fallback={

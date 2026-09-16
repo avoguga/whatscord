@@ -3,6 +3,7 @@ import { api, clearTokens, loadTokens, saveTokens } from "./lib/api";
 import { saveTheme, storedTheme, type Theme } from "./lib/theme";
 import { preferenciaSalva, salvarIdioma, type PreferenciaIdioma } from "./lib/i18n";
 import { playCue, timbreDaSala } from "./lib/sounds";
+import { painelDeMembrosAberto, salvarPainelDeMembros } from "./lib/membros";
 
 /**
  * Collapses a message list to one entry per message and keeps it in time order.
@@ -183,6 +184,8 @@ type State = {
   loadingRoom: boolean;
   typing: Record<string, string[]>;
   online: Set<string>;
+  /** O painel de membros, à direita da conversa. */
+  membersOpen: boolean;
   filter: "all" | "unread";
   search: string;
   replyTo: Message | null;
@@ -250,6 +253,16 @@ type State = {
   dropMessage: (id: string, roomId: string) => void;
   setTyping: (roomId: string, userId: string, on: boolean) => void;
   setOnline: (userId: string, on: boolean) => void;
+  /**
+   * Pergunta ao servidor quem, destes, está online agora.
+   *
+   * O conjunto `online` só enchia por evento de socket — quem já estava online
+   * quando o app abriu era invisível até reconectar. Isto é a leitura inicial
+   * que faltava, e vale tanto para a bolinha da barra lateral quanto para o
+   * painel de membros.
+   */
+  seedOnline: (userIds: string[]) => Promise<void>;
+  setMembersOpen: (open: boolean) => void;
   setVoicePresence: (roomId: string, userIds: string[]) => void;
   /** Presença completa de uma sala, vinda de `voice:presence` ou do GET. */
   setVoiceRoster: (roomId: string, users: VoiceUser[]) => void;
@@ -276,6 +289,7 @@ const blankSession = {
   loadingRoom: false,
   typing: {} as Record<string, string[]>,
   online: new Set<string>(),
+  membersOpen: painelDeMembrosAberto(),
   filter: "all" as const,
   search: "",
   replyTo: null as Message | null,
@@ -341,6 +355,15 @@ export const useStore = create<State>((set, get) => ({
   async refreshRooms() {
     const { rooms } = await api.get<{ rooms: Room[] }>("/rooms");
     set({ rooms });
+    /*
+     * A bolinha da barra lateral só acendia por evento de socket: quem já
+     * estava online quando o app abriu ficava apagado até reconectar. Esta é a
+     * leitura inicial. Não espera a resposta — a lista aparece já, e as
+     * bolinhas acendem um instante depois.
+     */
+    void get().seedOnline(
+      rooms.flatMap((r) => (r.counterpart ? [r.counterpart.id] : []))
+    );
   },
 
   async refreshSpaces() {
@@ -819,6 +842,37 @@ export const useStore = create<State>((set, get) => ({
       else next.delete(userId);
       return { online: next };
     });
+  },
+
+  async seedOnline(userIds) {
+    const ids = [...new Set(userIds)].slice(0, 400);
+    if (ids.length === 0) return;
+    let online: string[];
+    try {
+      online = (await api.post<{ online: string[] }>("/users/presence", { userIds: ids })).online;
+    } catch {
+      // Sem resposta, fica como estava: melhor uma bolinha atrasada do que
+      // apagar quem o socket já disse que chegou.
+      return;
+    }
+    const agora = new Set(online);
+    set((s) => {
+      const next = new Set(s.online);
+      /*
+       * Só os ids PERGUNTADOS mudam. Quem não foi perguntado continua como o
+       * socket deixou — esta resposta não sabe nada sobre essas pessoas.
+       */
+      for (const id of ids) {
+        if (agora.has(id)) next.add(id);
+        else next.delete(id);
+      }
+      return { online: next };
+    });
+  },
+
+  setMembersOpen(open) {
+    salvarPainelDeMembros(open);
+    set({ membersOpen: open });
   },
 
   setVoicePresence(roomId, userIds) {

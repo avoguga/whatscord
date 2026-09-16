@@ -15,6 +15,7 @@ msgstr ""
 
 #: src/ui/Call.tsx
 #: src/ui/Call.tsx
+#: src/ui/Membros.tsx
 msgid "(you)"
 msgstr "(você)"
 
@@ -157,8 +158,13 @@ msgid "Adding…"
 msgstr "Adicionando…"
 
 #: src/ui/Invites.tsx
+#: src/ui/Membros.tsx
 msgid "Admin"
 msgstr "Admin"
+
+#: src/ui/Membros.tsx
+msgid "Admins"
+msgstr "Administração"
 
 #: src/ui/Soundboard.tsx
 msgid "Air horn"
@@ -279,6 +285,7 @@ msgid "Built in"
 msgstr "Embutidos"
 
 #: src/ui/Call.tsx
+#: src/ui/Membros.tsx
 msgid "Call"
 msgstr "Chamada"
 
@@ -354,6 +361,9 @@ msgid "Chime"
 msgstr "Sino"
 
 #: src/ui/Call.tsx
+#: src/ui/Membros.tsx
+#: src/ui/Membros.tsx
+#: src/ui/Membros.tsx
 #: src/ui/Modals.tsx
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
@@ -695,6 +705,8 @@ msgstr "Tem um código de convite?"
 
 #: src/ui/Call.tsx
 #: src/ui/Call.tsx
+#: src/ui/Chat.tsx
+#: src/ui/Chat.tsx
 msgid "Hide who is here"
 msgstr "Esconder quem está aqui"
 
@@ -709,6 +721,10 @@ msgstr "Aguarde enquanto a conexão é estabelecida."
 #: src/ui/Chat.tsx
 msgid "How to invite people"
 msgstr "Como convidar pessoas"
+
+#: src/ui/Membros.tsx
+msgid "In a call"
+msgstr "Em chamada"
 
 #: src/ui/Sidebar.tsx
 msgid "In this voice room"
@@ -750,6 +766,11 @@ msgstr "Entrar nesse espaço"
 #: src/ui/Sidebar.tsx
 msgid "Join the call"
 msgstr "Entrar na chamada"
+
+#. placeholder {0}: membro.canalDeVoz.nome
+#: src/ui/Membros.tsx
+msgid "Join them in {0}"
+msgstr "Entrar com ela em {0}"
 
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
@@ -797,6 +818,10 @@ msgstr "Claro"
 msgid "Loading earlier messages…"
 msgstr "Carregando mensagens anteriores…"
 
+#: src/ui/Membros.tsx
+msgid "Loading who is here…"
+msgstr "Carregando quem está aqui…"
+
 #: src/ui/Invites.tsx
 msgid "Lounge"
 msgstr "Sala de estar"
@@ -818,8 +843,13 @@ msgid "Member"
 msgstr "Membro"
 
 #: src/ui/Invites.tsx
+#: src/ui/Membros.tsx
 msgid "Members"
 msgstr "Membros"
+
+#: src/ui/Membros.tsx
+msgid "Message"
+msgstr "Mensagem"
 
 #: src/ui/Chat.tsx
 msgid "Message deleted"
@@ -1066,6 +1096,10 @@ msgstr "Notificações religadas."
 msgid "offline"
 msgstr "offline"
 
+#: src/ui/Membros.tsx
+msgid "Offline"
+msgstr "Offline"
+
 #: src/ui/Auth.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
@@ -1075,8 +1109,13 @@ msgid "One moment…"
 msgstr "Um momento…"
 
 #: src/ui/Chat.tsx
+#: src/ui/Membros.tsx
 msgid "online"
 msgstr "online"
+
+#: src/ui/Membros.tsx
+msgid "Online"
+msgstr "Online"
 
 #: src/lib/erros.ts
 msgid "Only admins can add channels."
@@ -1139,6 +1178,7 @@ msgid "Organise spaces"
 msgstr "Organizar espaços"
 
 #: src/ui/Invites.tsx
+#: src/ui/Membros.tsx
 msgid "Owner"
 msgstr "Dono"
 
@@ -1395,6 +1435,8 @@ msgstr "Compartilhando sem som. Para incluí-lo, compartilhe de novo e marque �
 
 #: src/ui/Call.tsx
 #: src/ui/Call.tsx
+#: src/ui/Chat.tsx
+#: src/ui/Chat.tsx
 msgid "Show who is here"
 msgstr "Mostrar quem está aqui"
 
@@ -1574,6 +1616,10 @@ msgstr "Esse anexo não é seu para enviar."
 #: src/ui/Invites.tsx
 msgid "That channel could not be created."
 msgstr "Não foi possível criar esse canal."
+
+#: src/ui/Membros.tsx
+msgid "That conversation could not be opened."
+msgstr "Não deu para abrir essa conversa."
 
 #: src/lib/erros.ts
 msgid "That conversation no longer exists."
@@ -1808,6 +1854,10 @@ msgstr "Este app não consegue ler os nomes dos dispositivos neste sistema, ent�
 msgid "This browser always uses the system's default speaker; change it in the operating system's sound settings."
 msgstr "Este navegador sempre usa a saída de som padrão do sistema; troque nas configurações de som do sistema operacional."
 
+#: src/ui/Membros.tsx
+msgid "this conversation"
+msgstr "esta conversa"
+
 #. placeholder {0}: dentro.length
 #: src/ui/FolderModal.tsx
 msgid "This folder holds {0} of your spaces. Deleting it puts them back on the bar on their own — it never deletes a space."
@@ -1816,6 +1866,10 @@ msgstr "Esta pasta guarda {0} dos seus espaços. Apagá-la devolve todos eles so
 #: src/ui/Chat.tsx
 msgid "This is the start of the conversation"
 msgstr "Este é o começo da conversa"
+
+#: src/ui/Membros.tsx
+msgid "This is you."
+msgstr "Essa pessoa é você."
 
 #: src/ui/CallChat.tsx
 #: src/ui/Chat.tsx
@@ -1905,11 +1959,16 @@ msgstr "Vídeo"
 #~ msgid "Video and motion"
 #~ msgstr "Vídeo e movimento"
 
+#: src/ui/Membros.tsx
+msgid "Video call"
+msgstr "Chamada de vídeo"
+
 #: src/ui/QuickDeviceMenu.tsx
 msgid "Video settings"
 msgstr "Configurações de vídeo"
 
 #: src/ui/Invites.tsx
+#: src/ui/Membros.tsx
 msgid "Voice"
 msgstr "Voz"
 
@@ -1958,6 +2017,10 @@ msgstr "Planos do fim de semana"
 #: src/ui/Soundboard.tsx
 msgid "Where the sound goes"
 msgstr "Para onde o som vai"
+
+#: src/ui/Membros.tsx
+msgid "Who is here"
+msgstr "Quem está aqui"
 
 #: src/ui/Call.tsx
 msgid "Who is on the call"
