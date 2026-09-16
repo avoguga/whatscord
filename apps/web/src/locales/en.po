@@ -1450,8 +1450,16 @@ msgid "Share screen"
 msgstr "Share screen"
 
 #: src/ui/Call.tsx
-msgid "Sharing without sound. To include it, share again and tick “Also share tab audio” (or “Share system audio”) in the browser's dialog — Chrome on Windows only offers it for a tab or a whole screen, not a single window."
-msgstr "Sharing without sound. To include it, share again and tick “Also share tab audio” (or “Share system audio”) in the browser's dialog — Chrome on Windows only offers it for a tab or a whole screen, not a single window."
+#~ msgid "Sharing without sound. To include it, share again and tick “Also share tab audio” (or “Share system audio”) in the browser's dialog — Chrome on Windows only offers it for a tab or a whole screen, not a single window."
+#~ msgstr "Sharing without sound. To include it, share again and tick “Also share tab audio” (or “Share system audio”) in the browser's dialog — Chrome on Windows only offers it for a tab or a whole screen, not a single window."
+
+#: src/ui/Call.tsx
+msgid "Sharing without sound. To include it, share again and tick “Also share tab audio” (or “Share system audio”) in the browser's dialog — this browser only offers sound for a tab or a whole screen, not a single window."
+msgstr "Sharing without sound. To include it, share again and tick “Also share tab audio” (or “Share system audio”) in the browser's dialog — this browser only offers sound for a tab or a whole screen, not a single window."
+
+#: src/ui/Call.tsx
+msgid "Sharing without sound. To include it, share again and turn on the audio switch in the browser's dialog — for a window, only that window's sound goes; for a whole screen, everything the system plays."
+msgstr "Sharing without sound. To include it, share again and turn on the audio switch in the browser's dialog — for a window, only that window's sound goes; for a whole screen, everything the system plays."
 
 #: src/ui/Call.tsx
 #~ msgid "Sharpest for code, documents and spreadsheets. 15 frames per second."

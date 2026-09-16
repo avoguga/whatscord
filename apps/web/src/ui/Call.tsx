@@ -53,8 +53,10 @@ import {
   captureOptions,
   loadQualidade,
   publishOptions,
+  restricoesDeTela,
   resumo,
   saveQualidade,
+  suportaAudioDeJanela,
   type Qualidade
 } from "../lib/screenshare";
 import { Avatar } from "./Avatar";
@@ -646,46 +648,58 @@ export function CallSheet({
   async function toggleShare() {
     const turningOn = !sharing;
     try {
-      await room.localParticipant.setScreenShareEnabled(
-        turningOn,
-        turningOn ? captureOptions(qualidade) : undefined,
-        turningOn ? publishOptions(qualidade) : undefined
-      );
-      setSharing(turningOn);
-
-      if (turningOn) {
-        /*
-         * Pedir `audio: true` nao garante som: quem compartilha precisa marcar
-         * a caixinha no dialogo do navegador, e em "janela" o Chrome no Windows
-         * nem oferece a opcao. Dizer isso na hora e melhor do que a outra
-         * pessoa avisar depois que nao esta ouvindo nada.
-         */
-        /*
-         * A publicação do áudio pode não estar registrada no instante em que
-         * `setScreenShareEnabled` resolve — o vídeo entra primeiro. Conferir na
-         * hora dava um "sem som" falso mesmo quando o som tinha sido capturado,
-         * e um aviso que mente é pior do que aviso nenhum: a pessoa vai mexer
-         * no diálogo de compartilhamento tentando consertar o que já estava
-         * certo.
-         *
-         * Duas leituras separadas por um quadro resolvem, e o custo é um
-         * instante antes de a mensagem aparecer.
-         */
-        const temAudio = () =>
-          !!room.localParticipant.getTrackPublication(Track.Source.ScreenShareAudio);
-        let comSom = temAudio();
-        if (!comSom) {
-          await new Promise((r) => setTimeout(r, 250));
-          comSom = temAudio();
-        }
-        setNotice(
-          comSom
-            ? null
-            : t`Sharing without sound. To include it, share again and tick “Also share tab audio” (or “Share system audio”) in the browser's dialog — Chrome on Windows only offers it for a tab or a whole screen, not a single window.`
-        );
-      } else {
+      if (!turningOn) {
+        // Desligar continua pelo LiveKit: ele acha as duas publicacoes (video e
+        // audio da tela) pela FONTE e despublica as duas.
+        await room.localParticipant.setScreenShareEnabled(false);
+        setSharing(false);
         setNotice(null);
+        bump();
+        return;
       }
+
+      /*
+       * A captura e NOSSA, e nao do LiveKit. O `setScreenShareEnabled` monta o
+       * `getDisplayMedia` com um mapeador que descarta o que nao conhece — e
+       * ele nao conhece `windowAudio`, que e o que permite compartilhar o som
+       * de UMA janela em vez do sistema inteiro. Ver `restricoesDeTela`.
+       */
+      const stream = await navigator.mediaDevices.getDisplayMedia(
+        restricoesDeTela(qualidade) as unknown as DisplayMediaStreamOptions
+      );
+      const video = stream.getVideoTracks()[0];
+      if (!video) throw new Error("no video track");
+      const audio = stream.getAudioTracks()[0] ?? null;
+
+      // A dica de conteudo vai na trilha crua: e dali que o codificador a le.
+      video.contentHint = captureOptions(qualidade).contentHint;
+
+      const publicar = publishOptions(qualidade);
+      await room.localParticipant.publishTrack(video, {
+        ...publicar,
+        source: Track.Source.ScreenShare,
+        name: "screen"
+      });
+      if (audio) {
+        await room.localParticipant.publishTrack(audio, {
+          source: Track.Source.ScreenShareAudio,
+          name: "screen_audio"
+        });
+      }
+      setSharing(true);
+
+      /*
+       * A frase de "sem som" depende do que ESTE navegador oferece. No Chrome
+       * 141+ a janela tambem pode ter audio, e a frase antiga ("janela nao tem
+       * audio") passaria a mentir para quem so esqueceu de marcar.
+       */
+      setNotice(
+        audio
+          ? null
+          : suportaAudioDeJanela()
+            ? t`Sharing without sound. To include it, share again and turn on the audio switch in the browser's dialog — for a window, only that window's sound goes; for a whole screen, everything the system plays.`
+            : t`Sharing without sound. To include it, share again and tick “Also share tab audio” (or “Share system audio”) in the browser's dialog — this browser only offers sound for a tab or a whole screen, not a single window.`
+      );
       bump();
     } catch (err) {
       if (err instanceof Error && err.name !== "NotAllowedError") {
@@ -1350,6 +1364,24 @@ function AudioSink({
   return <audio ref={ref} autoPlay />;
 }
 
+/**
+ * Se este navegador deixa mudar o volume de um elemento de midia.
+ *
+ * Medido uma vez, com um elemento descartavel: atribui 0.5 e le de volta. No
+ * Safari do iPhone/iPad a leitura devolve 1 — o volume e do sistema, nao da
+ * pagina. Em Node (testes) nao ha `document`, e a resposta e "sim".
+ */
+const VOLUME_AJUSTAVEL = (() => {
+  try {
+    if (typeof document === "undefined") return true;
+    const a = document.createElement("audio");
+    a.volume = 0.5;
+    return a.volume === 0.5;
+  } catch {
+    return true;
+  }
+})();
+
 function VideoTile({
   tile,
   volume,
@@ -1413,6 +1445,12 @@ function VideoTile({
   /* So faz sentido em quadro de video — num avatar nao ha o que ampliar. */
   const podeAmpliar = !!tile.track;
   const mudo = volume === 0;
+  /*
+   * No iPhone e no iPad, `HTMLMediaElement.volume` e so-leitura: atribuir nao
+   * lanca erro e nao faz nada. Uma barra que a pessoa arrasta sem efeito e
+   * pior do que barra nenhuma — entao ela so aparece onde o volume pega.
+   */
+  const volumeFunciona = VOLUME_AJUSTAVEL;
 
   return (
     <div
@@ -1451,7 +1489,7 @@ function VideoTile({
         o leitor de tela, que nao tem ponteiro para passar por cima.
       */}
       <div className="tile-acoes">
-        {volume !== null && (
+        {volume !== null && volumeFunciona && (
           <div className={`tile-volume${mexendoVolume ? " aberto" : ""}`}>
             <button
               className="tile-acao"

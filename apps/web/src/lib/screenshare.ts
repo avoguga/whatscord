@@ -236,3 +236,89 @@ export function resumo(q: Qualidade, nomeDaFonte: string): string {
   const res = q.resolucao === 0 ? nomeDaFonte : `${q.resolucao}p`;
   return `${res} · ${q.fps} fps`;
 }
+
+/* ------------------------------------------------------------------------ */
+/* O que vai DIRETO ao navegador                                              */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * As restrições completas para `getDisplayMedia`, montadas por nós.
+ *
+ * Por que não deixar o LiveKit montar: o `screenCaptureToDisplayMediaStreamOptions`
+ * dele repassa só sete chaves (audio, video, controller, selfBrowserSurface,
+ * surfaceSwitching, systemAudio, preferCurrentTab) e DESCARTA as outras. Duas
+ * das que ele descarta importam aqui:
+ *
+ * - `windowAudio: "window"` — Chrome 141+. Ao escolher uma JANELA, o navegador
+ *   oferece o áudio só daquela janela (no Windows, por loopback de processo).
+ *   Sem isto, a única forma de mandar som era "tela inteira + áudio do
+ *   sistema" — e aí vai TUDO: a música, a notificação, a outra chamada. Foi
+ *   exatamente a queixa: "queria só o Valorant, foi o sistema todo".
+ * - `suppressLocalAudioPlayback: true` — quem compartilha com som não ouve o
+ *   próprio som dobrado.
+ *
+ * O `systemAudio: "include"` continua: para quem escolhe a tela inteira, o áudio
+ * do sistema é a única opção que existe, e ela tem de ser oferecida.
+ *
+ * Em navegador que não conhece `windowAudio` a chave é ignorada, sem erro — é
+ * assim que restrições de `getDisplayMedia` se comportam.
+ */
+export type RestricoesDeTela = {
+  audio: boolean;
+  video: { width?: { ideal: number }; height?: { ideal: number }; frameRate?: number } | true;
+  systemAudio: "include" | "exclude";
+  windowAudio: "window" | "system" | "exclude";
+  selfBrowserSurface: "include" | "exclude";
+  surfaceSwitching: "include" | "exclude";
+  suppressLocalAudioPlayback: boolean;
+};
+
+export function restricoesDeTela(q: Qualidade): RestricoesDeTela {
+  const c = captureOptions(q);
+  return {
+    audio: c.audio,
+    video: c.resolution
+      ? {
+          width: { ideal: c.resolution.width },
+          height: { ideal: c.resolution.height },
+          frameRate: c.resolution.frameRate
+        }
+      : true,
+    systemAudio: c.systemAudio,
+    windowAudio: "window",
+    selfBrowserSurface: c.selfBrowserSurface,
+    surfaceSwitching: c.surfaceSwitching,
+    suppressLocalAudioPlayback: c.suppressLocalAudioPlayback
+  };
+}
+
+/**
+ * A versão maior do Chromium por trás deste user agent, ou `null` se não for
+ * Chromium. Cobre Chrome, Edge e a WebView2 ("Chrome/153.0.0.0 ... Edg/153").
+ */
+export function versaoDoChromium(ua: string): number | null {
+  const m = /Chrom(?:e|ium)\/(\d+)/.exec(ua);
+  return m ? Number(m[1]) : null;
+}
+
+/** Onde `windowAudio` passou a existir. */
+export const CHROMIUM_COM_AUDIO_DE_JANELA = 141;
+
+/**
+ * O que dizer quando a captura veio sem som.
+ *
+ * A frase depende do que o navegador é capaz de oferecer, e isso mudou no
+ * Chrome 141: antes, janela nunca tinha áudio; agora tem, se a pessoa marcar.
+ * Uma frase só, dizendo "janela não tem áudio", passaria a mentir.
+ *
+ * Por que pela VERSÃO e não por detecção de recurso: `windowAudio`, como
+ * `systemAudio` e `selfBrowserSurface`, é opção do `getDisplayMedia`, não
+ * restrição de trilha — e `getSupportedConstraints()` só lista restrições de
+ * trilha. Medido no Chrome 152: `systemAudio: false` ali, com o recurso
+ * funcionando há anos. A primeira versão desta função usava essa detecção e
+ * responderia "não" para sempre.
+ */
+export function suportaAudioDeJanela(ua: string = navigator.userAgent): boolean {
+  const v = versaoDoChromium(ua);
+  return v !== null && v >= CHROMIUM_COM_AUDIO_DE_JANELA;
+}

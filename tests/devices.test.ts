@@ -83,8 +83,12 @@ import {
   volumeDe
 } from "../apps/web/src/lib/volumeDaChamada";
 import {
+  CHROMIUM_COM_AUDIO_DE_JANELA,
   bitrateDe,
   captureOptions,
+  restricoesDeTela,
+  suportaAudioDeJanela,
+  versaoDoChromium,
   ehFps,
   ehResolucao,
   loadQualidade,
@@ -1472,6 +1476,54 @@ check("avancada desliga voiceIsolation pelo mesmo motivo", restricoesDeCaptura("
 check("desligada: nada", restricoesDeCaptura("desligada").noiseSuppression === false && restricoesDeCaptura("desligada").voiceIsolation === false);
 
 check("so a avancada pede o processador neural", usaProcessador("avancada") && !usaProcessador("padrao") && !usaProcessador("desligada"));
+
+// ---------------------------------------------------------------------------
+section("compartilhar tela — as restricoes que vao DIRETO ao navegador");
+
+/*
+ * O LiveKit descartava duas chaves ao montar o getDisplayMedia. A queixa real:
+ * "queria compartilhar so o Valorant, e foi o audio do sistema inteiro". Com
+ * `windowAudio: "window"` (Chrome 141+), escolher uma janela oferece so o som
+ * dela. Estas linhas prendem as chaves que nao podem sumir de novo.
+ */
+const r1080 = restricoesDeTela({ resolucao: 1080, fps: 60 });
+check("pede audio", r1080.audio === true);
+check("janela: so o som da janela", r1080.windowAudio === "window", "window", r1080.windowAudio);
+check("tela inteira: o som do sistema continua sendo oferecido", r1080.systemAudio === "include");
+check("quem compartilha nao ouve o proprio som dobrado", r1080.suppressLocalAudioPlayback === true);
+check("a propria aba do app fica fora da lista", r1080.selfBrowserSurface === "exclude");
+check("da para trocar a superficie sem parar", r1080.surfaceSwitching === "include");
+check(
+  "a resolucao vai como ideal, nunca como exigencia",
+  typeof r1080.video === "object" && r1080.video.width?.ideal === 1920 && r1080.video.height?.ideal === 1080 && r1080.video.frameRate === 60
+);
+const rFonte = restricoesDeTela({ resolucao: 0, fps: 30 });
+check(
+  "'fonte' leva o teto de 8K e a taxa escolhida (o conserto do FPS continua valendo por aqui)",
+  typeof rFonte.video === "object" && rFonte.video.height?.ideal === 4320 && rFonte.video.frameRate === 30
+);
+
+// ---------------------------------------------------------------------------
+section("audio de janela — saber se ESTE navegador oferece");
+
+/*
+ * Por versao, e nao por `getSupportedConstraints()`: medido no Chrome 152, ele
+ * devolve `systemAudio: false` — porque so lista restricoes de TRILHA, e as
+ * opcoes do getDisplayMedia nao sao trilha. A primeira versao da deteccao
+ * responderia "nao" para sempre e a frase de ajuda mentiria.
+ */
+const UA_WEBVIEW2 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0";
+const UA_CHROME_140 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
+const UA_FIREFOX = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0";
+const UA_SAFARI_IPAD = "Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
+
+check("le a versao da WebView2 (que se apresenta como Chrome e Edg)", versaoDoChromium(UA_WEBVIEW2) === 153, 153, versaoDoChromium(UA_WEBVIEW2));
+check("Firefox nao e Chromium", versaoDoChromium(UA_FIREFOX) === null);
+check("Safari nao e Chromium", versaoDoChromium(UA_SAFARI_IPAD) === null);
+check("o limiar e o Chrome 141", CHROMIUM_COM_AUDIO_DE_JANELA === 141);
+check("WebView2 153 oferece audio de janela", suportaAudioDeJanela(UA_WEBVIEW2) === true);
+check("Chrome 140 nao", suportaAudioDeJanela(UA_CHROME_140) === false);
+check("Firefox nao", suportaAudioDeJanela(UA_FIREFOX) === false);
 
 // ---------------------------------------------------------------------------
 console.log(`\n${passed} passaram, ${failures.length} falharam`);
