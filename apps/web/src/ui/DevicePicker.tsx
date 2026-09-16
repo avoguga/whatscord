@@ -3,12 +3,15 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import {
   canChooseOutput,
   deviceLabel,
+  loadDevicePrefs,
   pedirPermissaoAdianta,
   resolveDeviceId,
+  saveDevicePrefs,
   useDevices,
   type DeviceKind
 } from "../lib/devices";
 import { callSoundsEnabled, playCue, setCallSounds } from "../lib/sounds";
+import { suportaAvancada, supressaoOuPadrao, type Supressao } from "../lib/ruido";
 import { canShareScreen, loadQualidade, saveQualidade, type Qualidade } from "../lib/screenshare";
 import { QualidadeDeTela } from "./ShareQuality";
 import { IconMic, IconSpeaker, IconVideo } from "./icons";
@@ -80,7 +83,8 @@ export function DevicePicker({
   micTrack,
   onSwitch,
   onNotice,
-  onChange
+  onChange,
+  onNoise
 }: {
   /**
    * The microphone already open in a call, if there is one, so the meter reads
@@ -96,6 +100,8 @@ export function DevicePicker({
   onNotice?: (text: string) => void;
   /** Lets the call follow the speaker choice without re-reading storage. */
   onChange?: (kind: DeviceKind, deviceId: string | undefined) => void;
+  /** Aplica a supressao de ruido a uma chamada em andamento. Ausente fora dela. */
+  onNoise?: (s: Supressao) => Promise<void>;
 }) {
   const { microphones, cameras, speakers, micBlocked, camBlocked, unsupported, prefs, error, refresh, reveal, choose } =
     useDevices();
@@ -108,6 +114,25 @@ export function DevicePicker({
   const { t } = useLingui();
   const [sounds, setSounds] = useState(() => callSoundsEnabled());
   const [qualidade, setQualidade] = useState<Qualidade>(() => loadQualidade());
+  const [supressao, setSupressao] = useState<Supressao>(() =>
+    supressaoOuPadrao(loadDevicePrefs().noise)
+  );
+  const [aplicandoRuido, setAplicandoRuido] = useState(false);
+  const avancadaDisponivel = suportaAvancada();
+
+  async function escolherSupressao(s: Supressao) {
+    setSupressao(s);
+    saveDevicePrefs({ ...loadDevicePrefs(), noise: s });
+    if (!onNoise) return;
+    setAplicandoRuido(true);
+    try {
+      await onNoise(s);
+    } catch {
+      onNotice?.(t`The noise suppression could not be changed. Try again.`);
+    } finally {
+      setAplicandoRuido(false);
+    }
+  }
 
   /*
    * Relê a lista quando o microfone da chamada aparece.
@@ -231,6 +256,37 @@ export function DevicePicker({
         blocked={micBlocked}
         onPick={pick}
       />
+
+      {/*
+        Supressao de ruido — o "Padrao / Krisp" do Discord, com o motor que da
+        para ter num servidor proprio. Fica logo abaixo do microfone porque e
+        uma propriedade DELE: e o que sai do microfone que muda.
+      */}
+      <label className="device-choice">
+        <span className="device-choice-text">
+          <span>
+            <Trans>Noise suppression</Trans>
+          </span>
+          <small>
+            {supressao === "avancada"
+              ? t`A small neural network cleans the microphone before sending. Best for keyboards, fans and background chatter.`
+              : supressao === "desligada"
+                ? t`Nothing is filtered. For instruments, or when you want the raw sound.`
+                : t`The browser's own filter. Light on the CPU.`}
+          </small>
+        </span>
+        <select
+          value={supressao}
+          disabled={aplicandoRuido}
+          onChange={(e) => void escolherSupressao(supressaoOuPadrao(e.target.value))}
+        >
+          <option value="padrao">{t`Standard`}</option>
+          <option value="avancada" disabled={!avancadaDisponivel}>
+            {avancadaDisponivel ? t`Advanced` : t`Advanced (not available here)`}
+          </option>
+          <option value="desligada">{t`Off`}</option>
+        </select>
+      </label>
 
       <div className="device-level" aria-hidden={!liveMic && !testing}>
         <span className="device-level-label">

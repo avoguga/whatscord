@@ -1,3 +1,4 @@
+import type { Supressao } from "./ruido";
 import { useCallback, useEffect, useState } from "react";
 
 /**
@@ -15,6 +16,8 @@ export type DevicePrefs = {
   audioinput?: string;
   videoinput?: string;
   audiooutput?: string;
+  /** Supressao de ruido do microfone. Ausente = "padrao". Ver `lib/ruido.ts`. */
+  noise?: Supressao;
 };
 
 const KEY = "whatscord.devices";

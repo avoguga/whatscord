@@ -23,6 +23,7 @@ import {
   type FacingMode
 } from "../lib/devices";
 import { playCue } from "../lib/sounds";
+import { restricoesDeCaptura, supressaoOuPadrao, usaProcessador, type Supressao } from "../lib/ruido";
 import {
   bandejaSilenciada,
   ehSomId,
@@ -108,10 +109,20 @@ export function CallSheet({
    */
   const [room] = useState(() => {
     const saved = loadDevicePrefs();
+    /*
+     * A supressao de ruido entra ja na captura. Com a "avancada", a do
+     * navegador tem de vir DESLIGADA daqui — dois supressores em cadeia nao
+     * somam, pioram. Com "desligada", idem. So o "padrao" deixa a do navegador.
+     */
+    const ruido = restricoesDeCaptura(supressaoOuPadrao(saved.noise));
     return new Room({
       adaptiveStream: true,
       dynacast: true,
-      audioCaptureDefaults: saved.audioinput ? { deviceId: saved.audioinput } : undefined,
+      audioCaptureDefaults: {
+        ...(saved.audioinput ? { deviceId: saved.audioinput } : {}),
+        noiseSuppression: ruido.noiseSuppression,
+        voiceIsolation: ruido.voiceIsolation
+      },
       videoCaptureDefaults: saved.videoinput ? { deviceId: saved.videoinput } : undefined,
       audioOutput: saved.audiooutput ? { deviceId: saved.audiooutput } : undefined
     });
@@ -347,6 +358,16 @@ export function CallSheet({
         // Publishing is best effort: no microphone must not keep you out.
         try {
           await room.localParticipant.setMicrophoneEnabled(true);
+          /*
+           * A rede neural entra depois de o microfone existir. Falhar aqui nao
+           * pode derrubar a chamada: sem ela, o microfone segue com a supressao
+           * do navegador, que e o que sempre houve.
+           */
+          if (usaProcessador(supressaoOuPadrao(loadDevicePrefs().noise))) {
+            await aplicarSupressao("avancada").catch(() =>
+              setNotice(t`The advanced noise suppression could not start; the standard one is on.`)
+            );
+          }
         } catch {
           setMicOn(false);
           setNotice(t`No microphone found. You can hear everyone, but they cannot hear you.`);
@@ -492,6 +513,32 @@ export function CallSheet({
   const inCall = roster.filter((u) => connectedIds.has(u.id));
   const away = roster.filter((u) => !connectedIds.has(u.id));
   const total = connectedIds.size;
+
+  /**
+   * Muda a supressao de ruido numa chamada em andamento.
+   *
+   * "avancada" poe o processador neural na trilha; qualquer outra tira e
+   * reabre o microfone com as restricoes daquela escolha. `restartTrack` e o
+   * que faz o navegador aplicar `noiseSuppression` de novo — mexer so em
+   * `applyConstraints` nem sempre surte efeito em captura ja aberta.
+   *
+   * O modulo com o WebAssembly e carregado sob demanda: quem nunca liga a
+   * avancada nunca baixa os 200 KB dela.
+   */
+  async function aplicarSupressao(s: Supressao) {
+    const track = room.localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
+    if (!track || track.kind !== Track.Kind.Audio) return;
+    const audio = track as import("livekit-client").LocalAudioTrack;
+    if (usaProcessador(s)) {
+      if (audio.getProcessor()?.name === "whatscord-gtcrn") return;
+      const { criarProcessadorGtcrn } = await import("../lib/ruidoAvancado");
+      await audio.setProcessor(criarProcessadorGtcrn());
+    } else {
+      if (audio.getProcessor()) await audio.stopProcessor();
+      await audio.restartTrack(restricoesDeCaptura(s));
+    }
+    bump();
+  }
 
   async function toggleMic() {
     try {
@@ -1081,6 +1128,7 @@ export function CallSheet({
             onChange={(kind, id) => {
               if (kind === "audiooutput") setOutputId(id);
             }}
+            onNoise={aplicarSupressao}
           />
 
         </aside>

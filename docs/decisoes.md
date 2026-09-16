@@ -338,3 +338,43 @@ link que vazou.
 arbitrária transformaria o ícone num rastreador de IP de todo mundo que vê a
 conversa — pior que num avatar, porque quem escolhe o ícone do grupo não é
 necessariamente quem aparece na foto. O `(?!.*\.\.)` barra travessia de caminho.
+
+## Supressão de ruído do microfone
+
+### GTCRN em WebAssembly, e não o Krisp
+
+O pedido foi "o que o Discord tem": um seletor Padrão / Krisp. O Krisp está fora
+de alcance aqui, por três motivos verificados em 15/09/2026:
+
+- o pacote `@livekit/krisp-noise-filter` **só funciona com LiveKit Cloud**
+  (livekit/client-sdk-js#1510 e a comunidade do LiveKit confirmam; o nosso
+  servidor é próprio);
+- tem 12,4 MB e licença proprietária (termos de serviço do LiveKit);
+- o código do filtro está ofuscado, e a montagem da URL dos modelos passa pela
+  sala em `onPublish(room)` — não há como apontá-lo para outro lugar.
+
+Comparados os motores livres em WebAssembly:
+
+| Motor | Tamanho | Taxa | Observação |
+|---|---|---|---|
+| RNNoise | 153 KB | só 48 kHz (quadros de 480) | quebra em 44,1 kHz, comum no Windows |
+| Speex preprocess | 56 KB | qualquer | clássico, fraco em ruído não estacionário |
+| **GTCRN** | **197 KB** | **48 ou 16 kHz** | 23,7 mil parâmetros, ~40 MMAC/s, neural |
+| DeepFilterNet | ~12 MB de runtime ONNX | — | melhor som, ~40 ms de atraso |
+
+**GTCRN**, via `@sapphi-red/web-noise-suppressor` (MIT), como `TrackProcessor` do
+LiveKit — o mesmo contrato do Krisp, então `setProcessor`/`stopProcessor` e nada
+mais muda na chamada. Se o AudioContext do LiveKit não estiver a 48 nem a 16 kHz,
+o processamento vai num contexto próprio a 48 kHz.
+
+Três coisas que o próprio filtro Krisp ensinou ao ser lido:
+
+1. **Com a avançada ligada, a supressão do navegador tem de sair**
+   (`noiseSuppression: false`, `voiceIsolation: false`). Dois supressores em
+   cadeia não somam; o segundo recebe o sinal mastigado pelo primeiro.
+2. O `voiceIsolation` que o SDK já pede só age onde o sistema tem suporte —
+   hoje, quase só ChromeOS. No Windows é inofensivo e inerte.
+3. **O CSP do Tauri bloqueava WebAssembly.** Com `script-src 'self'` e sem
+   `'wasm-unsafe-eval'`, o Chromium recusa compilar WASM. O `tauri.conf.json`
+   passou a incluí-lo em `csp` e `devCsp`. Sem isso a avançada falharia em
+   silêncio só no app instalado.

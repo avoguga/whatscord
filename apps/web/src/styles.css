@@ -2392,3 +2392,16 @@ input, textarea { font: inherit; color: inherit; }
    bloco de referencia; sem isto o numero cairia no canto do rail inteiro. */
 .space-chip { position: relative; }
 .space-chip .rail-badge { top: -4px; right: -4px; }
+
+
+/* ---------------------------------------------------------------------------
+   SUPRESSAO DE RUIDO — o seletor abaixo do microfone
+--------------------------------------------------------------------------- */
+.device-choice {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--gap-3);
+  padding: 6px 0;
+}
+.device-choice-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.device-choice-text > span { font-size: 13.5px; color: var(--text); }
+.device-choice-text small { font-size: 12px; line-height: 1.4; color: var(--text-dim); }
+.device-choice select { flex: 0 0 auto; min-width: 9rem; }

@@ -66,6 +66,14 @@ import {
   somarEspacos
 } from "../apps/web/src/lib/naoLidas";
 import {
+  SUPRESSAO_PADRAO,
+  SUPRESSOES,
+  ehSupressao,
+  restricoesDeCaptura,
+  supressaoOuPadrao,
+  usaProcessador
+} from "../apps/web/src/lib/ruido";
+import {
   VOLUME_MAX,
   VOLUME_PADRAO,
   chaveDeAudio,
@@ -1442,6 +1450,28 @@ check("pasta vazia soma zero", somarEspacos(porEspaco, []) === 0);
 
 check("ate 99 mostra o numero", rotuloDeContador(99) === "99");
 check("acima disso, '99+' — tres digitos nao cabem num circulo de 18px", rotuloDeContador(100) === "99+");
+
+// ---------------------------------------------------------------------------
+section("supressao de ruido — a escolha vira restricao de captura");
+
+check("tres niveis, nesta ordem", SUPRESSOES.join(",") === "padrao,avancada,desligada");
+check("o padrao e a supressao do navegador — o que o app sempre fez", SUPRESSAO_PADRAO === "padrao");
+check("valor guardado desconhecido volta ao padrao", supressaoOuPadrao("krisp") === "padrao");
+check("ausente tambem", supressaoOuPadrao(undefined) === "padrao");
+check("ehSupressao recusa lixo", !ehSupressao("") && !ehSupressao(1) && ehSupressao("avancada"));
+
+/*
+ * A regra que nao e obvia e que o filtro Krisp do LiveKit tambem aplica: com a
+ * AVANCADA ligada, a supressao do navegador tem de sair. Dois supressores em
+ * cadeia nao somam — o segundo recebe o sinal ja mastigado pelo primeiro.
+ */
+check("padrao: a do navegador fica ligada", restricoesDeCaptura("padrao").noiseSuppression === true);
+check("padrao: voiceIsolation tambem", restricoesDeCaptura("padrao").voiceIsolation === true);
+check("avancada DESLIGA a do navegador para nao empilhar dois supressores", restricoesDeCaptura("avancada").noiseSuppression === false);
+check("avancada desliga voiceIsolation pelo mesmo motivo", restricoesDeCaptura("avancada").voiceIsolation === false);
+check("desligada: nada", restricoesDeCaptura("desligada").noiseSuppression === false && restricoesDeCaptura("desligada").voiceIsolation === false);
+
+check("so a avancada pede o processador neural", usaProcessador("avancada") && !usaProcessador("padrao") && !usaProcessador("desligada"));
 
 // ---------------------------------------------------------------------------
 console.log(`\n${passed} passaram, ${failures.length} falharam`);

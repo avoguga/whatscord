@@ -100,6 +100,10 @@ msgstr "A microphone or camera could not be opened — another app may be holdin
 msgid "A new code could not be created."
 msgstr "A new code could not be created."
 
+#: src/ui/DevicePicker.tsx
+msgid "A small neural network cleans the microphone before sending. Best for keyboards, fans and background chatter."
+msgstr "A small neural network cleans the microphone before sending. Best for keyboards, fans and background chatter."
+
 #: src/ui/Modals.tsx
 msgid "A space holds text channels and voice rooms, and everyone you invite sees all of them."
 msgstr "A space holds text channels and voice rooms, and everyone you invite sees all of them."
@@ -165,6 +169,14 @@ msgstr "Admin"
 #: src/ui/Membros.tsx
 msgid "Admins"
 msgstr "Admins"
+
+#: src/ui/DevicePicker.tsx
+msgid "Advanced"
+msgstr "Advanced"
+
+#: src/ui/DevicePicker.tsx
+msgid "Advanced (not available here)"
+msgstr "Advanced (not available here)"
 
 #: src/ui/Soundboard.tsx
 msgid "Air horn"
@@ -1056,6 +1068,10 @@ msgstr "Nobody here goes by that."
 msgid "Nobody here right now"
 msgstr "Nobody here right now"
 
+#: src/ui/DevicePicker.tsx
+msgid "Noise suppression"
+msgstr "Noise suppression"
+
 #: src/ui/TimbreDaConversa.tsx
 msgid "None"
 msgstr "None"
@@ -1080,6 +1096,10 @@ msgstr "Nothing happened? The app is probably not installed on this machine — 
 msgid "Nothing here matches that."
 msgstr "Nothing here matches that."
 
+#: src/ui/DevicePicker.tsx
+msgid "Nothing is filtered. For instruments, or when you want the raw sound."
+msgstr "Nothing is filtered. For instruments, or when you want the raw sound."
+
 #: src/ui/FolderModal.tsx
 msgid "Nothing is in this folder yet. Drag a space onto it to put it in."
 msgstr "Nothing is in this folder yet. Drag a space onto it to put it in."
@@ -1091,6 +1111,10 @@ msgstr "Nothing written here yet."
 #: src/ui/Chat.tsx
 msgid "Notifications turned back on."
 msgstr "Notifications turned back on."
+
+#: src/ui/DevicePicker.tsx
+msgid "Off"
+msgstr "Off"
 
 #: src/ui/Chat.tsx
 msgid "offline"
@@ -1538,6 +1562,10 @@ msgstr "Speak — the bar should move."
 msgid "Speaker"
 msgstr "Speaker"
 
+#: src/ui/DevicePicker.tsx
+msgid "Standard"
+msgstr "Standard"
+
 #: src/ui/Chat.tsx
 #: src/ui/Chat.tsx
 msgid "Start a video call"
@@ -1786,6 +1814,10 @@ msgid "That username is taken."
 msgstr "That username is taken."
 
 #: src/ui/Call.tsx
+msgid "The advanced noise suppression could not start; the standard one is on."
+msgstr "The advanced noise suppression could not start; the standard one is on."
+
+#: src/ui/Call.tsx
 msgid "The browser blocked your microphone or camera. Allow it in the address bar, then try again."
 msgstr "The browser blocked your microphone or camera. Allow it in the address bar, then try again."
 
@@ -1796,6 +1828,10 @@ msgstr "The browser has not given access yet, so the devices have no names."
 #: src/ui/DevicePicker.tsx
 msgid "The browser hides your microphones and cameras until it has been given access once."
 msgstr "The browser hides your microphones and cameras until it has been given access once."
+
+#: src/ui/DevicePicker.tsx
+msgid "The browser's own filter. Light on the CPU."
+msgstr "The browser's own filter. Light on the CPU."
 
 #: src/ui/Call.tsx
 msgid "The call could not connect. Check that the server is reachable."
@@ -1816,6 +1852,10 @@ msgstr "The message cannot be empty."
 #: src/ui/Call.tsx
 msgid "The new setting applies the next time you start sharing."
 msgstr "The new setting applies the next time you start sharing."
+
+#: src/ui/DevicePicker.tsx
+msgid "The noise suppression could not be changed. Try again."
+msgstr "The noise suppression could not be changed. Try again."
 
 #: src/ui/Call.tsx
 msgid "The other camera could not be opened — another app may be holding it."
