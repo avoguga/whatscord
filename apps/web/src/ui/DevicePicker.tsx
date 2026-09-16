@@ -167,10 +167,17 @@ export function DevicePicker({
     const id = deviceId || undefined;
     choose(kind, id);
     onChange?.(kind, id);
-    if (!onSwitch || !id) return;
+    if (!onSwitch) return;
     setBusy(kind);
     try {
-      await onSwitch(kind, id);
+      /*
+       * "Padrao do sistema" tambem e uma troca. Antes, escolher essa opcao no
+       * meio da chamada so gravava a preferencia e deixava a trilha viva no
+       * aparelho anterior — a pessoa via "padrao" selecionado e continuava
+       * falando pelo microfone antigo. O Chromium aceita o id literal
+       * "default" para isso.
+       */
+      await onSwitch(kind, id ?? "default");
     } catch {
       onNotice?.(
         kind === "audiooutput"

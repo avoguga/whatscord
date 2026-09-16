@@ -68,9 +68,10 @@ export function QuickDeviceMenu({
   async function pick(deviceId: string) {
     const id = deviceId || undefined;
     choose(kind, id);
-    if (!onSwitch || !id) return;
+    if (!onSwitch) return;
     try {
-      await onSwitch(kind, id);
+      // "Padrao do sistema" tambem troca a trilha viva (ver DevicePicker.pick).
+      await onSwitch(kind, id ?? "default");
     } catch {
       onNotice?.(t`That device could not be opened — it may be in use by another app.`);
     }

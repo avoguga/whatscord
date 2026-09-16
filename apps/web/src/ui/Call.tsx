@@ -535,7 +535,17 @@ export function CallSheet({
       await audio.setProcessor(criarProcessadorGtcrn());
     } else {
       if (audio.getProcessor()) await audio.stopProcessor();
-      await audio.restartTrack(restricoesDeCaptura(s));
+      /*
+       * O microfone ESCOLHIDO tem de ir junto. `restartTrack(options)` monta as
+       * restricoes so com o que recebe — sem `deviceId` aqui, o navegador
+       * reabria o microfone padrao do sistema e a escolha da pessoa sumia em
+       * silencio, no meio da chamada. Foi um defeito desta mesma funcao.
+       */
+      const atual = audio.mediaStreamTrack.getSettings().deviceId ?? loadDevicePrefs().audioinput;
+      await audio.restartTrack({
+        ...restricoesDeCaptura(s),
+        ...(atual ? { deviceId: atual } : {})
+      });
     }
     bump();
   }
@@ -1328,8 +1338,13 @@ function AudioSink({
    */
   useEffect(() => {
     const el = ref.current as (HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> }) | null;
-    if (!el?.setSinkId || !sinkId) return;
-    void el.setSinkId(sinkId).catch(() => undefined);
+    if (!el?.setSinkId) return;
+    /*
+     * Sem escolha, volta ao padrao do sistema — `setSinkId("")` e como o
+     * navegador diz isso. Antes, limpar a escolha nao fazia nada e o som
+     * continuava saindo pela caixa anterior, com "padrao" escrito na tela.
+     */
+    void el.setSinkId(sinkId ?? "").catch(() => undefined);
   }, [sinkId]);
 
   return <audio ref={ref} autoPlay />;
