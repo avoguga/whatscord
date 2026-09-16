@@ -26,6 +26,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { fileUrl } from "../lib/api";
+import { naoLidasPorEspaco, rotuloDeContador, somarEspacos } from "../lib/naoLidas";
 import { initials } from "../lib/format";
 import { useStore, type Space, type SpaceFolder } from "../store";
 import { FolderModal } from "./FolderModal";
@@ -110,8 +111,16 @@ export function SpaceRail() {
   const { t } = useLingui();
   const deitado = useRailDeitado();
   const spaces = useStore((s) => s.spaces);
+  const rooms = useStore((s) => s.rooms);
   const folders = useStore((s) => s.spaceFolders);
   const openFolders = useStore((s) => s.openFolders);
+  /*
+   * Nao lidas por espaco, para o contador de cada chip. E a resposta a "tem
+   * coisa nova la dentro?" sem precisar abrir — o que o Discord mostra e o que
+   * faltava aqui: os chips nao tinham contador nenhum, e o do botao de
+   * conversas somava os canais de todos os espacos, mentindo para os dois lados.
+   */
+  const porEspaco = useMemo(() => naoLidasPorEspaco(rooms), [rooms]);
   const activeSpaceId = useStore((s) => s.activeSpaceId);
   const setActiveSpace = useStore((s) => s.setActiveSpace);
   const toggleFolder = useStore((s) => s.toggleFolder);
@@ -450,6 +459,7 @@ export function SpaceRail() {
                 aberta={openFolders.has(slot.folder.id)}
                 alvo={alvoFusao === slot.id}
                 temAtivo={(dentroDe.get(slot.folder.id) ?? []).some((s) => s.id === activeSpaceId)}
+                naoLidas={somarEspacos(porEspaco, (dentroDe.get(slot.folder.id) ?? []).map((s) => s.id))}
                 onToggle={() => toggleFolder(slot.folder.id)}
                 onMenu={() => setMenu({ id: slot.folder.id, kind: "folder" })}
               />
@@ -462,6 +472,7 @@ export function SpaceRail() {
                 ultimoDaPasta={irmaosDe(slot.space).at(-1)?.id === slot.space.id}
                 ativo={activeSpaceId === slot.space.id}
                 alvo={alvoFusao === slot.id}
+                naoLidas={porEspaco.get(slot.space.id) ?? 0}
                 onOpen={() => setActiveSpace(slot.space.id)}
                 onMenu={() => setMenu({ id: slot.space.id, kind: "space" })}
               />
@@ -522,10 +533,12 @@ function EscudoDoEspaco({ espaco }: { espaco: Space }) {
 }
 
 function EspacoChip({
-  espaco, ativo, alvo, dentroDePasta, primeiroDaPasta, ultimoDaPasta, onOpen, onMenu
+  espaco, ativo, alvo, dentroDePasta, primeiroDaPasta, ultimoDaPasta, naoLidas, onOpen, onMenu
 }: {
   espaco: Space;
   ativo: boolean;
+  /** Mensagens nao lidas nos canais deste espaco. */
+  naoLidas: number;
   alvo: boolean;
   dentroDePasta: boolean;
   /* Onde este chip fica no grupo. É o que arredonda a ponta de baixo do bloco
@@ -562,6 +575,14 @@ function EspacoChip({
       }}
     >
       <EscudoDoEspaco espaco={espaco} />
+      {/*
+        Some no espaco ABERTO: la a lista de canais ja mostra o numero em cada
+        canal, e o mesmo numero em dois lugares a dois centimetros de distancia
+        e ruido, nao informacao. Mesma regra do botao de conversas.
+      */}
+      {naoLidas > 0 && !ativo && (
+        <span className="rail-badge">{rotuloDeContador(naoLidas)}</span>
+      )}
     </button>
   );
 }
@@ -592,11 +613,13 @@ function MiniaturasDaPasta({ pasta, dentro }: { pasta: SpaceFolder; dentro: Spac
 }
 
 function PastaChip({
-  pasta, dentro, aberta, alvo, temAtivo, onToggle, onMenu
+  pasta, dentro, aberta, alvo, temAtivo, naoLidas, onToggle, onMenu
 }: {
   pasta: SpaceFolder;
   dentro: Space[];
   aberta: boolean;
+  /** Nao lidas somadas de tudo que esta dentro. So importa com a pasta fechada. */
+  naoLidas: number;
   alvo: boolean;
   temAtivo: boolean;
   onToggle: () => void;
@@ -652,6 +675,14 @@ function PastaChip({
         </span>
       ) : (
         <MiniaturasDaPasta pasta={pasta} dentro={dentro} />
+      )}
+      {/*
+        Fechada, a pasta esconde os chips — e com eles os contadores. Sem esta
+        soma, guardar um espaco numa pasta seria a mesma coisa que silencia-lo.
+        Aberta, os chips estao a vista com os proprios numeros.
+      */}
+      {!aberta && naoLidas > 0 && (
+        <span className="rail-badge">{rotuloDeContador(naoLidas)}</span>
       )}
     </button>
   );

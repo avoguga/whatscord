@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useStore, type Room, type VoiceUser } from "../store";
 import { fileUrl } from "../lib/api";
+import { naoLidasForaDosEspacos, naoLidasNaVista, rotuloDeContador } from "../lib/naoLidas";
 import { initials, listStamp } from "../lib/format";
 import {
   IconChats, IconSearch, IconNewChat, IconMute, IconChecks,
@@ -57,7 +58,20 @@ export function Sidebar() {
   // Inside a space, a flat list of text and voice channels reads as one pile.
   const textChannels = visible.filter((r) => r.kind === "TEXT");
   const voiceChannels = visible.filter((r) => r.kind === "VOICE");
-  const unreadTotal = rooms.reduce((n, r) => n + r.unread, 0);
+  /*
+   * Duas somas, porque sao duas perguntas.
+   *
+   * O botao de conversas no rail responde "quantas mensagens me esperam FORA
+   * dos espacos" — conversas diretas e grupos. Somar os canais de espaco ali
+   * fazia o numero mentir: a pessoa clicava, nao achava nada novo, e concluia
+   * que o contador estava quebrado. Cada espaco tem o seu proprio contador no
+   * chip (ver SpaceRail).
+   *
+   * O filtro "Nao lidas" da lista responde "quantas nesta vista" — e a vista e
+   * o espaco aberto, ou as conversas quando nenhum esta.
+   */
+  const unreadDeConversas = naoLidasForaDosEspacos(rooms);
+  const unreadTotal = naoLidasNaVista(rooms, activeSpaceId);
 
   const row = (room: Room) => (
     /*
@@ -103,8 +117,8 @@ export function Sidebar() {
           onClick={() => setActiveSpace(null)}
         >
           <IconChats />
-          {unreadTotal > 0 && activeSpaceId !== null && (
-            <span className="rail-badge">{unreadTotal > 99 ? "99+" : unreadTotal}</span>
+          {unreadDeConversas > 0 && activeSpaceId !== null && (
+            <span className="rail-badge">{rotuloDeContador(unreadDeConversas)}</span>
           )}
         </button>
 

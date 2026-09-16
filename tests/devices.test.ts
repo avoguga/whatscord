@@ -59,6 +59,13 @@ import {
   type MembroCru
 } from "../apps/web/src/lib/membros";
 import {
+  naoLidasForaDosEspacos,
+  naoLidasNaVista,
+  naoLidasPorEspaco,
+  rotuloDeContador,
+  somarEspacos
+} from "../apps/web/src/lib/naoLidas";
+import {
   VOLUME_MAX,
   VOLUME_PADRAO,
   chaveDeAudio,
@@ -1397,6 +1404,44 @@ salvarPainelDeMembros(false);
 check("fechado, fica fechado", painelDeMembrosAberto() === false);
 salvarPainelDeMembros(true);
 check("reabrir apaga a chave em vez de gravar 'aberto'", memoria.get("whatscord.painelDeMembros") === undefined);
+
+// ---------------------------------------------------------------------------
+section("contadores do rail — cada um responde a uma pergunta diferente");
+
+const salas = [
+  { unread: 2, space: null },                 // conversa direta
+  { unread: 0, space: null },                 // grupo sem nada
+  { unread: 3, space: { id: "trabalho" } },   // canal do espaco "trabalho"
+  { unread: 4, space: { id: "trabalho" } },
+  { unread: 1, space: { id: "amigos" } },
+  { unread: 0, space: { id: "vazio" } }
+];
+
+/*
+ * O defeito que existia: o botao de conversas somava TUDO (10) e mentia. Quem
+ * clicava nao achava nada novo la e concluia que o contador estava quebrado.
+ */
+check("botao de conversas conta so o que esta fora dos espacos", naoLidasForaDosEspacos(salas) === 2, 2, naoLidasForaDosEspacos(salas));
+
+const porEspaco = naoLidasPorEspaco(salas);
+check("cada espaco soma os proprios canais", porEspaco.get("trabalho") === 7, 7, porEspaco.get("trabalho"));
+check("um canal so tambem conta", porEspaco.get("amigos") === 1);
+check("espaco sem nada nem entra no mapa — sem zero para desenhar", !porEspaco.has("vazio"));
+
+check("na vista de conversas, o filtro 'nao lidas' conta as conversas", naoLidasNaVista(salas, null) === 2);
+check("dentro de um espaco, conta so aquele espaco", naoLidasNaVista(salas, "trabalho") === 7, 7, naoLidasNaVista(salas, "trabalho"));
+check("num espaco sem nada, zero", naoLidasNaVista(salas, "vazio") === 0);
+
+/*
+ * Pasta fechada esconde os chips e, com eles, os contadores. Sem a soma,
+ * guardar um espaco numa pasta seria a mesma coisa que silencia-lo.
+ */
+check("a pasta soma o que tem dentro", somarEspacos(porEspaco, ["trabalho", "amigos"]) === 8, 8, somarEspacos(porEspaco, ["trabalho", "amigos"]));
+check("espaco desconhecido na pasta vale zero, nao erro", somarEspacos(porEspaco, ["trabalho", "sumiu"]) === 7);
+check("pasta vazia soma zero", somarEspacos(porEspaco, []) === 0);
+
+check("ate 99 mostra o numero", rotuloDeContador(99) === "99");
+check("acima disso, '99+' — tres digitos nao cabem num circulo de 18px", rotuloDeContador(100) === "99+");
 
 // ---------------------------------------------------------------------------
 console.log(`\n${passed} passaram, ${failures.length} falharam`);

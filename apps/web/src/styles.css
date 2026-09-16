@@ -2387,3 +2387,8 @@ input, textarea { font: inherit; color: inherit; }
 @media (max-width: 1100px) {
   .members-panel { display: none; }
 }
+
+/* O contador de nao lidas do espaco, no canto do chip. O chip precisa ser o
+   bloco de referencia; sem isto o numero cairia no canto do rail inteiro. */
+.space-chip { position: relative; }
+.space-chip .rail-badge { top: -4px; right: -4px; }
