@@ -18,6 +18,7 @@ import {
   type EstadoDaAtualizacao
 } from "../lib/atualizador";
 import { IconClose } from "./icons";
+import { AvisoDeInicializacao } from "./Inicializacao";
 
 /**
  * O que a pessoa vê da atualização do app desktop.
@@ -287,6 +288,7 @@ export function AvisosDoApp() {
   return (
     <div className="update-stack">
       <NovidadesDaVersao />
+      <AvisoDeInicializacao />
       <AvisoDeAtualizacao />
     </div>
   );

@@ -17,6 +17,8 @@ import { Scrim } from "./Scrim";
 import { DevicePicker } from "./DevicePicker";
 import { SecaoAtualizacao } from "./Atualizacao";
 import { atualizacaoDisponivelAqui } from "../lib/atualizador";
+import { SecaoInicializacao } from "./Inicializacao";
+import { inicializacaoPossivelAqui } from "../lib/inicializacao";
 
 /**
  * Configurações, em seções.
@@ -37,7 +39,7 @@ import { atualizacaoDisponivelAqui } from "../lib/atualizador";
  * dizer "ainda ninguém escolheu, mostre a primeira".
  */
 
-type SecaoId = "conta" | "voz" | "aparencia" | "idioma" | "atualizacao";
+type SecaoId = "conta" | "voz" | "aparencia" | "idioma" | "atualizacao" | "inicializacao";
 
 /*
  * `msg` guarda a mensagem SEM traduzir; quem traduz é o `i18n._()` na hora de
@@ -63,6 +65,10 @@ const SECOES: { id: SecaoId; titulo: MessageDescriptor; grupo: MessageDescriptor
    */
   ...(atualizacaoDisponivelAqui
     ? [{ id: "atualizacao" as const, titulo: msg`Updates`, grupo: msg`App`, icone: "update" }]
+    : []),
+  // So no app instalado no Windows: e la que existe "abrir com o sistema".
+  ...(inicializacaoPossivelAqui
+    ? [{ id: "inicializacao" as const, titulo: msg`Windows startup`, grupo: msg`App`, icone: "power" }]
     : [])
 ];
 
@@ -139,6 +145,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             {atual === "aparencia" && <SecaoAparencia />}
             {atual === "idioma" && <SecaoIdioma />}
             {atual === "atualizacao" && <SecaoAtualizacao />}
+            {atual === "inicializacao" && <SecaoInicializacao />}
           </div>
         </section>
       </div>
@@ -164,6 +171,8 @@ function Icone({ nome }: { nome: string }) {
     mic: "M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V22h2v-3.1A7 7 0 0 0 19 12h-2Z",
     globe:
       "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm6.9 9h-3a15.6 15.6 0 0 0-1-5.2A8 8 0 0 1 18.9 11ZM12 4.1c.7 1 1.5 2.9 1.8 6.9h-3.6c.3-4 1.1-5.9 1.8-6.9ZM5.1 11a8 8 0 0 1 4-5.2 15.6 15.6 0 0 0-1 5.2h-3Zm0 2h3c.1 2 .5 3.8 1 5.2A8 8 0 0 1 5.1 13Zm6.9 6.9c-.7-1-1.5-2.9-1.8-6.9h3.6c-.3 4-1.1 5.9-1.8 6.9Zm2.9-1.7c.5-1.4.9-3.2 1-5.2h3a8 8 0 0 1-4 5.2Z",
+    power:
+      "M13 3h-2v10h2V3Zm4.8 2.2-1.4 1.4A6.9 6.9 0 0 1 19 12a7 7 0 1 1-11.4-5.4L6.2 5.2A9 9 0 1 0 17.8 5.2Z",
     update:
       "M12 4a8 8 0 0 0-7.4 5H2l3.5 4L9 9H6.8A6 6 0 1 1 6 12H4a8 8 0 1 0 8-8Zm-1 4v5l4.2 2.5.8-1.3-3.5-2.1V8h-1.5Z",
     palette:

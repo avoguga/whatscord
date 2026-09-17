@@ -12,6 +12,10 @@ Formato: um `## <versão>` por versão, a mais nova em cima, e um item por linha
 começando com `- `. Texto simples, sem HTML — é mostrado como texto. Escreva para
 quem usa o app, não para quem programa: o que a pessoa nota de diferente.
 
+## 0.2.4
+
+- O WhatsCord abre sozinho quando o Windows inicia, direto na bandeja, perto do relógio — sem janela na sua frente. Para desligar, vá em Configurações, em Inicialização com o Windows.
+
 ## 0.2.3
 
 - Quando uma atualização fica pronta, aparece um aviso para reiniciar, com a lista do que mudou.

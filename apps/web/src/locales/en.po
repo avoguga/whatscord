@@ -228,6 +228,7 @@ msgstr "Anyone with this link can join. Opening it signs them straight into the 
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
+#: src/ui/Settings.tsx
 msgid "App"
 msgstr "App"
 
@@ -386,6 +387,8 @@ msgstr "Chime"
 #: src/ui/Call.tsx
 #: src/ui/FotoAmpliada.tsx
 #: src/ui/FotoAmpliada.tsx
+#: src/ui/Inicializacao.tsx
+#: src/ui/Inicializacao.tsx
 #: src/ui/Membros.tsx
 #: src/ui/Membros.tsx
 #: src/ui/Membros.tsx
@@ -694,6 +697,7 @@ msgid "Give the space a name."
 msgstr "Give the space a name."
 
 #: src/ui/Atualizacao.tsx
+#: src/ui/Inicializacao.tsx
 msgid "Got it"
 msgstr "Got it"
 
@@ -771,6 +775,10 @@ msgstr "How to invite people"
 msgid "If a game drops to your monitor's refresh rate while you share it, that is Windows composing the window — it happens at 30 or 60 alike. Running the game in exclusive full screen, or capping it in-game, avoids it."
 msgstr "If a game drops to your monitor's refresh rate while you share it, that is Windows composing the window — it happens at 30 or 60 alike. Running the game in exclusive full screen, or capping it in-game, avoids it."
 
+#: src/ui/Inicializacao.tsx
+msgid "If you turned it off in Windows' Task Manager, turning it on here brings it back."
+msgstr "If you turned it off in Windows' Task Manager, turning it on here brings it back."
+
 #: src/ui/Membros.tsx
 msgid "In a call"
 msgstr "In a call"
@@ -811,6 +819,14 @@ msgstr "Invite people and add channels"
 #: src/ui/Sidebar.tsx
 msgid "Invite people to this space"
 msgstr "Invite people to this space"
+
+#: src/ui/Inicializacao.tsx
+msgid "It starts in the tray, near the clock — no window in your way. You can change this in Settings."
+msgstr "It starts in the tray, near the clock — no window in your way. You can change this in Settings."
+
+#: src/ui/Inicializacao.tsx
+msgid "It starts in the tray, near the clock, so you get messages without having to remember to open it. No window pops up in your way."
+msgstr "It starts in the tray, near the clock, so you get messages without having to remember to open it. No window pops up in your way."
 
 #: src/ui/Atualizacao.tsx
 #: src/ui/Atualizacao.tsx
@@ -1240,6 +1256,10 @@ msgstr "Open the folder {nome}"
 #: src/ui/Chat.tsx
 msgid "Open the space from the left rail to invite people."
 msgstr "Open the space from the left rail to invite people."
+
+#: src/ui/Inicializacao.tsx
+msgid "Open WhatsCord when Windows starts"
+msgstr "Open WhatsCord when Windows starts"
 
 #: src/App.tsx
 msgid "Opening the call…"
@@ -2037,6 +2057,10 @@ msgstr "Transfer ownership instead of setting that role."
 msgid "Try again"
 msgstr "Try again"
 
+#: src/ui/Inicializacao.tsx
+msgid "Turn off"
+msgstr "Turn off"
+
 #: src/ui/Call.tsx
 msgid "Turn your camera on first — there is no picture to switch while it is off."
 msgstr "Turn your camera on first — there is no picture to switch while it is off."
@@ -2225,6 +2249,10 @@ msgstr "WhatsCord {versao} is ready. It only takes a few seconds."
 msgid "WhatsCord for desktop"
 msgstr "WhatsCord for desktop"
 
+#: src/ui/Inicializacao.tsx
+msgid "WhatsCord now opens when Windows starts"
+msgstr "WhatsCord now opens when Windows starts"
+
 #: src/ui/Atualizacao.tsx
 msgid "WhatsCord updated to {versao}"
 msgstr "WhatsCord updated to {versao}"
@@ -2240,6 +2268,15 @@ msgstr "Who is here"
 #: src/ui/Call.tsx
 msgid "Who is on the call"
 msgstr "Who is on the call"
+
+#: src/ui/Inicializacao.tsx
+msgid "Windows did not allow this change. A company policy on this computer may be blocking it."
+msgstr "Windows did not allow this change. A company policy on this computer may be blocking it."
+
+#: src/ui/Inicializacao.tsx
+#: src/ui/Settings.tsx
+msgid "Windows startup"
+msgstr "Windows startup"
 
 #: src/ui/Chat.tsx
 msgid "Write something first"

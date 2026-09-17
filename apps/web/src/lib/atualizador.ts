@@ -34,6 +34,7 @@ import { compararVersoes, itensDasNotas, novidadesNaoVistas, secaoDaVersao, type
  * vale também para quem instalou à mão.
  */
 import textoDasNovidades from "../novidades.md?raw";
+import { marcarReabrirVisivel } from "./inicializacao";
 
 /**
  * A atualização do app desktop, do lado que conversa com o plugin.
@@ -316,6 +317,12 @@ async function instalar({ reabrir }: { reabrir: boolean }): Promise<void> {
   if (!update) return;
   pararContagem();
   mudar({ fase: "reiniciando", contagemAte: null });
+  /*
+   * Se a janela esta a vista, ela tem de VOLTAR a vista. O instalador reabre o
+   * app com os mesmos argumentos — e um app aberto pelo Windows veio com
+   * `--oculto`, entao voltaria escondido na bandeja. Ver `deveReabrirVisivel`.
+   */
+  if (reabrir && document.visibilityState === "visible") marcarReabrirVisivel(Date.now());
   try {
     await update.install({ restartAfterInstall: reabrir });
   } catch (err) {

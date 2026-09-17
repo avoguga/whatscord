@@ -1,6 +1,6 @@
 [package]
 name = "whatscord-desktop"
-version = "0.2.3"
+version = "0.2.4"
 description = "WhatsCord desktop shell"
 authors = ["WhatsCord"]
 edition = "2021"
@@ -42,6 +42,9 @@ sys-locale = "0.3"
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.38"
 windows = { version = "0.61", features = ["Win32_Foundation"] }
+# Registro do Windows, para abrir com o sistema (ver src/inicializacao.rs). A
+# mesma versao que ja vinha por dependencia transitiva — nada novo compilado.
+winreg = "0.55"
 
 # single-instance is desktop-only: it has no mobile implementation and fails to
 # build for iOS/Android, so it is gated behind a target cfg (as the docs require).

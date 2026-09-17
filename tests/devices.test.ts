@@ -74,6 +74,13 @@ import {
   usaProcessador
 } from "../apps/web/src/lib/ruido";
 import {
+  VALIDADE_DA_MARCA_MS,
+  deveReabrirVisivel,
+  inicializacaoPossivel,
+  lerMarcaDeReabrir,
+  marcarReabrirVisivel
+} from "../apps/web/src/lib/inicializacao";
+import {
   VOLUME_MAX,
   VOLUME_PADRAO,
   chaveDeAudio,
@@ -1839,6 +1846,40 @@ memoria.set("whatscord.atualizacaoVistaEm", "{nao e json");
 check("marca corrompida recomeca desde agora, sem quebrar", vistaPelaPrimeiraVez("0.2.2", AGORA + 5 * DIA) === AGORA + 5 * DIA);
 memoria.set("whatscord.atualizacaoVistaEm", JSON.stringify({ versao: "0.2.3", em: AGORA + 99 * DIA }));
 check("marca no futuro (relogio voltou) nao conta como 'pendente ha muito tempo'", vistaPelaPrimeiraVez("0.2.3", AGORA) === AGORA);
+
+// ---------------------------------------------------------------------------
+section("abrir com o Windows — onde existe, e voltar visivel depois de atualizar");
+
+const UA_WIN = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36 Edg/153.0.0.0";
+const UA_MAC = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko)";
+const UA_ANDROID = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36";
+check("app instalado no Windows: existe", inicializacaoPossivel(true, UA_WIN) === true);
+check("site aberto no Chrome do Windows: nao existe (nao ha o que abrir com o sistema)", inicializacaoPossivel(false, UA_WIN) === false);
+check("app no Mac: nao existe (so Windows por enquanto)", inicializacaoPossivel(true, UA_MAC) === false);
+check("APK no Android: nao existe", inicializacaoPossivel(true, UA_ANDROID) === false);
+
+/*
+ * O caso que a marca resolve: o Windows abriu o app na bandeja (--oculto), a
+ * pessoa abriu a janela e clicou "Reiniciar agora". O instalador reabre com os
+ * MESMOS argumentos — e o app voltaria escondido. A marca faz a janela voltar.
+ */
+const T0 = Date.UTC(2026, 8, 17, 12, 0, 0);
+check("sem marca: nasce onde o Windows mandar", deveReabrirVisivel(null, T0) === false);
+check("marca de 10 s atras (reinicio da atualizacao): volta visivel", deveReabrirVisivel(T0 - 10_000, T0) === true);
+check("no limite de 2 min: ainda volta", deveReabrirVisivel(T0 - VALIDADE_DA_MARCA_MS, T0) === true);
+check("marca velha (instalacao falhou, reaberto no dia seguinte): NAO volta visivel", deveReabrirVisivel(T0 - 24 * 3600_000, T0) === false);
+check("marca do futuro (relogio mexido): nao vale", deveReabrirVisivel(T0 + 60_000, T0) === false);
+check("marca ilegivel: nao vale", deveReabrirVisivel(Number.NaN, T0) === false);
+
+// O localStorage de mentira instalado mais acima continua valendo.
+memoria.delete("whatscord.reabrirVisivelEm");
+check("sem marca gravada: null", lerMarcaDeReabrir() === null);
+marcarReabrirVisivel(T0);
+check("a marca gravada volta igual", lerMarcaDeReabrir() === T0, T0, lerMarcaDeReabrir());
+memoria.set("whatscord.reabrirVisivelEm", "");
+check("marca vazia e null, nao 1970", lerMarcaDeReabrir() === null);
+memoria.set("whatscord.reabrirVisivelEm", "ontem");
+check("marca corrompida e null", lerMarcaDeReabrir() === null);
 
 // ---------------------------------------------------------------------------
 console.log(`\n${passed} passaram, ${failures.length} falharam`);

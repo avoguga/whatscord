@@ -1,5 +1,7 @@
 use tauri::Manager;
 
+mod inicializacao;
+
 // ---------------------------------------------------------------------------
 // Comandos expostos ao frontend
 // ---------------------------------------------------------------------------
@@ -242,6 +244,20 @@ static ENCERRANDO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool
  * `set_focus` traz para a frente de outras janelas. Faltando um, a pessoa
  * clica no icone e nada parece acontecer.
  */
+/**
+ * Mostrar a janela a partir da tela. Usado depois de uma atualizacao: o
+ * instalador reabre o app com os MESMOS argumentos, e se ele tinha sido aberto
+ * pelo Windows (`--oculto`) voltaria escondido na bandeja — mesmo que a pessoa
+ * estivesse com a janela aberta quando clicou em "Reiniciar agora".
+ */
+#[tauri::command]
+fn janela_mostrar(app: tauri::AppHandle) {
+    #[cfg(desktop)]
+    mostrar_janela(&app);
+    #[cfg(not(desktop))]
+    let _ = app;
+}
+
 #[cfg(desktop)]
 fn mostrar_janela<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     if let Some(janela) = app.get_webview_window("main") {
@@ -515,6 +531,35 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .setup(|_app| {
             /*
+             * A janela principal e criada AQUI, e nao pela configuracao
+             * (`create: false` no tauri.conf.json). E o mesmo
+             * `from_config(...).build()` que o Tauri faria por dentro — so que
+             * decidindo a visibilidade ANTES de a janela existir.
+             *
+             * Aberto pelo Windows ao ligar o computador (`--oculto`), o app
+             * nasce direto na bandeja. Esconder depois de criar faria uma
+             * janela escura piscar na tela a cada boot — justamente o tipo de
+             * coisa que faz a pessoa desligar a inicializacao automatica.
+             */
+            let configuracao = _app
+                .config()
+                .app
+                .windows
+                .iter()
+                .find(|w| w.label == "main")
+                .cloned()
+                .ok_or("janela principal ausente do tauri.conf.json")?;
+            #[allow(unused_mut)]
+            let mut janela = tauri::WebviewWindowBuilder::from_config(_app.handle(), &configuracao)?;
+            #[cfg(desktop)]
+            {
+                if std::env::args().any(|a| a == inicializacao::ARG_OCULTO) {
+                    janela = janela.visible(false);
+                }
+            }
+            janela.build()?;
+
+            /*
              * Todo este bloco e so de desktop. `deliver_deep_links` usa
              * `get_webview_window` e `eval`, e o esquema `whatscord://` so e
              * registrado pelo instalador do Windows — no Android o caminho de
@@ -526,6 +571,7 @@ pub fn run() {
                 use tauri_plugin_deep_link::DeepLinkExt;
 
                 montar_bandeja(_app)?;
+                inicializacao::decidir_padrao(_app);
 
                 #[cfg(target_os = "windows")]
                 if let Some(janela) = _app.get_webview_window("main") {
@@ -593,7 +639,13 @@ pub fn run() {
         //     }
         // })
         // ------------------------------------------------------------------
-        .invoke_handler(tauri::generate_handler![get_app_version, set_badge_count])
+        .invoke_handler(tauri::generate_handler![
+            get_app_version,
+            set_badge_count,
+            janela_mostrar,
+            inicializacao::inicializacao_estado,
+            inicializacao::inicializacao_definir
+        ])
         .run(tauri::generate_context!())
         .expect("erro ao iniciar o WhatsCord");
 }

@@ -5145,7 +5145,7 @@ dependencies = [
 
 [[package]]
 name = "whatscord-desktop"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "serde",
  "serde_json",
@@ -5163,6 +5163,7 @@ dependencies = [
  "tauri-plugin-updater",
  "webview2-com",
  "windows",
+ "winreg",
 ]
 
 [[package]]

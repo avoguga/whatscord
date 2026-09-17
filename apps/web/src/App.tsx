@@ -17,6 +17,7 @@ import { Toasts } from "./ui/Toasts";
 import { InviteGate } from "./ui/InviteGate";
 import { AvisosDoApp } from "./ui/Atualizacao";
 import { iniciarVerificacaoAutomatica } from "./lib/atualizador";
+import { reabrirVisivelSePreciso } from "./lib/inicializacao";
 
 /*
  * A tela de chamada carrega sob demanda porque ela traz junto o livekit-client,
@@ -95,6 +96,8 @@ export default function App() {
    * No navegador e no Android a função não faz nada.
    */
   useEffect(() => iniciarVerificacaoAutomatica(), []);
+  // Depois de uma atualizacao pedida com a janela aberta: volta com a janela aberta.
+  useEffect(() => void reabrirVisivelSePreciso(), []);
 
   /*
    * O endereço com que a página abriu, uma vez só.
