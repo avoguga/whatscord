@@ -186,7 +186,6 @@ fn deliver_deep_links<R: tauri::Runtime>(app: &tauri::AppHandle<R>, urls: Vec<St
 // Bootstrap
 // ---------------------------------------------------------------------------
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
 /**
  * Entrega o idioma do SISTEMA para a pagina, antes de qualquer script dela.
  *
@@ -428,6 +427,18 @@ fn conceder_midia(janela: &tauri::WebviewWindow) {
     });
 }
 
+/*
+ * A marca de entrada do Android TEM de ficar colada nesta funcao.
+ *
+ * Ela ja esteve em cima de `locale_do_sistema`: quando aquela funcao foi
+ * inserida acima do `run`, entrou entre a marca e a funcao que ela marcava. O
+ * build nao reclama — a marca aceita qualquer funcao — e o APK saia assinado,
+ * com as permissoes certas e sem o app dentro: o Android chamava
+ * `locale_do_sistema`, o `run` nunca rodava, e o compilador descartava o Tauri
+ * inteiro e o site junto como codigo morto. A biblioteca caiu de 18 MB para
+ * 2,7 MB, e foi isso que denunciou.
+ */
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default();
 
