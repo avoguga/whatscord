@@ -221,11 +221,23 @@ nomes dos arquivos, sim, ficam legíveis.
 
 ### Publicar uma atualização (o que o app instalado baixa sozinho)
 
-A partir da **0.2.0** o app de desktop se atualiza: ao abrir (e a cada 6 horas)
-ele consulta
-`https://github.com/avoguga/whatscord/releases/latest/download/latest.json`,
-e se houver versão maior oferece "Atualizar agora". Também há "Procurar
-atualizações" nas Configurações.
+A partir da **0.2.0** o app de desktop se atualiza sozinho. Ele consulta
+`https://github.com/avoguga/whatscord/releases/latest/download/latest.json`
+3 s depois de abrir e a cada 2 horas, **baixa em silêncio**, e instala só num
+momento seguro: ao abrir (se ninguém tocou em nada), ao **sair** pela bandeja
+(sem reabrir), ou quando ninguém está usando. **Nunca durante uma chamada nem
+com mensagem pela metade.** Enquanto houver versão esperando, fica um ponto verde
+na engrenagem da barra lateral.
+
+A regra inteira, com as fontes de onde veio (Discord, Teams, Zoom, Chrome,
+VS Code, electron-updater), está em `docs/decisoes.md`, seção "Atualização
+automática". Ela mora em `decidirInstalacao` (`apps/web/src/lib/atualizacao.ts`)
+e é testada — mexa nela com os testes abertos.
+
+> **Cuidado.** O instalador roda em modo `quiet` porque é por usuário
+> (`currentUser`). Se um dia o NSIS mudar para `perMachine`, o `quiet` passa a
+> exigir administrador e a atualização automática **falha em silêncio**. Nesse
+> caso troque o `installMode` do updater para `passive`.
 
 Para publicar:
 
