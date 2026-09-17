@@ -3,6 +3,8 @@ import { env } from "../env.js";
 import { authGuard } from "../plugins/auth.js";
 import { getObjectStream, isServableKey, newObjectKey, putObject } from "../lib/storage.js";
 import { falha } from "../lib/falha.js";
+import { prisma } from "../lib/prisma.js";
+import { contentDisposition } from "../lib/nomeDeArquivo.js";
 
 /**
  * Uploads go to whichever storage driver is configured; downloads are proxied
@@ -112,7 +114,12 @@ export async function fileRoutes(app: FastifyInstance) {
       reply.header("X-Content-Type-Options", "nosniff");
       // Anything not on the inline list downloads instead of rendering.
       if (type === "application/octet-stream") {
-        reply.header("Content-Disposition", "attachment");
+        // Só aqui, e não em toda imagem do chat: é o único caminho que vira
+        // arquivo salvo em disco, e a consulta não pesa em cada avatar.
+        const anexo = await prisma.attachment
+          .findFirst({ where: { url: `/files/${encodeURIComponent(key)}` }, select: { name: true } })
+          .catch(() => null);
+        reply.header("Content-Disposition", contentDisposition(anexo?.name));
       }
       reply.header("Cache-Control", "private, max-age=31536000, immutable");
       return reply.send(object.body);
