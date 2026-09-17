@@ -432,3 +432,48 @@ confiável.
 
 **Risco conhecido**: `install()` trava em algumas instalações do Windows 10
 (plugins-workspace#2558). Se aparecer relato de "ficou em Instalando…", é esse.
+
+## Abrir junto com o Windows
+
+### Registro escrito por nós, e não pelo `tauri-plugin-autostart`
+
+Lido o código do plugin oficial (2.5.1, sobre auto-launch 0.5.0) antes de usar:
+
+- grava o caminho **sem aspas** (`format!("{} {}", caminho, args)`). Em usuário
+  com espaço no nome (`C:\Users\João Silva\...`), funciona só porque o Windows
+  tenta os pedaços do caminho até achar um executável;
+- o `enable()` **sobrescreve** o que a pessoa desligou no Gerenciador de Tarefas.
+
+`src-tauri/src/inicializacao.rs` faz o mesmo em poucas linhas: caminho entre
+aspas, e lê `StartupApproved\Run` para respeitar quem desligou pelo Windows.
+Testado contra o registro real (`cargo test --lib inicializacao -- --ignored`),
+limpando o que cria.
+
+### Ligado por padrão, uma vez só, e abrindo na bandeja
+
+É o que Discord e Teams fazem, e é o que torna um app de conversa útil para
+receber mensagem. Mas ligar sem contar dá má fama ao padrão, então:
+
+- liga **uma única vez**, na primeira abertura de uma versão com o recurso —
+  marcador em arquivo na pasta de configuração, não no armazenamento da página
+  (limpar dados do navegador embutido não pode religar o que a pessoa desligou);
+- só no app **instalado** (`not(debug_assertions)`) — em desenvolvimento
+  gravaria o executável de `target\debug` para abrir a cada boot;
+- aviso de uma vez com **Desligar** ali mesmo, e seção nas Configurações;
+- abre com `--oculto`, **direto na bandeja**.
+
+### Duas armadilhas
+
+1. **A janela é criada no `setup`**, não pela configuração (`create: false`).
+   Para nascer escondida sem piscar, a visibilidade tem de ser decidida antes de
+   ela existir. É o mesmo `from_config(...).build()` que o Tauri faz por dentro
+   (app.rs), então Windows e Android seguem pelo mesmo caminho.
+2. **O desinstalador roda em toda atualização.** O instalador novo chama o
+   antigo com `/UPDATE` (installer.nsi do Tauri 2.11.4). O gancho em
+   `src-tauri/windows/hooks.nsh` só limpa o registro com `$UpdateMode <> 1` —
+   sem isso, cada atualização desligaria o recurso em silêncio.
+
+Efeito cruzado com a atualização automática: o instalador reabre o app com os
+**mesmos** argumentos. Aberto pelo Windows (`--oculto`), voltaria escondido
+mesmo se a pessoa tivesse clicado "Reiniciar agora" com a janela aberta. Uma
+marca com validade de 2 minutos faz a janela voltar (`deveReabrirVisivel`).
