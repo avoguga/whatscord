@@ -317,7 +317,29 @@ fn montar_bandeja(app: &tauri::App) -> tauri::Result<()> {
             "abrir" => mostrar_janela(app),
             "sair" => {
                 ENCERRANDO.store(true, std::sync::atomic::Ordering::SeqCst);
-                app.exit(0);
+                /*
+                 * Instalar ao sair. A tela recebe o aviso e, se houver versao
+                 * nova ja baixada, instala em silencio sem reabrir — o padrao
+                 * do electron-updater e o que o Chrome faz. Sem nada a
+                 * instalar, a propria tela encerra na hora.
+                 *
+                 * O prazo de 5 s e a garantia: "Sair" nunca pode deixar de
+                 * sair, nem com a tela travada. Se estourar no meio de uma
+                 * instalacao, o pior caso e a atualizacao ficar para a
+                 * proxima abertura.
+                 *
+                 * Isto so roda pelo menu. Desligar ou sair da conta do Windows
+                 * encerra o app por outro caminho — e e bom que seja assim: o
+                 * sistema mata o instalador no meio e deixaria o app
+                 * desinstalado (electron-builder#7807).
+                 */
+                use tauri::Emitter;
+                let _ = app.emit("whatscord://saindo", ());
+                let handle = app.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_secs(5));
+                    handle.exit(0);
+                });
             }
             _ => {}
         })

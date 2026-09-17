@@ -370,8 +370,8 @@ msgid "Chats"
 msgstr "Chats"
 
 #: src/ui/Atualizacao.tsx
-msgid "Check again"
-msgstr "Comprobar de nuevo"
+#~ msgid "Check again"
+#~ msgstr "Comprobar de nuevo"
 
 #: src/ui/Atualizacao.tsx
 msgid "Check for updates"
@@ -530,8 +530,6 @@ msgstr "Dispositivos"
 msgid "Ding"
 msgstr "Tilín"
 
-#: src/ui/Atualizacao.tsx
-#: src/ui/Atualizacao.tsx
 #: src/ui/Toasts.tsx
 msgid "Dismiss"
 msgstr "Descartar"
@@ -567,6 +565,10 @@ msgstr "Descargando… {baixado} MB"
 #: src/ui/Atualizacao.tsx
 msgid "Downloading… {pct}%"
 msgstr "Descargando… {pct}%"
+
+#: src/ui/Atualizacao.tsx
+msgid "Downloads in the background and installs when you're not using the app — never during a call or while you're typing."
+msgstr "Se descarga en segundo plano y se instala cuando no estás usando la app — nunca durante una llamada ni mientras escribes."
 
 #: src/ui/Chat.tsx
 msgid "edited"
@@ -810,6 +812,15 @@ msgstr "Invitar personas y añadir canales"
 msgid "Invite people to this space"
 msgstr "Invita personas a este espacio"
 
+#: src/ui/Atualizacao.tsx
+#: src/ui/Atualizacao.tsx
+msgid "It will be installed when your call ends — never during one."
+msgstr "Se instalará cuando termine tu llamada — nunca durante una."
+
+#: src/ui/Atualizacao.tsx
+msgid "It will install on its own when you're not using the app. Or restart now."
+msgstr "Se instalará sola cuando no estés usando la app. O reinicia ahora."
+
 #: src/ui/Modals.tsx
 msgid "Join that space"
 msgstr "Unirte a ese espacio"
@@ -828,6 +839,11 @@ msgstr "Unirse en {0}"
 #: src/ui/Settings.tsx
 msgid "Language"
 msgstr "Idioma"
+
+#: src/ui/Atualizacao.tsx
+#: src/ui/Atualizacao.tsx
+msgid "Later"
+msgstr "Más tarde"
 
 #: src/ui/Call.tsx
 msgid "Leave"
@@ -1319,6 +1335,10 @@ msgstr "Reproducir un sonido cuando alguien entre o salga de una llamada"
 msgid "Play a test sound"
 msgstr "Reproducir un sonido de prueba"
 
+#: src/ui/Atualizacao.tsx
+msgid "Postpone"
+msgstr "Posponer"
+
 #: src/ui/SpaceRail.tsx
 msgid "Press space to pick this up, then the arrow keys to move it and space again to drop it. Press escape to leave it where it was. Press enter to open it instead."
 msgstr "Pulsa espacio para tomarlo, luego las flechas para moverlo y espacio otra vez para soltarlo. Pulsa escape para dejarlo donde estaba. Pulsa enter para abrirlo en su lugar."
@@ -1354,6 +1374,11 @@ msgstr "Reconectando…"
 #: src/ui/FolderModal.tsx
 msgid "Red"
 msgstr "Rojo"
+
+#: src/ui/Atualizacao.tsx
+#: src/ui/Atualizacao.tsx
+msgid "Remind me in an hour"
+msgstr "Recordármelo en una hora"
 
 #: src/ui/Chat.tsx
 #: src/ui/Invites.tsx
@@ -1407,6 +1432,24 @@ msgstr "Responder a este mensaje"
 #: src/ui/ShareQuality.tsx
 msgid "Resolution"
 msgstr "Resolución"
+
+#: src/ui/Atualizacao.tsx
+msgid "Restart and update"
+msgstr "Reiniciar y actualizar"
+
+#: src/ui/Atualizacao.tsx
+#: src/ui/Atualizacao.tsx
+msgid "Restart now"
+msgstr "Reiniciar ahora"
+
+#: src/ui/Atualizacao.tsx
+msgid "Restart to finish updating."
+msgstr "Reinicia para terminar de actualizar."
+
+#. placeholder {0}: segundos ?? 0
+#: src/ui/Atualizacao.tsx
+msgid "Restarting to update in {0} s"
+msgstr "Reiniciando para actualizar en {0} s"
 
 #: src/ui/Soundboard.tsx
 msgid "Rimshot"
@@ -2036,6 +2079,10 @@ msgid "Up to {0} KB, so it plays instantly."
 msgstr "Hasta {0} KB, para que suene al instante."
 
 #: src/ui/Atualizacao.tsx
+msgid "Update automatically"
+msgstr "Actualizar automáticamente"
+
+#: src/ui/Atualizacao.tsx
 #: src/ui/Atualizacao.tsx
 msgid "Update installed. Close and reopen WhatsCord to finish."
 msgstr "Actualización instalada. Cierra y vuelve a abrir WhatsCord para terminar."
@@ -2044,6 +2091,14 @@ msgstr "Actualización instalada. Cierra y vuelve a abrir WhatsCord para termina
 #: src/ui/Atualizacao.tsx
 msgid "Update now"
 msgstr "Actualizar ahora"
+
+#: src/ui/Sidebar.tsx
+msgid "Update ready"
+msgstr "Actualización lista"
+
+#: src/ui/Sidebar.tsx
+msgid "Update ready — open Settings"
+msgstr "Actualización lista — abrir Configuración"
 
 #: src/ui/Settings.tsx
 msgid "Updates"
@@ -2076,6 +2131,10 @@ msgstr "Los nombres de usuario tienen al menos 3 caracteres."
 #: src/ui/Atualizacao.tsx
 msgid "Version {versaoNova} is available."
 msgstr "La versión {versaoNova} está disponible."
+
+#: src/ui/Atualizacao.tsx
+msgid "Version {versaoNova} is downloaded and ready to install."
+msgstr "La versión {versaoNova} ya se descargó y está lista para instalar."
 
 #: src/ui/Sidebar.tsx
 msgid "Video"
@@ -2143,6 +2202,15 @@ msgstr "Planes del fin de semana"
 #: src/ui/Atualizacao.tsx
 msgid "WhatsCord {versao} is available"
 msgstr "WhatsCord {versao} disponible"
+
+#: src/ui/Atualizacao.tsx
+#: src/ui/Atualizacao.tsx
+msgid "WhatsCord {versao} is ready"
+msgstr "WhatsCord {versao} está listo"
+
+#: src/ui/Atualizacao.tsx
+msgid "WhatsCord {versao} is ready. It only takes a few seconds."
+msgstr "WhatsCord {versao} está listo. Solo tarda unos segundos."
 
 #: src/ui/Atualizacao.tsx
 msgid "WhatsCord for desktop"

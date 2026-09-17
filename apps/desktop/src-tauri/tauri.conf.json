@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "WhatsCord",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "identifier": "app.whatscord.desktop",
   "build": {
     "beforeDevCommand": {
@@ -91,7 +91,7 @@
         "https://github.com/avoguga/whatscord/releases/latest/download/latest.json"
       ],
       "windows": {
-        "installMode": "passive"
+        "installMode": "quiet"
       }
     }
   }

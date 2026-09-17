@@ -378,3 +378,57 @@ Três coisas que o próprio filtro Krisp ensinou ao ser lido:
    `'wasm-unsafe-eval'`, o Chromium recusa compilar WASM. O `tauri.conf.json`
    passou a incluí-lo em `csp` e `devCsp`. Sem isso a avançada falharia em
    silêncio só no app instalado.
+
+## Atualização automática do app de desktop
+
+### Baixar na hora; instalar ao abrir, ao sair ou quando ninguém está usando
+
+Queixa dos testadores: "para atualizar, sempre tem que baixar um instalador
+novo". A partir da 0.2.0 o app se atualiza sozinho. A pergunta difícil não era
+*como* baixar — o plugin do Tauri faz isso —, e sim *quando instalar*, porque no
+Windows o instalador **fecha o app**.
+
+Pesquisado com fontes em 17/09/2026:
+
+| Prática | Quem faz | Fonte |
+|---|---|---|
+| Nunca reiniciar durante chamada/reunião | Zoom, Teams | library.zoom.com (automatic-update-explainer); learn.microsoft.com/microsoftteams/teams-client-update |
+| Instalar quando o app está ocioso | Teams | idem |
+| Atualizar ao abrir, antes do uso | Discord (splash) | github.com/GooseMod/OpenAsar, src/splash/index.js |
+| Instalar ao sair, em silêncio, sem reabrir | electron-updater (padrão) | electron-builder, AppUpdater.ts |
+| Indicador de "pronta" que não some | VS Code, Slack, Discord | vscode, contrib/update/browser/update.ts; slack.com/help/articles/360048367814 |
+| Escalar em vez de adiar para sempre | Chrome (2, 4, 7 dias) | chromium, upgrade_detector_impl.cc |
+| Atualização por diferença | Discord, Chrome | só compensa com dezenas de MB |
+
+**A regra** (`decidirInstalacao`, em `apps/web/src/lib/atualizacao.ts`, testada):
+
+1. Em chamada → espera. Nem botão: um clique distraído derrubaria a ligação.
+2. Automático desligado → só avisa.
+3. Rascunho na caixa de mensagem, **com ou sem foco** → só avisa.
+4. Abriu há até 90 s e ninguém tocou em nada → instala já, sem contagem.
+5. Escondido na bandeja e parado 2 min → instala já. Vale mesmo adiado: adiar é
+   sobre não interromper o uso, e ali não há uso.
+6. Adiado e no prazo → só avisa.
+7. Pendente há 7 dias → no próximo momento seguro, com contagem.
+8. À vista e parado 10 min → com contagem de 10 s e "Adiar".
+
+Mais: **ao sair pelo menu da bandeja**, versão já baixada instala em silêncio sem
+reabrir. "Sair" encerra sozinho em 5 s se a tela não responder. Isso só roda
+pelo menu, de propósito: desligar o Windows mata o instalador no meio e pode
+deixar o app desinstalado (electron-builder#7807).
+
+**Modo `quiet`**, não `passive`: o instalador é por usuário, então não pede
+administrador, e com `/R` reabre o app sozinho — sem a janelinha de progresso
+que o `passive` mostra. Conferido no código do plugin (config.rs:
+`Quiet => ["/S"]`, e `/R` para todo modo menos `BasicUi`) e no modelo NSIS do
+Tauri (`RequestExecutionLevel user` em `currentUser`).
+
+**"Mais tarde" adia 1 h, e 15 min depois de 2 dias.** O indicador verde na
+engrenagem da barra lateral nunca some enquanto houver versão esperando.
+
+**Não fizemos atualização por diferença**: o instalador tem 2,7 MB, o Tauri não
+suporta, e o Discord precisa de fallback para pacote completo para a dele ser
+confiável.
+
+**Risco conhecido**: `install()` trava em algumas instalações do Windows 10
+(plugins-workspace#2558). Se aparecer relato de "ficou em Instalando…", é esse.

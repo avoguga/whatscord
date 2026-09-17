@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useStore, type Room, type VoiceUser } from "../store";
 import { fileUrl } from "../lib/api";
 import { naoLidasForaDosEspacos, naoLidasNaVista, rotuloDeContador } from "../lib/naoLidas";
+import { assinarAtualizacao, estadoDaAtualizacao, temAtualizacaoPendente } from "../lib/atualizador";
 import { initials, listStamp } from "../lib/format";
 import {
   IconChats, IconSearch, IconNewChat, IconMute, IconChecks,
@@ -71,6 +72,9 @@ export function Sidebar() {
    * o espaco aberto, ou as conversas quando nenhum esta.
    */
   const unreadDeConversas = naoLidasForaDosEspacos(rooms);
+  const atualizacaoPendente = temAtualizacaoPendente(
+    useSyncExternalStore(assinarAtualizacao, estadoDaAtualizacao, estadoDaAtualizacao)
+  );
   const unreadTotal = naoLidasNaVista(rooms, activeSpaceId);
 
   const row = (room: Room) => (
@@ -137,7 +141,18 @@ export function Sidebar() {
 
         <div className="rail-spacer" />
 
-        <button className="rail-btn" data-tip="Settings and account" onClick={() => setModal("settings")}>
+        <button
+          className="rail-btn"
+          data-tip={atualizacaoPendente ? t`Update ready — open Settings` : "Settings and account"}
+          onClick={() => setModal("settings")}
+        >
+          {/*
+            O indicador que nao some. E o que VS Code (numero na engrenagem),
+            Slack (icone de ajuda marcado) e Discord (seta verde) fazem: enquanto
+            houver versao nova esperando, fica aceso — "Mais tarde" esconde o
+            aviso, nunca isto. Um clique leva a "Reiniciar e atualizar".
+          */}
+          {atualizacaoPendente && <span className="rail-dot" aria-label={t`Update ready`} />}
           <IconSettings />
         </button>
         <button className="rail-btn" data-tip={me?.displayName ?? "You"} onClick={() => setModal("settings")}>

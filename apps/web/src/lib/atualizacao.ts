@@ -13,10 +13,20 @@
  */
 
 /** Espera depois de abrir o app antes da verificação automática. */
-export const ESPERA_ANTES_DE_VERIFICAR_MS = 8_000;
+/*
+ * Tres segundos, e nao oito: a primeira verificacao e o que viabiliza atualizar
+ * AO ABRIR, antes de a pessoa comecar a usar (o padrao do Discord). Oito
+ * segundos ja e tempo de alguem ter clicado numa conversa.
+ */
+export const ESPERA_ANTES_DE_VERIFICAR_MS = 3_000;
 
 /** Intervalo mínimo entre duas verificações automáticas. */
-export const INTERVALO_ENTRE_VERIFICACOES_MS = 6 * 60 * 60 * 1000;
+/*
+ * Duas horas, e nao seis. O app vive dias na bandeja do Windows, e consultar
+ * o `latest.json` custa um pedido pequeno a CDN do GitHub — nao a API, que tem
+ * limite. Seis horas deixava quem nunca fecha o app quase um dia atras.
+ */
+export const INTERVALO_ENTRE_VERIFICACOES_MS = 2 * 60 * 60 * 1000;
 
 const CHAVE_ULTIMA_VERIFICACAO = "whatscord.atualizacao.ultimaVerificacao";
 
@@ -142,4 +152,203 @@ export function tipoDeErro(erro: unknown, online = true): TipoDeErro {
     return "offline";
   }
   return "outro";
+}
+
+/* ------------------------------------------------------------------------ */
+/* QUANDO instalar                                                            */
+/* ------------------------------------------------------------------------ */
+
+/*
+ * O desenho vem de como os apps de desktop maduros fazem, pesquisado com
+ * fontes em 17/09/2026 (docs/decisoes.md, "Atualizacao automatica"):
+ *
+ * - Zoom e Teams nunca reiniciam durante uma reuniao; Teams instala quando o
+ *   app esta ocioso.
+ * - O Discord atualiza ao ABRIR, antes de a pessoa comecar a usar.
+ * - O electron-updater, por padrao, instala ao SAIR — em silencio, sem reabrir.
+ * - VS Code, Slack e Discord mantem um indicador de "atualizacao pronta" que
+ *   nao some; nenhum deles reinicia sozinho no meio do uso.
+ * - O Chrome escala com o tempo (2, 4 e 7 dias) em vez de deixar adiar para
+ *   sempre.
+ *
+ * O Windows FECHA o app para instalar. Por isso a primeira pergunta nunca e
+ * "tem versao nova?", e sim "reiniciar agora estragaria alguma coisa?".
+ */
+
+export type Momento = {
+  /** Numa chamada de voz ou video. */
+  emChamada: boolean;
+  /** Ha texto na caixa de mensagem (com ou sem foco) ou num campo com foco. */
+  temRascunho: boolean;
+  /** A janela esta a vista (nao minimizada nem escondida na bandeja). */
+  janelaVisivel: boolean;
+  /** Ha quanto tempo ninguem mexe no app. */
+  ociosoMs: number;
+  /** Ha quanto tempo o app abriu. */
+  desdeQueAbriuMs: number;
+  /** Se houve QUALQUER gesto desde que o app abriu. */
+  interagiuDesdeQueAbriu: boolean;
+  /** Ha quanto tempo esta versao nova esta pendente (desde a primeira vez vista). */
+  pendenteHaMs: number;
+  /** A preferencia "Atualizar automaticamente". */
+  automatico: boolean;
+  /** Ate quando a pessoa pediu para adiar (epoch ms), ou null. */
+  adiadoAte: number | null;
+  agora: number;
+};
+
+export type Decisao =
+  /** Instalar ja, sem contagem: ninguem esta usando (acabou de abrir, ou escondido e parado). */
+  | "instalar-ja"
+  /** Instalar depois de uma contagem com "Adiar": ha chance de alguem estar olhando. */
+  | "instalar-com-contagem"
+  /** So o indicador e o aviso. */
+  | "avisar"
+  /** Nem instalar nem oferecer botao: algo acontecendo seria estragado. */
+  | "esperar";
+
+/** Logo depois de abrir, se ninguem tocou em nada: o padrao do Discord. */
+export const JANELA_DE_ABERTURA_MS = 90_000;
+/** Escondido na bandeja e parado ha este tempo: ninguem esta olhando. */
+export const OCIOSO_ESCONDIDO_MS = 2 * 60_000;
+/** A vista, mas sem ninguem mexer ha este tempo: a pessoa saiu. */
+export const OCIOSO_VISIVEL_MS = 10 * 60_000;
+/** Contagem antes de reiniciar com a janela a vista. */
+export const CONTAGEM_MS = 10_000;
+
+/** Escalonamento, no espirito do Chrome: a partir daqui o adiamento encurta. */
+export const PENDENTE_ESCALA_MS = 2 * 24 * 60 * 60_000;
+/** A partir daqui, instala no proximo momento seguro, sem esperar ociosidade. */
+export const PENDENTE_LIMITE_MS = 7 * 24 * 60 * 60_000;
+
+/** Quanto "Mais tarde" adia: uma hora no comeco; quinze minutos depois de dois dias. */
+export function adiarPorMs(pendenteHaMs: number): number {
+  return pendenteHaMs >= PENDENTE_ESCALA_MS ? 15 * 60_000 : 60 * 60_000;
+}
+
+export function decidirInstalacao(m: Momento): Decisao {
+  // 1. Chamada e sagrada — nem botao, que um clique distraido derrubaria.
+  if (m.emChamada) return "esperar";
+
+  // 2. Quem desligou o automatico so quer saber que existe.
+  if (!m.automatico) return "avisar";
+
+  // 3. Mensagem pela metade: reiniciar a apagaria.
+  if (m.temRascunho) return "avisar";
+
+  // 4. Acabou de abrir e ninguem tocou em nada: o reinicio leva segundos e
+  //    ninguem comecou coisa alguma. Sem contagem — seria interromper para
+  //    pedir licenca para interromper.
+  if (m.desdeQueAbriuMs <= JANELA_DE_ABERTURA_MS && !m.interagiuDesdeQueAbriu) return "instalar-ja";
+
+  // 5. Escondido na bandeja e parado: ninguem olhando, ninguem a quem avisar.
+  //    Vale mesmo depois de "Mais tarde" — adiar e sobre nao interromper o uso,
+  //    e aqui nao ha uso.
+  if (!m.janelaVisivel && m.ociosoMs >= OCIOSO_ESCONDIDO_MS) return "instalar-ja";
+
+  // 6. Adiado e ainda no prazo: respeitar.
+  if (m.adiadoAte !== null && m.agora < m.adiadoAte) return "avisar";
+
+  // 7. Pendente ha uma semana: no proximo momento seguro, sem esperar ociosidade.
+  if (m.pendenteHaMs >= PENDENTE_LIMITE_MS) return "instalar-com-contagem";
+
+  // 8. A vista, mas a pessoa saiu.
+  if (m.janelaVisivel && m.ociosoMs >= OCIOSO_VISIVEL_MS) return "instalar-com-contagem";
+
+  return "avisar";
+}
+
+/**
+ * Ao SAIR pelo menu da bandeja: instalar em silencio, sem reabrir.
+ *
+ * E o padrao do electron-updater e o que o Chrome faz ("atualiza quando voce
+ * fecha e reabre"). Nao depende de ociosidade — a pessoa esta indo embora. So
+ * exige a versao ja baixada; baixar na saida faria o "Sair" demorar.
+ */
+export function instalarAoSair(faseAtual: string, automatico: boolean): boolean {
+  return automatico && faseAtual === "pronta";
+}
+
+/**
+ * Se ha rascunho. Recebe os elementos ja resolvidos para ser testavel sem DOM:
+ * a caixa de mensagem (que pode ter texto SEM foco — a pessoa digitou e clicou
+ * em outro lugar) e o elemento com foco.
+ */
+export function haRascunho(
+  caixaDeMensagem: { value?: unknown } | null,
+  focado: { tagName?: string; value?: unknown } | null
+): boolean {
+  const comTexto = (v: unknown) => typeof v === "string" && v.trim().length > 0;
+  if (caixaDeMensagem && comTexto(caixaDeMensagem.value)) return true;
+  if (!focado) return false;
+  const tag = (focado.tagName ?? "").toUpperCase();
+  return (tag === "TEXTAREA" || tag === "INPUT") && comTexto(focado.value);
+}
+
+const CHAVE_AUTOMATICO = "whatscord.atualizarSozinho";
+const CHAVE_ADIADO = "whatscord.atualizacaoAdiadaAte";
+const CHAVE_VISTA = "whatscord.atualizacaoVistaEm";
+
+/** Padrao LIGADO: quem nao mexe em nada fica atualizado. */
+export function atualizarAutomaticamente(): boolean {
+  try {
+    return localStorage.getItem(CHAVE_AUTOMATICO) !== "nao";
+  } catch {
+    return true;
+  }
+}
+
+export function salvarAtualizarAutomaticamente(ligado: boolean): void {
+  try {
+    if (ligado) localStorage.removeItem(CHAVE_AUTOMATICO);
+    else localStorage.setItem(CHAVE_AUTOMATICO, "nao");
+  } catch {
+    /* a escolha so nao sobrevive a sessao */
+  }
+}
+
+export function adiadoAte(): number | null {
+  try {
+    const v = Number(localStorage.getItem(CHAVE_ADIADO));
+    return Number.isFinite(v) && v > 0 ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+export function adiar(agora: number, pendenteHaMs: number): number {
+  const ate = agora + adiarPorMs(pendenteHaMs);
+  try {
+    localStorage.setItem(CHAVE_ADIADO, String(ate));
+  } catch {
+    /* sem armazenamento, o adiamento vale so nesta sessao */
+  }
+  return ate;
+}
+
+export function limparAdiamento(): void {
+  try {
+    localStorage.removeItem(CHAVE_ADIADO);
+  } catch {
+    /* nada a fazer */
+  }
+}
+
+/**
+ * Desde quando ESTA versao esta pendente. Sobrevive a reinicios — sem isso o
+ * escalonamento zeraria toda vez que o app abrisse, e nunca escalaria.
+ * Uma versao diferente reinicia a contagem.
+ */
+export function vistaPelaPrimeiraVez(versao: string, agora: number): number {
+  try {
+    const cru = localStorage.getItem(CHAVE_VISTA);
+    const salvo = cru ? (JSON.parse(cru) as { versao?: unknown; em?: unknown }) : null;
+    if (salvo && salvo.versao === versao && typeof salvo.em === "number" && salvo.em <= agora) {
+      return salvo.em;
+    }
+    localStorage.setItem(CHAVE_VISTA, JSON.stringify({ versao, em: agora }));
+  } catch {
+    /* sem armazenamento, conta desde agora */
+  }
+  return agora;
 }

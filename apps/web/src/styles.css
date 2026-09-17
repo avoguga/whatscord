@@ -2447,3 +2447,23 @@ input, textarea { font: inherit; color: inherit; }
   from { transform: translateX(-100%); }
   to { transform: translateX(340%); }
 }
+
+/* Botoes lado a lado no aviso: "Reiniciar agora" e "Mais tarde" sao a mesma
+   decisao, e empilhados pareciam duas coisas diferentes. */
+.update-actions { display: flex; flex-wrap: wrap; gap: var(--gap-4); margin-top: 2px; }
+.update-notice-text .update-actions .btn-link { align-self: auto; }
+
+/* O interruptor "Atualizar automaticamente" com a explicacao embaixo. */
+.update-auto { align-items: flex-start; margin: var(--gap-2) 0 var(--gap-3); }
+.update-auto input { margin-top: 2px; }
+.update-auto span { display: flex; flex-direction: column; gap: 2px; }
+.update-auto small { font-size: 12.5px; color: var(--text-dim); line-height: 1.4; }
+
+/* O ponto de "atualizacao pronta" na engrenagem. Verde, como a seta do
+   Discord: e uma coisa boa esperando, nao um erro. */
+.rail-dot {
+  position: absolute; top: 6px; right: 6px;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--accent-bright);
+  box-shadow: 0 0 0 2px var(--rail);
+}

@@ -104,6 +104,22 @@ import {
 import {
   ESPERA_ANTES_DE_VERIFICAR_MS,
   INTERVALO_ENTRE_VERIFICACOES_MS,
+  CONTAGEM_MS,
+  JANELA_DE_ABERTURA_MS,
+  OCIOSO_ESCONDIDO_MS,
+  OCIOSO_VISIVEL_MS,
+  PENDENTE_ESCALA_MS,
+  PENDENTE_LIMITE_MS,
+  adiadoAte,
+  adiar,
+  adiarPorMs,
+  atualizarAutomaticamente,
+  decidirInstalacao,
+  haRascunho,
+  instalarAoSair,
+  limparAdiamento,
+  salvarAtualizarAutomaticamente,
+  vistaPelaPrimeiraVez,
   PROGRESSO_INICIAL,
   aplicarEvento,
   deveVerificar,
@@ -1563,7 +1579,7 @@ section("atualizacao do app desktop — de quanto em quanto tempo procurar");
 const HORA = 60 * 60 * 1000;
 const AGORA = Date.UTC(2026, 8, 17, 12, 0, 0);
 
-check("o intervalo e de 6 horas", INTERVALO_ENTRE_VERIFICACOES_MS === 6 * HORA, 6 * HORA, INTERVALO_ENTRE_VERIFICACOES_MS);
+check("o intervalo e de 2 horas (o app vive dias na bandeja)", INTERVALO_ENTRE_VERIFICACOES_MS === 2 * HORA, 2 * HORA, INTERVALO_ENTRE_VERIFICACOES_MS);
 check(
   "a primeira verificacao espera alguns segundos (nao segura a abertura)",
   ESPERA_ANTES_DE_VERIFICAR_MS >= 3000 && ESPERA_ANTES_DE_VERIFICAR_MS <= 30_000,
@@ -1572,8 +1588,8 @@ check(
 );
 check("nunca verificou: procura", deveVerificar(null, AGORA) === true);
 check("verificou agora mesmo: nao procura", deveVerificar(AGORA, AGORA) === false);
-check("verificou ha 5h59: nao procura", deveVerificar(AGORA - 6 * HORA + 60_000, AGORA) === false);
-check("verificou ha exatamente 6h: procura", deveVerificar(AGORA - 6 * HORA, AGORA) === true);
+check("verificou ha 1h59: nao procura", deveVerificar(AGORA - 2 * HORA + 60_000, AGORA) === false);
+check("verificou ha exatamente 2h: procura", deveVerificar(AGORA - 2 * HORA, AGORA) === true);
 check("verificou ontem: procura", deveVerificar(AGORA - 24 * HORA, AGORA) === true);
 check(
   "marca no futuro (relogio voltou) nao cala a verificacao",
@@ -1722,6 +1738,107 @@ check("assinatura invalida", tipoDeErro("Invalid signature") === "assinatura");
 check("o resto cai em outro", tipoDeErro("Failed to install package") === "outro");
 check("undefined nao explode", tipoDeErro(undefined) === "outro");
 check("objeto qualquer nao explode", tipoDeErro({ codigo: 1 }) === "outro");
+
+// ---------------------------------------------------------------------------
+section("atualizacao — QUANDO instalar sem estragar nada");
+
+/*
+ * O Windows FECHA o app para instalar. Estes testes prendem a regra que impede
+ * uma atualizacao de derrubar uma chamada ou apagar uma mensagem pela metade —
+ * e a que decide instalar ao abrir, ao sair e quando ninguem esta usando, como
+ * Discord, Teams, Chrome e o electron-updater fazem (docs/decisoes.md).
+ */
+const MIN = 60_000;
+const DIA = 24 * 60 * MIN;
+const base = {
+  emChamada: false,
+  temRascunho: false,
+  janelaVisivel: true,
+  ociosoMs: 0,
+  desdeQueAbriuMs: 60 * MIN,
+  interagiuDesdeQueAbriu: true,
+  pendenteHaMs: 0,
+  automatico: true,
+  adiadoAte: null as number | null,
+  agora: AGORA
+};
+
+// chamada
+check("em chamada: ESPERA, mesmo escondido e parado ha horas", decidirInstalacao({ ...base, emChamada: true, janelaVisivel: false, ociosoMs: 5 * 60 * MIN }) === "esperar");
+check("em chamada logo ao abrir: espera tambem", decidirInstalacao({ ...base, emChamada: true, desdeQueAbriuMs: 5_000, interagiuDesdeQueAbriu: false }) === "esperar");
+check("em chamada ha uma semana de pendencia: espera mesmo assim", decidirInstalacao({ ...base, emChamada: true, pendenteHaMs: 30 * DIA }) === "esperar");
+
+// preferencia e rascunho
+check("automatico desligado: so avisa, mesmo escondido e ocioso", decidirInstalacao({ ...base, automatico: false, janelaVisivel: false, ociosoMs: 60 * MIN }) === "avisar");
+check("rascunho: avisa, nunca reinicia (nem logo ao abrir)", decidirInstalacao({ ...base, temRascunho: true, desdeQueAbriuMs: 5_000, interagiuDesdeQueAbriu: false }) === "avisar");
+
+// ao abrir (Discord)
+check("acabou de abrir e ninguem tocou em nada: instala JA, sem contagem", decidirInstalacao({ ...base, desdeQueAbriuMs: 5_000, interagiuDesdeQueAbriu: false }) === "instalar-ja");
+check("acabou de abrir, mas a pessoa ja comecou a usar: so avisa", decidirInstalacao({ ...base, desdeQueAbriuMs: 5_000, interagiuDesdeQueAbriu: true }) === "avisar");
+check("no limite da janela de abertura, sem toque: ainda instala", decidirInstalacao({ ...base, desdeQueAbriuMs: JANELA_DE_ABERTURA_MS, interagiuDesdeQueAbriu: false }) === "instalar-ja");
+check("passou da janela de abertura: nao vale mais essa regra", decidirInstalacao({ ...base, desdeQueAbriuMs: JANELA_DE_ABERTURA_MS + 1, interagiuDesdeQueAbriu: false }) === "avisar");
+
+// ninguem olhando (Teams)
+check("escondido na bandeja e parado 2 min: instala ja", decidirInstalacao({ ...base, janelaVisivel: false, ociosoMs: OCIOSO_ESCONDIDO_MS }) === "instalar-ja");
+check("escondido mas mexeram ha 1 min: avisa", decidirInstalacao({ ...base, janelaVisivel: false, ociosoMs: MIN }) === "avisar");
+check("escondido e parado vale MESMO adiado — adiar e sobre nao interromper o uso", decidirInstalacao({ ...base, janelaVisivel: false, ociosoMs: 30 * MIN, adiadoAte: AGORA + MIN }) === "instalar-ja");
+
+// a vista
+check("a vista e parado 10 min: instala COM contagem", decidirInstalacao({ ...base, ociosoMs: OCIOSO_VISIVEL_MS }) === "instalar-com-contagem");
+check("a vista e parado 9 min: avisa", decidirInstalacao({ ...base, ociosoMs: OCIOSO_VISIVEL_MS - MIN }) === "avisar");
+check("a vista, parado, mas adiado no prazo: respeita", decidirInstalacao({ ...base, ociosoMs: 30 * MIN, adiadoAte: AGORA + MIN }) === "avisar");
+check("adiamento vencido: volta a valer", decidirInstalacao({ ...base, ociosoMs: 30 * MIN, adiadoAte: AGORA - 1 }) === "instalar-com-contagem");
+
+// escalonamento (Chrome)
+check("pendente ha 7 dias: proximo momento seguro, sem esperar ociosidade", decidirInstalacao({ ...base, pendenteHaMs: PENDENTE_LIMITE_MS }) === "instalar-com-contagem");
+check("pendente ha 6 dias e em uso: ainda so avisa", decidirInstalacao({ ...base, pendenteHaMs: 6 * DIA }) === "avisar");
+check("adiar dura 1 h no comeco", adiarPorMs(0) === 60 * MIN);
+check("e 15 min depois de 2 dias pendente", adiarPorMs(PENDENTE_ESCALA_MS) === 15 * MIN);
+check("os limites sobem em ordem: 2 dias antes de 7", PENDENTE_ESCALA_MS < PENDENTE_LIMITE_MS);
+check("escondido exige menos ociosidade que visivel", OCIOSO_ESCONDIDO_MS < OCIOSO_VISIVEL_MS);
+check("a contagem da tempo de reagir (5 a 30 s)", CONTAGEM_MS >= 5_000 && CONTAGEM_MS <= 30_000);
+
+// ao sair (electron-updater)
+check("ao sair com versao baixada e automatico: instala", instalarAoSair("pronta", true) === true);
+check("ao sair ainda baixando: nao — baixar na saida faria o Sair demorar", instalarAoSair("baixando", true) === false);
+check("ao sair com automatico desligado: nao", instalarAoSair("pronta", false) === false);
+check("ao sair sem nada pendente: nao", instalarAoSair("em-dia", true) === false);
+
+// rascunho
+check("texto na caixa de mensagem SEM foco conta (digitou e clicou fora)", haRascunho({ value: "oi, tudo" }, { tagName: "BUTTON" }) === true);
+check("input com foco e texto conta", haRascunho(null, { tagName: "input", value: "busca" }) === true);
+check("so espacos nao e rascunho", haRascunho({ value: "   " }, null) === false);
+check("foco num botao com a caixa vazia nao e rascunho", haRascunho({ value: "" }, { tagName: "BUTTON", value: "x" }) === false);
+check("sem caixa e sem foco nao e rascunho", haRascunho(null, null) === false);
+
+// armazenamento (o localStorage de mentira instalado mais acima continua valendo)
+memoria.delete("whatscord.atualizarSozinho");
+check("automatico nasce LIGADO", atualizarAutomaticamente() === true);
+salvarAtualizarAutomaticamente(false);
+check("desligado, fica desligado", atualizarAutomaticamente() === false);
+salvarAtualizarAutomaticamente(true);
+check("religar apaga a chave", memoria.get("whatscord.atualizarSozinho") === undefined);
+
+limparAdiamento();
+check("sem adiamento gravado: null", adiadoAte() === null);
+check("adiar no comeco grava agora + 1 h", adiar(AGORA, 0) === AGORA + 60 * MIN && adiadoAte() === AGORA + 60 * MIN);
+check("adiar depois de 3 dias grava agora + 15 min", adiar(AGORA, 3 * DIA) === AGORA + 15 * MIN);
+limparAdiamento();
+memoria.set("whatscord.atualizacaoAdiadaAte", "amanha");
+check("adiamento corrompido e null, nao 'adiado para sempre'", adiadoAte() === null);
+
+/*
+ * A data em que a versao foi vista sobrevive a reinicios — sem isso o
+ * escalonamento zeraria a cada abertura e nunca chegaria aos 7 dias.
+ */
+memoria.delete("whatscord.atualizacaoVistaEm");
+check("primeira vez que ve a 0.2.1: grava agora", vistaPelaPrimeiraVez("0.2.1", AGORA) === AGORA);
+check("dias depois, a mesma versao guarda a data original", vistaPelaPrimeiraVez("0.2.1", AGORA + 3 * DIA) === AGORA);
+check("uma versao DIFERENTE recomeca a contagem", vistaPelaPrimeiraVez("0.2.2", AGORA + 4 * DIA) === AGORA + 4 * DIA);
+memoria.set("whatscord.atualizacaoVistaEm", "{nao e json");
+check("marca corrompida recomeca desde agora, sem quebrar", vistaPelaPrimeiraVez("0.2.2", AGORA + 5 * DIA) === AGORA + 5 * DIA);
+memoria.set("whatscord.atualizacaoVistaEm", JSON.stringify({ versao: "0.2.3", em: AGORA + 99 * DIA }));
+check("marca no futuro (relogio voltou) nao conta como 'pendente ha muito tempo'", vistaPelaPrimeiraVez("0.2.3", AGORA) === AGORA);
 
 // ---------------------------------------------------------------------------
 console.log(`\n${passed} passaram, ${failures.length} falharam`);
