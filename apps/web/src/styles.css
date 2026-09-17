@@ -53,6 +53,11 @@
   --ctl: #2a3942;
   --ctl-hover: #37474f;
   --scrim: rgba(11, 20, 26, 0.72);
+  /* Foto ampliada: fundo quase opaco e texto claro nos DOIS temas — a foto
+     precisa de fundo escuro para ser vista, como em qualquer visualizador. */
+  --foto-fundo: rgba(11, 20, 26, 0.92);
+  --foto-texto: #e9edef;
+  --foto-hover: rgba(255, 255, 255, 0.1);
   --heading: #d1d7db;
   --meta-out: rgba(233, 237, 239, 0.6);
   --pill: rgba(32, 44, 51, 0.92);
@@ -1343,11 +1348,24 @@ input, textarea { font: inherit; color: inherit; }
 .react-anchor { position: absolute; bottom: 36px; left: 0; z-index: 30; }
 .react-anchor.left { left: auto; right: 0; }
 
+/*
+ * A largura sai da grade, não de um número solto. Antes era 296px fixo: oito
+ * células de 34px com 2px entre elas pedem 286px, mas sobravam só 272 depois do
+ * padding — e a barra de rolagem ainda comia 6px por cima. A última coluna
+ * ficava cortada e a barra passava em cima do emoji.
+ *
+ * `scrollbar-gutter: stable` reserva o espaço da barra do lado de fora do
+ * conteúdo, então ela nunca mais se sobrepõe a um emoji, role ou não.
+ */
 .emoji-pop {
+  --emoji-cell: 34px;
+  --emoji-cols: 8;
   background: var(--panel-header); border-radius: 10px;
   box-shadow: var(--shadow-md);
   padding: var(--gap-3);
-  width: 296px; max-height: 320px; overflow-y: auto;
+  width: max-content; max-width: calc(100vw - 24px);
+  max-height: 320px; overflow-y: auto; overflow-x: hidden;
+  scrollbar-gutter: stable;
 }
 .emoji-pop.compact {
   width: auto; display: flex; gap: 2px; padding: 6px;
@@ -1357,7 +1375,7 @@ input, textarea { font: inherit; color: inherit; }
   margin: 0 0 6px; font-size: 11px; font-weight: 600;
   letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint);
 }
-.emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
+.emoji-grid { display: grid; grid-template-columns: repeat(var(--emoji-cols), var(--emoji-cell)); gap: 2px; }
 .emoji-cell {
   width: 34px; height: 34px; border-radius: 6px;
   display: grid; place-items: center; font-size: 19px; line-height: 1;
@@ -2467,3 +2485,40 @@ input, textarea { font: inherit; color: inherit; }
   background: var(--accent-bright);
   box-shadow: 0 0 0 2px var(--rail);
 }
+
+/* ---- foto ampliada ---- */
+
+/* A bolinha do cabeçalho vira botão quando há foto. Sem mudar o tamanho nem o
+   arredondamento — só o cursor e um anel no foco de teclado. */
+.avatar-zoom { padding: 0; border: 0; cursor: zoom-in; overflow: hidden; }
+.avatar-zoom:hover img { filter: brightness(0.85); }
+.avatar-zoom:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 2px; }
+
+.foto-ampliada {
+  position: fixed; inset: 0; z-index: 70;
+  background: var(--foto-fundo);
+  display: grid; grid-template-rows: auto 1fr; place-items: center;
+  animation: foto-entra 140ms ease-out;
+}
+.foto-ampliada-topo {
+  justify-self: stretch;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--gap-3) var(--gap-4);
+  /* `--foto-texto`, não `--text`: o fundo é escuro nos dois temas, e no
+     claro `--text` é quase preto. */
+  color: var(--foto-texto);
+}
+.foto-ampliada-topo .icon-btn { color: var(--foto-texto); }
+.foto-ampliada-topo .icon-btn:hover { background: var(--foto-hover); }
+.foto-ampliada-topo strong { font-size: 16px; font-weight: 500; }
+.foto-ampliada img {
+  /* Quadrada, porque avatar é recortado em quadrado no envio. O teto de 640
+     é o tamanho em que a foto é salva: maior que isso só estica. */
+  width: min(640px, 82vmin); height: min(640px, 82vmin);
+  object-fit: cover; border-radius: 6px;
+  margin-bottom: 6vh;
+  box-shadow: var(--shadow-lg);
+}
+@keyframes foto-entra { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .foto-ampliada { animation: none; } }
+.member-pop-foto { font-size: 7px; }

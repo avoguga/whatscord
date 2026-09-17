@@ -193,7 +193,7 @@ function SecaoConta({ me, onClose }: { me: User; onClose: () => void }) {
   /**
    * Troca a foto de perfil.
    *
-   * Reduz para um quadrado de 256 px ANTES de subir. O upload é genérico e não
+   * Reduz para um quadrado de 640 px ANTES de subir. O upload é genérico e não
    * redimensiona nada — sem isso, uma foto de 4 MB do celular seria baixada
    * inteira em cada linha da lista de conversas.
    */

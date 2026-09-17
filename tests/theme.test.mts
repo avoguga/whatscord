@@ -367,6 +367,11 @@ const fixasDeProposito = new Set([
   "--preview-dark-bar",
   "--preview-dark-bubble",
   "--media-scrim",
+  // Visualizador de foto: fundo escuro e texto claro nos dois temas, como o
+  // --media-scrim. Foto em fundo claro perde contraste.
+  "--foto-fundo",
+  "--foto-texto",
+  "--foto-hover",
   "--on-danger",
   "--call-bg",
   "--ctl",

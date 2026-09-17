@@ -4,6 +4,7 @@ import { api, fileUrl, uploadFile } from "../lib/api";
 import { clock, daySeparator, fileSize, initials, isImage, isVideo, sameDay } from "../lib/format";
 import { signalTyping, stopTyping } from "../lib/socket";
 import { EmojiPicker } from "./EmojiPicker";
+import { FotoAmpliada } from "./FotoAmpliada";
 import { TimbreDaConversa } from "./TimbreDaConversa";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { plural } from "@lingui/core/macro";
@@ -42,6 +43,7 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [timbreAberto, setTimbreAberto] = useState(false);
+  const [fotoAberta, setFotoAberta] = useState(false);
   const [findOpen, setFindOpen] = useState(false);
   const [findTerm, setFindTerm] = useState("");
   const [pendingFiles, setPendingFiles] = useState<
@@ -159,6 +161,8 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
   }
 
   const canSend = Boolean(draft.trim()) || pendingFiles.some((f) => f.key);
+  const fotoDoCabecalho =
+    isVoiceRoom || isChannel ? null : room.kind === "DM" ? room.counterpart?.avatarUrl ?? null : room.iconUrl ?? null;
 
   return (
     <section className="chat">
@@ -171,15 +175,28 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
         >
           <IconBack />
         </button>
-        <div className={`avatar${isVoiceRoom ? " voice" : ""}${isChannel ? " channel" : ""}`}>
-          {isVoiceRoom ? <IconVoiceRoom size={20} />
-            : isChannel ? <IconHash size={19} />
-            : (() => {
-                // Conversa direta mostra a pessoa; grupo e canal mostram o quarto.
-                const foto = room.kind === "DM" ? room.counterpart?.avatarUrl : room.iconUrl;
-                return foto ? <img src={fileUrl(foto)} alt="" /> : initials(title);
-              })()}
-        </div>
+        {(() => {
+          const classe = `avatar${isVoiceRoom ? " voice" : ""}${isChannel ? " channel" : ""}`;
+          if (isVoiceRoom) return <div className={classe}><IconVoiceRoom size={20} /></div>;
+          if (isChannel) return <div className={classe}><IconHash size={19} /></div>;
+          // Conversa direta mostra a pessoa; grupo mostra o ícone do grupo.
+          if (!fotoDoCabecalho) return <div className={classe}>{initials(title)}</div>;
+          // Com foto, a bolinha vira botão: clicar abre a foto grande.
+          return (
+            <button
+              className={`${classe} avatar-zoom`}
+              onClick={() => setFotoAberta(true)}
+              aria-label={t`View photo`}
+              data-tip={t`View photo`}
+              data-tip-pos="baixo"
+            >
+              <img src={fileUrl(fotoDoCabecalho)} alt="" />
+            </button>
+          );
+        })()}
+        {fotoAberta && fotoDoCabecalho && (
+          <FotoAmpliada url={fotoDoCabecalho} nome={title} onClose={() => setFotoAberta(false)} />
+        )}
         <div className="chat-title">
           <strong>{title}</strong>
           <span style={typing && typing.length ? { color: "var(--accent-bright)" } : undefined}>

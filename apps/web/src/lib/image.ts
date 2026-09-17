@@ -12,8 +12,16 @@
  * tudo que roda este app.
  */
 
-/** Lado máximo de um avatar ou ícone, em pixels. */
-export const AVATAR_SIZE = 256;
+/**
+ * Lado máximo de um avatar ou ícone, em pixels.
+ *
+ * Era 256. Bastava para a bolinha da lista, mas a foto também abre grande
+ * (`FotoAmpliada`), e 256 px esticados numa tela de 1080 ficam borrados.
+ * 640 em JPEG 0,88 dá uns 50 KB: mais do que os ~15 KB de antes em cada linha
+ * da lista, mas o cabeçalho de cache é `immutable` e cada foto baixa uma vez.
+ * Fotos enviadas antes desta mudança continuam com 256 até serem trocadas.
+ */
+export const AVATAR_SIZE = 640;
 
 export class ImageError extends Error {}
 

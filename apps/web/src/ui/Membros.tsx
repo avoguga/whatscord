@@ -15,6 +15,7 @@ import {
   type PapelNoEspaco
 } from "../lib/membros";
 import { Avatar } from "./Avatar";
+import { FotoAmpliada } from "./FotoAmpliada";
 import { IconChats, IconPhone, IconVideo, IconVoiceRoom, IconClose } from "./icons";
 
 /**
@@ -191,6 +192,7 @@ function LinhaDeMembro({
   const startCall = useStore((s) => s.startCall);
   const notify = useStore((s) => s.notify);
   const [ocupado, setOcupado] = useState(false);
+  const [fotoAberta, setFotoAberta] = useState(false);
 
   /**
    * A conversa direta com esta pessoa: encontra ou cria, e volta o id.
@@ -280,6 +282,17 @@ function LinhaDeMembro({
               <strong>{membro.displayName}</strong>
               <span>@{membro.username}</span>
             </p>
+            {membro.avatarUrl && (
+              <button
+                onClick={() => {
+                  onFechar();
+                  setFotoAberta(true);
+                }}
+              >
+                <Avatar name={membro.displayName} url={membro.avatarUrl} size={17} className="avatar member-pop-foto" />{" "}
+                <Trans>View photo</Trans>
+              </button>
+            )}
             <button disabled={ocupado} onClick={() => void mensagem()}>
               <IconChats size={17} /> <Trans>Message</Trans>
             </button>
@@ -309,11 +322,25 @@ function LinhaDeMembro({
             <p className="member-pop-nota">
               <Trans>This is you.</Trans>
             </p>
+            {membro.avatarUrl && (
+              <button
+                onClick={() => {
+                  onFechar();
+                  setFotoAberta(true);
+                }}
+              >
+                <Avatar name={membro.displayName} url={membro.avatarUrl} size={17} className="avatar member-pop-foto" />{" "}
+                <Trans>View photo</Trans>
+              </button>
+            )}
             <button onClick={onFechar}>
               <IconClose size={17} /> <Trans>Close</Trans>
             </button>
           </div>
         </>
+      )}
+      {fotoAberta && membro.avatarUrl && (
+        <FotoAmpliada url={membro.avatarUrl} nome={membro.displayName} onClose={() => setFotoAberta(false)} />
       )}
     </div>
   );

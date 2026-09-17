@@ -767,7 +767,7 @@ export function GroupModal({ roomId, onClose }: { roomId: string; onClose: () =>
   /**
    * Troca a foto do grupo.
    *
-   * Reduz para um quadrado de 256 px ANTES de subir, como a foto de perfil. O
+   * Reduz para um quadrado de 640 px ANTES de subir, como a foto de perfil. O
    * `POST /files` é genérico e não redimensiona nada: sem isto, uma foto de
    * 4 MB tirada no celular seria baixada inteira em cada linha da lista de
    * conversas de todo mundo do grupo.

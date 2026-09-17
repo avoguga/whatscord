@@ -386,6 +386,8 @@ msgid "Chime"
 msgstr "Chime"
 
 #: src/ui/Call.tsx
+#: src/ui/FotoAmpliada.tsx
+#: src/ui/FotoAmpliada.tsx
 #: src/ui/Membros.tsx
 #: src/ui/Membros.tsx
 #: src/ui/Membros.tsx
@@ -1279,6 +1281,11 @@ msgstr "People join a channel by joining its space. Share the space invite code 
 msgid "Photo"
 msgstr "Photo"
 
+#: src/ui/FotoAmpliada.tsx
+#: src/ui/FotoAmpliada.tsx
+msgid "Photo of {nome}"
+msgstr "Photo of {nome}"
+
 #: src/ui/Settings.tsx
 msgid "Photo removed."
 msgstr "Photo removed."
@@ -2151,6 +2158,13 @@ msgstr "Video call"
 #: src/ui/QuickDeviceMenu.tsx
 msgid "Video settings"
 msgstr "Video settings"
+
+#: src/ui/Chat.tsx
+#: src/ui/Chat.tsx
+#: src/ui/Membros.tsx
+#: src/ui/Membros.tsx
+msgid "View photo"
+msgstr "View photo"
 
 #: src/ui/Invites.tsx
 #: src/ui/Membros.tsx
