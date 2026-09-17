@@ -1,6 +1,6 @@
 [package]
 name = "whatscord-desktop"
-version = "0.1.0"
+version = "0.2.0"
 description = "WhatsCord desktop shell"
 authors = ["WhatsCord"]
 edition = "2021"
@@ -47,6 +47,11 @@ windows = { version = "0.61", features = ["Win32_Foundation"] }
 # build for iOS/Android, so it is gated behind a target cfg (as the docs require).
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = "2.4.4"
+# Atualizacao dentro do app. So desktop pelo mesmo motivo do single-instance:
+# nao ha implementacao mobile — no Android, atualizar e instalar o APK por cima.
+# 2.x e nao a 3.0-alpha que o `cargo search` mostra: essa e do Tauri 3.
+tauri-plugin-updater = "2.11.0"
+tauri-plugin-process = "2.3.1"
 
 [profile.release]
 codegen-units = 1

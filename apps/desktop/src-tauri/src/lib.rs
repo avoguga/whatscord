@@ -470,6 +470,22 @@ pub fn run() {
             use tauri_plugin_deep_link::DeepLinkExt;
             app.deep_link().handle_cli_arguments(argv.iter());
         }));
+
+        /*
+         * Atualizacao dentro do app.
+         *
+         * O updater baixa o instalador novo, confere a ASSINATURA contra a chave
+         * publica em `tauri.conf.json` e so entao executa. A assinatura nao e
+         * enfeite: o endereco das atualizacoes e publico, e sem ela bastaria
+         * alguem conseguir trocar o arquivo la para rodar codigo em todas as
+         * maquinas que tem o app instalado.
+         *
+         * O `process` vem junto porque e ele que reabre o app depois de
+         * instalar (`relaunch`).
+         */
+        builder = builder
+            .plugin(tauri_plugin_updater::Builder::new().build())
+            .plugin(tauri_plugin_process::init());
     }
 
     builder

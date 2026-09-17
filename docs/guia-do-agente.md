@@ -219,6 +219,45 @@ nomes dos arquivos, sim, ficam legíveis.
 
 ---
 
+### Publicar uma atualização (o que o app instalado baixa sozinho)
+
+A partir da **0.2.0** o app de desktop se atualiza: ao abrir (e a cada 6 horas)
+ele consulta
+`https://github.com/avoguga/whatscord/releases/latest/download/latest.json`,
+e se houver versão maior oferece "Atualizar agora". Também há "Procurar
+atualizações" nas Configurações.
+
+Para publicar:
+
+```bash
+# 1. suba a versão em apps/desktop/src-tauri/tauri.conf.json (e Cargo.toml)
+# 2. commite — o script recusa árvore suja
+GH_TOKEN=<token com permissão de release>   node scripts/release-desktop.mjs --notes "o que mudou"
+# ou, para só compilar e gerar o latest.json sem publicar:
+node scripts/release-desktop.mjs --dry-run
+```
+
+O script compila com a chave de assinatura, gera o `.exe.sig` e o
+`latest.json`, recusa publicar um instalador mais velho que o último commit, e
+cria a release `v<versão>` com os três arquivos.
+
+> **A chave de assinatura é insubstituível. Não a perca e não a exponha.**
+>
+> - A privada mora em `.secrets/updater.key`, a senha em `.secrets/updater.env`.
+>   Os dois estão no `.gitignore`. **Nunca** os commite, imprima ou cole em
+>   conversa.
+> - A chave **pública** está embutida em cada app já instalado. Se a privada se
+>   perder, nenhuma atualização futura será aceita por esses apps — gerar uma
+>   chave nova não resolve: cada pessoa teria de reinstalar à mão.
+> - Se a privada vazar, qualquer um pode publicar uma "atualização" que os apps
+>   instalados aceitam como legítima. A assinatura é a única coisa que impede
+>   isso, porque o endereço das atualizações é público.
+> - **Faça uma cópia da pasta `.secrets/` fora desta máquina.**
+
+Quem tem a 0.1.0 **não recebe atualização automática** — ela não tinha o
+atualizador. A 0.2.0 precisa ser instalada à mão uma vez; dali em diante, sozinha.
+
+Não existe no Android: lá, atualizar é instalar o APK novo por cima.
 ## 7. Build para Android (APK)
 
 O procedimento completo, com todas as armadilhas, está em **`docs/android.md`**.
