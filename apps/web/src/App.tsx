@@ -15,7 +15,7 @@ import { Chat } from "./ui/Chat";
 import { PainelDeMembros } from "./ui/Membros";
 import { Toasts } from "./ui/Toasts";
 import { InviteGate } from "./ui/InviteGate";
-import { AvisoDeAtualizacao } from "./ui/Atualizacao";
+import { AvisosDoApp } from "./ui/Atualizacao";
 import { iniciarVerificacaoAutomatica } from "./lib/atualizador";
 
 /*
@@ -169,7 +169,7 @@ export default function App() {
     return (
       <>
         <Auth />
-        <AvisoDeAtualizacao />
+        <AvisosDoApp />
       </>
     );
 
@@ -193,7 +193,7 @@ export default function App() {
         </Suspense>
       )}
       <Toasts />
-      <AvisoDeAtualizacao />
+      <AvisosDoApp />
     </div>
   );
 }

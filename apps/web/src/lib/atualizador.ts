@@ -14,16 +14,26 @@ import {
   haRascunho,
   instalarAoSair,
   limparAdiamento,
+  marcarNovidadesVistas,
   marcarVerificacao,
+  novidadesVistasAte,
   porcentagem,
   salvarAtualizarAutomaticamente,
   tipoDeErro,
   ultimaVerificacao,
+  usavaOAppAntes,
   vistaPelaPrimeiraVez,
   type Momento,
   type Progresso,
   type TipoDeErro
 } from "./atualizacao";
+import { compararVersoes, itensDasNotas, novidadesNaoVistas, secaoDaVersao, type Novidade } from "./novidades";
+/*
+ * O mesmo arquivo que o script de publicação lê. Vem embutido no build: depois
+ * de atualizar, o app já sabe o que mudou nele sem buscar nada na rede — e isso
+ * vale também para quem instalou à mão.
+ */
+import textoDasNovidades from "../novidades.md?raw";
 
 /**
  * A atualização do app desktop, do lado que conversa com o plugin.
@@ -65,6 +75,8 @@ export type EstadoDaAtualizacao = {
   vistaEm: number | null;
   /** O download/erro em curso foi pedido pela pessoa (os automáticos são silenciosos). */
   pedidoPelaPessoa: boolean;
+  /** Novidades das versões que a pessoa ainda não viu — o aviso depois de atualizar. */
+  novidades: Novidade[];
 };
 
 let estado: EstadoDaAtualizacao = {
@@ -79,7 +91,8 @@ let estado: EstadoDaAtualizacao = {
   contagemAte: null,
   adiadoAte: adiadoAte(),
   vistaEm: null,
-  pedidoPelaPessoa: false
+  pedidoPelaPessoa: false,
+  novidades: []
 };
 
 /** O `Update` do plugin. Depois de `download()`, os bytes vivem nele. */
@@ -107,6 +120,13 @@ export const atualizacaoDisponivelAqui: boolean =
   typeof window !== "undefined" &&
   typeof navigator !== "undefined" &&
   ehAppDesktop("__TAURI_INTERNALS__" in window, navigator.userAgent);
+
+/*
+ * Lido na CARGA do módulo, antes da primeira verificação (3 s depois de abrir):
+ * é ela que grava a marca usada para saber se o computador já usava o app. Lido
+ * depois, uma instalação nova pareceria uma atualização.
+ */
+const usavaAntesAoAbrir = atualizacaoDisponivelAqui && usavaOAppAntes();
 
 /** Há uma versão nova esperando — é o que acende o indicador na barra. */
 export function temAtualizacaoPendente(e: EstadoDaAtualizacao): boolean {
@@ -151,6 +171,39 @@ export async function carregarVersaoAtual(): Promise<void> {
   } catch {
     /* sem versão, a tela só não mostra o número */
   }
+}
+
+/* ------------------------------------------------------------- novidades */
+
+/** Os itens da versão pedida, para as Configurações. Vazio se não há seção. */
+export function novidadesDaVersao(versao: string | null): string[] {
+  return versao ? itensDasNotas(secaoDaVersao(textoDasNovidades, versao)) : [];
+}
+
+/** As notas da versão NOVA, vindas do `latest.json` — o aviso "Reinicie para atualizar". */
+export function itensDaVersaoNova(e: EstadoDaAtualizacao): string[] {
+  return itensDasNotas(e.notas);
+}
+
+async function carregarNovidades(): Promise<void> {
+  await carregarVersaoAtual();
+  const atual = estado.versaoAtual;
+  if (!atual) return;
+  const vista = novidadesVistasAte();
+  const lista = novidadesNaoVistas(textoDasNovidades, { atual, vista, usavaAntes: usavaAntesAoAbrir });
+  if (lista.length > 0) {
+    mudar({ novidades: lista });
+    return;
+  }
+  // Nada a mostrar nesta versão (instalação nova, ou versão sem notas): marca
+  // como vista, para a PRÓXIMA atualização mostrar só o que vier depois dela.
+  if (vista === null || compararVersoes(atual, vista) > 0) marcarNovidadesVistas(atual);
+}
+
+/** "Entendi" ou fechar: não volta até a próxima versão. */
+export function fecharNovidades(): void {
+  if (estado.versaoAtual) marcarNovidadesVistas(estado.versaoAtual);
+  mudar({ novidades: [] });
 }
 
 /* -------------------------------------------------------------- procurar */
@@ -368,6 +421,7 @@ export function iniciarVerificacaoAutomatica(): () => void {
   const talvez = () => {
     if (deveVerificar(ultimaVerificacao(), Date.now())) void procurarAtualizacao({ silencioso: true });
   };
+  void carregarNovidades();
   const primeira = setTimeout(talvez, ESPERA_ANTES_DE_VERIFICAR_MS);
   const repetir = setInterval(talvez, 30 * 60 * 1000);
   const olhar = setInterval(avaliar, 30 * 1000);

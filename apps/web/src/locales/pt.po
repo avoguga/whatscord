@@ -370,10 +370,6 @@ msgid "Chats"
 msgstr "Conversas"
 
 #: src/ui/Atualizacao.tsx
-#~ msgid "Check again"
-#~ msgstr "Verificar de novo"
-
-#: src/ui/Atualizacao.tsx
 msgid "Check for updates"
 msgstr "Procurar atualizações"
 
@@ -385,6 +381,8 @@ msgstr "Procurando atualizações…"
 msgid "Chime"
 msgstr "Sino"
 
+#: src/ui/Atualizacao.tsx
+#: src/ui/Atualizacao.tsx
 #: src/ui/Call.tsx
 #: src/ui/FotoAmpliada.tsx
 #: src/ui/FotoAmpliada.tsx
@@ -600,10 +598,6 @@ msgstr "Digite sua senha."
 msgid "Everyone in the call hears it. Right-click a built-in sound to pin it."
 msgstr "Todo mundo na chamada ouve. Clique com o botão direito num som embutido para fixá-lo."
 
-#: src/ui/Soundboard.tsx
-#~ msgid "Everyone in the call hears it. Right-click to pin a sound to the front."
-#~ msgstr "Todo mundo na chamada ouve. Clique com o botão direito para fixar um som na frente."
-
 #: src/ui/Invites.tsx
 msgid "Everyone in the group sees the name and the picture."
 msgstr "Todo mundo do grupo vê o nome e a foto."
@@ -698,6 +692,10 @@ msgstr "Dê um nome curto ao som e escolha um emoji para ele."
 #: src/lib/erros.ts
 msgid "Give the space a name."
 msgstr "Dê um nome ao espaço."
+
+#: src/ui/Atualizacao.tsx
+msgid "Got it"
+msgstr "Entendi"
 
 #: src/ui/FolderModal.tsx
 msgid "Green"
@@ -1453,6 +1451,10 @@ msgstr "Reiniciar agora"
 msgid "Restart to finish updating."
 msgstr "Reinicie para terminar de atualizar."
 
+#: src/ui/Atualizacao.tsx
+msgid "Restart to update"
+msgstr "Reinicie para atualizar"
+
 #. placeholder {0}: segundos ?? 0
 #: src/ui/Atualizacao.tsx
 msgid "Restarting to update in {0} s"
@@ -1544,20 +1546,12 @@ msgid "Share screen"
 msgstr "Compartilhar tela"
 
 #: src/ui/Call.tsx
-#~ msgid "Sharing without sound. To include it, share again and tick “Also share tab audio” (or “Share system audio”) in the browser's dialog — Chrome on Windows only offers it for a tab or a whole screen, not a single window."
-#~ msgstr "Compartilhando sem som. Para incluí-lo, compartilhe de novo e marque “Compartilhar áudio da guia” (ou “Compartilhar áudio do sistema”) na janela do navegador — no Windows o Chrome só oferece isso para uma guia ou a tela inteira, não para uma única janela."
-
-#: src/ui/Call.tsx
 msgid "Sharing without sound. To include it, share again and tick “Also share tab audio” (or “Share system audio”) in the browser's dialog — this browser only offers sound for a tab or a whole screen, not a single window."
 msgstr "Compartilhando sem som. Para incluir, compartilhe de novo e marque “Compartilhar áudio da guia” (ou “Compartilhar áudio do sistema”) no diálogo do navegador — este navegador só oferece som para uma guia ou para a tela inteira, não para uma janela."
 
 #: src/ui/Call.tsx
 msgid "Sharing without sound. To include it, share again and turn on the audio switch in the browser's dialog — for a window, only that window's sound goes; for a whole screen, everything the system plays."
 msgstr "Compartilhando sem som. Para incluir, compartilhe de novo e ligue o botão de áudio no diálogo do navegador — numa janela vai só o som daquela janela; na tela inteira, tudo o que o sistema tocar."
-
-#: src/ui/Call.tsx
-#~ msgid "Sharpest for code, documents and spreadsheets. 15 frames per second."
-#~ msgstr "Mais nítido para código, documentos e planilhas. 15 quadros por segundo."
 
 #: src/ui/Call.tsx
 #: src/ui/Call.tsx
@@ -1606,10 +1600,6 @@ msgstr "Sair da conta encerra esta sessão neste aparelho. O que você enviou co
 #: src/ui/TimbreDaConversa.tsx
 msgid "Silent"
 msgstr "Mudo"
-
-#: src/ui/Call.tsx
-#~ msgid "Smoother for video and games, at the cost of some sharpness. 30 frames per second."
-#~ msgstr "Mais fluido para vídeo e jogos, com alguma perda de nitidez. 30 quadros por segundo."
 
 #: src/ui/Call.tsx
 #: src/ui/Call.tsx
@@ -1726,10 +1716,6 @@ msgstr "Testar microfone"
 #: src/ui/Invites.tsx
 msgid "Text"
 msgstr "Texto"
-
-#: src/ui/Call.tsx
-#~ msgid "Text and detail"
-#~ msgstr "Texto e detalhe"
 
 #: src/ui/Sidebar.tsx
 msgid "Text channels"
@@ -2136,6 +2122,10 @@ msgid "Usernames are at least 3 characters."
 msgstr "Nomes de usuário têm pelo menos 3 caracteres."
 
 #: src/ui/Atualizacao.tsx
+msgid "Version {anterior}"
+msgstr "Versão {anterior}"
+
+#: src/ui/Atualizacao.tsx
 msgid "Version {versaoNova} is available."
 msgstr "A versão {versaoNova} está disponível."
 
@@ -2146,10 +2136,6 @@ msgstr "A versão {versaoNova} já foi baixada e está pronta para instalar."
 #: src/ui/Sidebar.tsx
 msgid "Video"
 msgstr "Vídeo"
-
-#: src/ui/Call.tsx
-#~ msgid "Video and motion"
-#~ msgstr "Vídeo e movimento"
 
 #: src/ui/Membros.tsx
 msgid "Video call"
@@ -2214,6 +2200,15 @@ msgid "Weekend plans"
 msgstr "Planos do fim de semana"
 
 #: src/ui/Atualizacao.tsx
+#: src/ui/Atualizacao.tsx
+msgid "What's new"
+msgstr "O que mudou"
+
+#: src/ui/Atualizacao.tsx
+msgid "What's new in version {versaoAtual}"
+msgstr "Novidades da versão {versaoAtual}"
+
+#: src/ui/Atualizacao.tsx
 msgid "WhatsCord {versao} is available"
 msgstr "WhatsCord {versao} disponível"
 
@@ -2229,6 +2224,10 @@ msgstr "WhatsCord {versao} está pronto. Leva só alguns segundos."
 #: src/ui/Atualizacao.tsx
 msgid "WhatsCord for desktop"
 msgstr "Aplicativo WhatsCord para computador"
+
+#: src/ui/Atualizacao.tsx
+msgid "WhatsCord updated to {versao}"
+msgstr "WhatsCord atualizado para a versão {versao}"
 
 #: src/ui/Soundboard.tsx
 msgid "Where the sound goes"

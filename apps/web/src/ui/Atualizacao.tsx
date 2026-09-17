@@ -10,7 +10,10 @@ import {
   carregarVersaoAtual,
   definirAtualizacaoAutomatica,
   estadoDaAtualizacao,
+  fecharNovidades,
   instalarAtualizacao,
+  itensDaVersaoNova,
+  novidadesDaVersao,
   procurarAtualizacao,
   type EstadoDaAtualizacao
 } from "../lib/atualizador";
@@ -70,6 +73,21 @@ function Progresso({ estado }: { estado: EstadoDaAtualizacao }) {
   );
 }
 
+/**
+ * As notas de uma versão como lista. Texto puro: as notas do `latest.json` não
+ * são assinadas, então nunca viram HTML.
+ */
+function ListaDeNotas({ itens }: { itens: string[] }) {
+  if (itens.length === 0) return null;
+  return (
+    <ul className="update-notes">
+      {itens.map((item, i) => (
+        <li key={i}>{item}</li>
+      ))}
+    </ul>
+  );
+}
+
 /** Segundos que faltam na contagem, re-renderizando a cada segundo. */
 function useSegundosRestantes(ate: number | null): number | null {
   const [agora, setAgora] = useState(() => Date.now());
@@ -122,6 +140,7 @@ export function AvisoDeAtualizacao() {
   if (!mostra) return null;
 
   const podeFechar = fase === "pronta" || fase === "disponivel" || fase === "erro";
+  const notas = itensDaVersaoNova(estado);
 
   return (
     <div className="update-notice" role="status" aria-live="polite">
@@ -148,14 +167,23 @@ export function AvisoDeAtualizacao() {
           </>
         ) : fase === "pronta" ? (
           <>
-            <strong>{t`WhatsCord ${versao} is ready`}</strong>
+            {/*
+              "Reinicie para atualizar" em cima, e não "versão X pronta": o que
+              a pessoa precisa decidir é se reinicia. As notas vêm logo abaixo,
+              porque é o que faz valer a pena reiniciar agora e não depois.
+            */}
+            <strong>{t`Restart to update`}</strong>
             <small>
+              {t`WhatsCord ${versao} is ready`}
+              {" · "}
               {estado.automatico ? (
                 <Trans>It will install on its own when you're not using the app. Or restart now.</Trans>
               ) : (
                 <Trans>Restart to finish updating.</Trans>
               )}
             </small>
+            {notas.length > 0 && <span className="update-notes-label">{t`What's new`}</span>}
+            <ListaDeNotas itens={notas} />
             <div className="update-actions">
               <button className="btn-link" onClick={() => void instalarAtualizacao()}>
                 <Trans>Restart now</Trans>
@@ -168,6 +196,7 @@ export function AvisoDeAtualizacao() {
         ) : (
           <>
             <strong>{t`WhatsCord ${versao} is available`}</strong>
+            {fase === "disponivel" && <ListaDeNotas itens={notas} />}
             {fase === "baixando" && <Progresso estado={estado} />}
             {fase === "reiniciando" && <small>{t`Installing… WhatsCord will restart.`}</small>}
             {fase === "reabrir" && <small>{t`Update installed. Close and reopen WhatsCord to finish.`}</small>}
@@ -201,6 +230,68 @@ export function AvisoDeAtualizacao() {
   );
 }
 
+/* ------------------------------------------------- depois de atualizar */
+
+/**
+ * "O WhatsCord foi atualizado": aparece na primeira abertura depois de uma
+ * versão nova, com o que mudou.
+ *
+ * Existe porque a atualização costuma instalar SEM ninguém ver — ao abrir, ou
+ * com o app parado na bandeja. Sem isto, a pessoa só percebe a mudança quando
+ * tropeça nela.
+ *
+ * Opcional por desenho: não bloqueia nada, fecha com um clique e não volta até
+ * a próxima versão. Quem pulou versões vê as que perdeu, da mais nova para a
+ * mais velha.
+ */
+export function NovidadesDaVersao() {
+  const { t } = useLingui();
+  const estado = useAtualizacao();
+  if (!atualizacaoDisponivelAqui || estado.novidades.length === 0) return null;
+
+  const [maisNova, ...anteriores] = estado.novidades;
+  const versao = maisNova.versao;
+  return (
+    <div className="update-notice novidades" role="status" aria-live="polite">
+      <div className="update-notice-text">
+        <strong>{t`WhatsCord updated to ${versao}`}</strong>
+        <span className="update-notes-label">{t`What's new`}</span>
+        <div className="update-notes-scroll">
+          <ListaDeNotas itens={maisNova.itens} />
+          {anteriores.map(({ versao: anterior, itens }) => (
+            <div key={anterior}>
+              <span className="update-notes-label">{t`Version ${anterior}`}</span>
+              <ListaDeNotas itens={itens} />
+            </div>
+          ))}
+        </div>
+        <div className="update-actions">
+          <button className="btn-link" onClick={fecharNovidades}>
+            <Trans>Got it</Trans>
+          </button>
+        </div>
+      </div>
+      <button className="update-notice-close" onClick={fecharNovidades} title={t`Close`} aria-label={t`Close`}>
+        <IconClose size={15} />
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Os avisos do app, empilhados no canto. Uma pilha e não dois `position: fixed`
+ * independentes: logo depois de atualizar pode haver as novidades E, dias
+ * depois, uma versão nova pronta ao mesmo tempo — soltos, um cobriria o outro.
+ */
+export function AvisosDoApp() {
+  return (
+    <div className="update-stack">
+      <NovidadesDaVersao />
+      <AvisoDeAtualizacao />
+    </div>
+  );
+}
+
 /* ------------------------------------------------------ em Configurações */
 
 export function SecaoAtualizacao() {
@@ -214,6 +305,7 @@ export function SecaoAtualizacao() {
   if (!atualizacaoDisponivelAqui) return null;
 
   const { versaoAtual, versaoNova, fase } = estado;
+  const novidadesAtuais = novidadesDaVersao(versaoAtual);
   const ocupado = fase === "procurando" || fase === "baixando" || fase === "reiniciando";
   const temVersaoNova =
     versaoNova !== null &&
@@ -228,6 +320,17 @@ export function SecaoAtualizacao() {
       <p className="settings-note">
         {versaoAtual ? t`You are using version ${versaoAtual}.` : t`Updates are checked automatically every few hours.`}
       </p>
+      {/*
+        As novidades da versão instalada continuam aqui depois que o aviso some.
+        Fechado por padrão: quem abre Atualizações quase sempre veio procurar
+        versão nova, não reler o que já leu.
+      */}
+      {novidadesAtuais.length > 0 && (
+        <details className="update-notes-details">
+          <summary>{t`What's new in version ${versaoAtual}`}</summary>
+          <ListaDeNotas itens={novidadesAtuais} />
+        </details>
+      )}
 
       {/*
         O interruptor. Ligado por padrão: quem não mexe em nada fica em dia. A
@@ -262,11 +365,14 @@ export function SecaoAtualizacao() {
         </p>
       )}
       {temVersaoNova && versaoNova && (
-        <p className="settings-note update-ok">
-          {fase === "pronta" || fase === "contagem"
-            ? t`Version ${versaoNova} is downloaded and ready to install.`
-            : t`Version ${versaoNova} is available.`}
-        </p>
+        <>
+          <p className="settings-note update-ok">
+            {fase === "pronta" || fase === "contagem"
+              ? t`Version ${versaoNova} is downloaded and ready to install.`
+              : t`Version ${versaoNova} is available.`}
+          </p>
+          <ListaDeNotas itens={itensDaVersaoNova(estado)} />
+        </>
       )}
       {fase === "pronta" && estado.seguradaPelaChamada && (
         <p className="settings-note">

@@ -2432,9 +2432,19 @@ input, textarea { font: inherit; color: inherit; }
   botões do cabeçalho da conversa — o aviso cobriria algo que se usa o tempo
   todo. Só existe no app desktop, então não precisa de versão para celular.
 */
-.update-notice {
+/*
+ * A pilha no canto: as novidades de depois de atualizar em cima, o aviso de
+ * versão nova embaixo. `pointer-events: none` no contêiner para a faixa vazia
+ * entre os avisos não engolir cliques do app.
+ */
+.update-stack {
   position: fixed; left: var(--gap-4); bottom: var(--gap-4);
   z-index: 59;
+  display: flex; flex-direction: column; gap: var(--gap-2);
+  pointer-events: none;
+}
+.update-stack > * { pointer-events: auto; }
+.update-notice {
   display: flex; align-items: flex-start; gap: var(--gap-3);
   width: min(340px, calc(100vw - 32px));
   background: var(--overlay); color: var(--text);
@@ -2450,6 +2460,26 @@ input, textarea { font: inherit; color: inherit; }
 .update-notice-close { color: var(--text-dim); display: grid; place-items: center; }
 .update-notice-close:hover { color: var(--text); }
 .update-notice .update-error { color: var(--danger-text); }
+
+/* As notas da versão: lista curta, em texto. */
+.update-notes-label {
+  margin-top: var(--gap-2);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-faint);
+}
+.update-notes {
+  margin: 2px 0 var(--gap-1); padding-left: 18px;
+  display: flex; flex-direction: column; gap: 3px;
+  font-size: 13px; line-height: 1.4; color: var(--text-dim);
+}
+.update-notes li::marker { color: var(--accent); }
+/* Quem pulou várias versões pode ter uma lista longa: rola por dentro em vez
+   de o aviso crescer por cima da conversa. */
+.update-notes-scroll { max-height: min(240px, 40vh); overflow-y: auto; }
+.update-notice.novidades { border-left-color: var(--accent-bright); }
+.update-notes-details { margin: 0 0 var(--gap-3); }
+.update-notes-details summary { cursor: pointer; color: var(--accent-bright); font-size: 14px; }
+.update-notes-details .update-notes { margin-top: var(--gap-2); }
 
 .update-ok { color: var(--text); }
 .update-recheck { display: block; margin-top: var(--gap-3); }

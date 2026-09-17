@@ -2,14 +2,18 @@
 /**
  * Publica uma versão do app de desktop — o que o atualizador dentro do app baixa.
  *
- *   node scripts/release-desktop.mjs --notes "O que mudou nesta versão"
+ *   node scripts/release-desktop.mjs                # notas de apps/web/src/novidades.md
  *   node scripts/release-desktop.mjs --dry-run      # tudo, menos publicar
+ *   node scripts/release-desktop.mjs --notes "..."  # sobrepõe o arquivo (evite)
  *
  * Passo a passo, e por que cada trava existe:
  *
  *  1. Recusa com a árvore suja. O instalador é gerado a partir do disco, não do
  *     commit: com arquivo alterado e não commitado, a versão publicada teria um
  *     código que não existe em lugar nenhum do histórico.
+ *  1b. Recusa sem notas para a versão em `apps/web/src/novidades.md`. Elas são
+ *     o que o app mostra no aviso "Reinicie para atualizar" e, depois de
+ *     atualizado, no "O que mudou". Publicar sem elas é publicar um aviso vazio.
  *  2. Recusa se a tag `v<versão>` já existir. O atualizador compara versões; duas
  *     publicações com o mesmo número deixariam quem já tem a primeira sem nunca
  *     receber a segunda.
@@ -30,6 +34,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { secaoDaVersao } from "./novidades.mjs";
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const REPO = "avoguga/whatscord";
@@ -38,7 +43,7 @@ const SECRETS = join(RAIZ, ".secrets");
 const args = process.argv.slice(2);
 const seco = args.includes("--dry-run");
 const iNotas = args.indexOf("--notes");
-const notas = iNotas >= 0 ? args[iNotas + 1] ?? "" : "";
+const notasDaLinhaDeComando = iNotas >= 0 ? args[iNotas + 1] ?? "" : "";
 
 function falhar(msg) {
   console.error(`\n✗ ${msg}\n`);
@@ -60,6 +65,23 @@ if (!conf.bundle?.createUpdaterArtifacts) {
   falhar("bundle.createUpdaterArtifacts está desligado no tauri.conf.json — sem ele não sai o .sig.");
 }
 if (!conf.plugins?.updater?.pubkey) falhar("plugins.updater.pubkey ausente no tauri.conf.json.");
+
+// ---------------------------------------------------------------- notas
+/*
+ * Antes do build, e não depois: descobrir que faltam notas após quatro minutos
+ * de Rust é desperdício. O mesmo arquivo vai embutido no app, então o texto do
+ * aviso de antes de reiniciar e o de depois de atualizado são o mesmo.
+ */
+const arquivoDeNovidades = join(RAIZ, "apps/web/src/novidades.md");
+const notas =
+  notasDaLinhaDeComando.trim() ||
+  (existsSync(arquivoDeNovidades) ? secaoDaVersao(readFileSync(arquivoDeNovidades, "utf8"), versao) : null);
+if (!notas) {
+  falhar(
+    `Sem notas para a ${versao}. Acrescente em apps/web/src/novidades.md, no topo:\n\n## ${versao}\n\n- O que a pessoa nota de diferente.\n`
+  );
+}
+console.log(`Notas:\n${notas}\n`);
 
 // ------------------------------------------------------------ travas git
 if (git("status", "--porcelain")) {

@@ -352,3 +352,36 @@ export function vistaPelaPrimeiraVez(versao: string, agora: number): number {
   }
   return agora;
 }
+
+/* ------------------------------------------------------------- novidades */
+
+const CHAVE_NOVIDADES_VISTAS = "whatscord.novidadesVistasAte";
+
+/** A última versão cujas novidades a pessoa fechou, ou null. */
+export function novidadesVistasAte(): string | null {
+  try {
+    const v = localStorage.getItem(CHAVE_NOVIDADES_VISTAS);
+    return v && /^\d+\.\d+\.\d+$/.test(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+export function marcarNovidadesVistas(versao: string): void {
+  try {
+    localStorage.setItem(CHAVE_NOVIDADES_VISTAS, versao);
+  } catch {
+    /* sem armazenamento, o aviso volta na proxima abertura — incomoda, mas nao esconde nada */
+  }
+}
+
+/**
+ * Este computador ja usava o app antes? Separa "atualizou" de "instalou agora".
+ *
+ * A marca da ultima verificacao existe desde a 0.2.0 e e gravada segundos
+ * depois de abrir. Tem de ser lida ANTES dessa primeira verificacao: depois
+ * dela, uma instalacao nova tambem a teria.
+ */
+export function usavaOAppAntes(): boolean {
+  return ultimaVerificacao() !== null;
+}

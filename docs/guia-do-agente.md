@@ -153,6 +153,7 @@ carrega um **endereço**, e quem recebe busca e toca.
 
 ```bash
 npx tsx tests/devices.test.ts        # 256 testes, sem navegador
+npx tsx tests/novidades.test.ts      # notas de versão: leitura e quando mostrar
 node tests/run.mjs                   # 350 testes, contra a API de produção
 node tests/run.mjs --only=basico,dm,sons
 ```
@@ -242,9 +243,11 @@ e é testada — mexa nela com os testes abertos.
 Para publicar:
 
 ```bash
-# 1. suba a versão em apps/desktop/src-tauri/tauri.conf.json (e Cargo.toml)
-# 2. commite — o script recusa árvore suja
-GH_TOKEN=<token com permissão de release>   node scripts/release-desktop.mjs --notes "o que mudou"
+# 1. suba a versão em apps/desktop/src-tauri/tauri.conf.json, Cargo.toml,
+#    apps/desktop/package.json e package.json
+# 2. escreva as notas no topo de apps/web/src/novidades.md (## <versão>)
+# 3. commite — o script recusa árvore suja
+GH_TOKEN=<token com permissão de release>   node scripts/release-desktop.mjs
 # ou, para só compilar e gerar o latest.json sem publicar:
 node scripts/release-desktop.mjs --dry-run
 ```
@@ -252,6 +255,34 @@ node scripts/release-desktop.mjs --dry-run
 O script compila com a chave de assinatura, gera o `.exe.sig` e o
 `latest.json`, recusa publicar um instalador mais velho que o último commit, e
 cria a release `v<versão>` com os três arquivos.
+
+### Notas de versão — o que a pessoa vê
+
+`apps/web/src/novidades.md` é a fonte única. **Sem seção para a versão, o
+script não publica** (e `tests/novidades.test.ts` falha antes disso). A mesma
+seção aparece em três lugares:
+
+| Onde | Quando | De onde vem o texto |
+|---|---|---|
+| Aviso "Reinicie para atualizar" | versão nova baixada, antes de instalar | `notes` do `latest.json` |
+| Aviso "WhatsCord atualizado para X" | primeira abertura depois de atualizar | o `novidades.md` embutido no build |
+| Configurações → Atualizações | sempre, recolhido | o `novidades.md` embutido no build |
+
+O aviso de depois de atualizar existe porque a instalação costuma acontecer
+sem ninguém ver (ao abrir, ou com o app parado na bandeja). Ele mostra todas as
+versões depois da última que a pessoa fechou (`whatscord.novidadesVistasAte`);
+numa instalação nova não mostra nada. A regra está em `novidadesNaoVistas`
+(`apps/web/src/lib/novidades.ts`), testada.
+
+> **Cuidado.** O script tem uma cópia do extrator (`scripts/novidades.mjs`),
+> porque `node` não importa `.ts`. O teste roda as duas sobre o arquivo real e
+> exige o mesmo texto. Mudou uma, mude a outra.
+
+> **Cuidado.** As notas do `latest.json` **não são assinadas** — só o
+> instalador é. Por isso são mostradas como texto, nunca como HTML ou Markdown
+> renderizado. Não troque isso por `dangerouslySetInnerHTML`.
+
+As notas são escritas em português e aparecem assim nos três idiomas do app.
 
 > **A chave de assinatura é insubstituível. Não a perca e não a exponha.**
 >
