@@ -227,6 +227,7 @@ msgstr "Cualquiera con este enlace puede entrar. Al abrirlo entra directo al esp
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
+#: src/ui/Settings.tsx
 msgid "App"
 msgstr "Aplicación"
 
@@ -368,6 +369,18 @@ msgstr "Chat"
 msgid "Chats"
 msgstr "Chats"
 
+#: src/ui/Atualizacao.tsx
+msgid "Check again"
+msgstr "Comprobar de nuevo"
+
+#: src/ui/Atualizacao.tsx
+msgid "Check for updates"
+msgstr "Buscar actualizaciones"
+
+#: src/ui/Atualizacao.tsx
+msgid "Checking for updates…"
+msgstr "Buscando actualizaciones…"
+
 #: src/ui/TimbreDaConversa.tsx
 msgid "Chime"
 msgstr "Campana"
@@ -434,6 +447,10 @@ msgstr "Copiar"
 #: src/ui/Call.tsx
 msgid "Could not connect"
 msgstr "No se pudo conectar"
+
+#: src/ui/Atualizacao.tsx
+msgid "Could not reach the update server. Check your internet connection and try again."
+msgstr "No se pudo conectar con el servidor de actualizaciones. Revisa tu conexión a internet e inténtalo de nuevo."
 
 #: src/ui/Invites.tsx
 msgid "Create"
@@ -513,6 +530,8 @@ msgstr "Dispositivos"
 msgid "Ding"
 msgstr "Tilín"
 
+#: src/ui/Atualizacao.tsx
+#: src/ui/Atualizacao.tsx
 #: src/ui/Toasts.tsx
 msgid "Dismiss"
 msgstr "Descartar"
@@ -536,6 +555,18 @@ msgstr "¿Aún no tienes la aplicación? <0>Descárgala para Windows</0>"
 #: src/ui/TimbreDaConversa.tsx
 msgid "Done"
 msgstr "Listo"
+
+#: src/ui/Atualizacao.tsx
+msgid "Download progress"
+msgstr "Progreso de la descarga"
+
+#: src/ui/Atualizacao.tsx
+msgid "Downloading… {baixado} MB"
+msgstr "Descargando… {baixado} MB"
+
+#: src/ui/Atualizacao.tsx
+msgid "Downloading… {pct}%"
+msgstr "Descargando… {pct}%"
 
 #: src/ui/Chat.tsx
 msgid "edited"
@@ -757,6 +788,11 @@ msgstr "Nivel de entrada"
 #: src/ui/Chat.tsx
 msgid "Insert an emoji"
 msgstr "Insertar un emoji"
+
+#: src/ui/Atualizacao.tsx
+#: src/ui/Atualizacao.tsx
+msgid "Installing… WhatsCord will restart."
+msgstr "Instalando… WhatsCord se reiniciará."
 
 #: src/ui/Invites.tsx
 msgid "Invite code"
@@ -1058,6 +1094,10 @@ msgstr "Todavía no hay sonidos aquí. Los administradores pueden añadir hasta 
 #: src/ui/DevicePicker.tsx
 msgid "No speaker was found — the system default will be used."
 msgstr "No se encontró ninguna salida de sonido: se usará la predeterminada del sistema."
+
+#: src/ui/Atualizacao.tsx
+msgid "No update has been published yet. Try again later."
+msgstr "Todavía no se publicó ninguna actualización. Inténtalo más tarde."
 
 #: src/ui/Call.tsx
 msgid "Nobody else has joined yet. They will see this call in the conversation."
@@ -1531,6 +1571,10 @@ msgstr "Alguien"
 msgid "Something broke on our side. Try again."
 msgstr "Algo se rompió de nuestro lado. Inténtalo de nuevo."
 
+#: src/ui/Atualizacao.tsx
+msgid "Something went wrong with the update. Try again later."
+msgstr "Algo salió mal con la actualización. Inténtalo más tarde."
+
 #: src/lib/api.ts
 msgid "Something went wrong. Try again."
 msgstr "Algo salió mal. Inténtalo de nuevo."
@@ -1881,6 +1925,10 @@ msgstr "No se puede quitar al dueño del espacio."
 msgid "The ownership could not be transferred."
 msgstr "No se pudo transferir la propiedad."
 
+#: src/ui/Atualizacao.tsx
+msgid "The update could not be verified, so it was not installed. Try again later."
+msgstr "No se pudo verificar la actualización, así que no se instaló. Inténtalo más tarde."
+
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
 msgid "Theme"
@@ -1949,6 +1997,10 @@ msgstr "Transferir la propiedad"
 msgid "Transfer ownership instead of setting that role."
 msgstr "Transfiere la propiedad en vez de asignar ese rol."
 
+#: src/ui/Atualizacao.tsx
+msgid "Try again"
+msgstr "Reintentar"
+
 #: src/ui/Call.tsx
 msgid "Turn your camera on first — there is no picture to switch while it is off."
 msgstr "Enciende la cámara primero: apagada no hay imagen que cambiar."
@@ -1983,6 +2035,24 @@ msgstr "No leídas"
 msgid "Up to {0} KB, so it plays instantly."
 msgstr "Hasta {0} KB, para que suene al instante."
 
+#: src/ui/Atualizacao.tsx
+#: src/ui/Atualizacao.tsx
+msgid "Update installed. Close and reopen WhatsCord to finish."
+msgstr "Actualización instalada. Cierra y vuelve a abrir WhatsCord para terminar."
+
+#: src/ui/Atualizacao.tsx
+#: src/ui/Atualizacao.tsx
+msgid "Update now"
+msgstr "Actualizar ahora"
+
+#: src/ui/Settings.tsx
+msgid "Updates"
+msgstr "Actualizaciones"
+
+#: src/ui/Atualizacao.tsx
+msgid "Updates are checked automatically every few hours."
+msgstr "Las actualizaciones se buscan automáticamente cada pocas horas."
+
 #: src/lib/erros.ts
 msgid "Use at least 8 characters."
 msgstr "Usa al menos 8 caracteres."
@@ -2002,6 +2072,10 @@ msgstr "Nombre de usuario"
 #: src/lib/erros.ts
 msgid "Usernames are at least 3 characters."
 msgstr "Los nombres de usuario tienen al menos 3 caracteres."
+
+#: src/ui/Atualizacao.tsx
+msgid "Version {versaoNova} is available."
+msgstr "La versión {versaoNova} está disponible."
 
 #: src/ui/Sidebar.tsx
 msgid "Video"
@@ -2065,6 +2139,14 @@ msgstr "Conexión débil"
 #: src/ui/Invites.tsx
 msgid "Weekend plans"
 msgstr "Planes del fin de semana"
+
+#: src/ui/Atualizacao.tsx
+msgid "WhatsCord {versao} is available"
+msgstr "WhatsCord {versao} disponible"
+
+#: src/ui/Atualizacao.tsx
+msgid "WhatsCord for desktop"
+msgstr "Aplicación de escritorio de WhatsCord"
 
 #: src/ui/Soundboard.tsx
 msgid "Where the sound goes"
@@ -2139,6 +2221,10 @@ msgstr "No estás en ese espacio."
 msgid "You are the only one here"
 msgstr "Eres la única persona aquí"
 
+#: src/ui/Atualizacao.tsx
+msgid "You are using version {versaoAtual}."
+msgstr "Estás usando la versión {versaoAtual}."
+
 #: src/lib/erros.ts
 msgid "You can only delete your own messages."
 msgstr "Solo puedes eliminar tus propios mensajes."
@@ -2192,6 +2278,10 @@ msgstr "Te han invitado a un espacio. Crea tu cuenta y entrarás directo."
 #: src/ui/Auth.tsx
 msgid "You were invited to a space. Sign in and you will be taken straight in."
 msgstr "Te han invitado a un espacio. Entra y llegarás directo."
+
+#: src/ui/Atualizacao.tsx
+msgid "You're up to date."
+msgstr "Ya tienes la versión más reciente."
 
 #: src/ui/Call.tsx
 msgid "Your camera could not be turned on. Check the browser's permission."

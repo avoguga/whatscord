@@ -101,6 +101,20 @@ import {
   type Qualidade,
   type Resolucao
 } from "../apps/web/src/lib/screenshare";
+import {
+  ESPERA_ANTES_DE_VERIFICAR_MS,
+  INTERVALO_ENTRE_VERIFICACOES_MS,
+  PROGRESSO_INICIAL,
+  aplicarEvento,
+  deveVerificar,
+  ehAppDesktop,
+  marcarVerificacao,
+  porcentagem,
+  tipoDeErro,
+  ultimaVerificacao,
+  type EventoDeDownload,
+  type Progresso
+} from "../apps/web/src/lib/atualizacao";
 
 let passed = 0;
 const failures: string[] = [];
@@ -1524,6 +1538,190 @@ check("o limiar e o Chrome 141", CHROMIUM_COM_AUDIO_DE_JANELA === 141);
 check("WebView2 153 oferece audio de janela", suportaAudioDeJanela(UA_WEBVIEW2) === true);
 check("Chrome 140 nao", suportaAudioDeJanela(UA_CHROME_140) === false);
 check("Firefox nao", suportaAudioDeJanela(UA_FIREFOX) === false);
+
+// ---------------------------------------------------------------------------
+section("atualizacao do app desktop — onde ela existe");
+
+/*
+ * O APK tambem e Tauri e tambem tem `__TAURI_INTERNALS__`, mas o plugin de
+ * atualizacao nao e registrado la. Se a deteccao olhasse so a variavel, o
+ * Android ganharia uma secao em Configuracoes cujo botao so da erro.
+ */
+const UA_ANDROID_WEBVIEW = "Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/AP2A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/131.0.0.0 Mobile Safari/537.36";
+const UA_ANDROID_MINUSCULO = "mozilla/5.0 (linux; android 13) applewebkit/537.36";
+
+check("app desktop (WebView2 com Tauri) tem atualizacao", ehAppDesktop(true, UA_WEBVIEW2) === true);
+check("navegador comum (sem Tauri) nao tem", ehAppDesktop(false, UA_CHROME_140) === false);
+check("Firefox sem Tauri nao tem", ehAppDesktop(false, UA_FIREFOX) === false);
+check("APK (Tauri no Android) nao tem", ehAppDesktop(true, UA_ANDROID_WEBVIEW) === false);
+check("e o teste do Android ignora maiusculas", ehAppDesktop(true, UA_ANDROID_MINUSCULO) === false);
+check("Chrome no celular Android, sem Tauri, nao tem", ehAppDesktop(false, UA_ANDROID_WEBVIEW) === false);
+
+// ---------------------------------------------------------------------------
+section("atualizacao do app desktop — de quanto em quanto tempo procurar");
+
+const HORA = 60 * 60 * 1000;
+const AGORA = Date.UTC(2026, 8, 17, 12, 0, 0);
+
+check("o intervalo e de 6 horas", INTERVALO_ENTRE_VERIFICACOES_MS === 6 * HORA, 6 * HORA, INTERVALO_ENTRE_VERIFICACOES_MS);
+check(
+  "a primeira verificacao espera alguns segundos (nao segura a abertura)",
+  ESPERA_ANTES_DE_VERIFICAR_MS >= 3000 && ESPERA_ANTES_DE_VERIFICAR_MS <= 30_000,
+  "entre 3 e 30 s",
+  ESPERA_ANTES_DE_VERIFICAR_MS
+);
+check("nunca verificou: procura", deveVerificar(null, AGORA) === true);
+check("verificou agora mesmo: nao procura", deveVerificar(AGORA, AGORA) === false);
+check("verificou ha 5h59: nao procura", deveVerificar(AGORA - 6 * HORA + 60_000, AGORA) === false);
+check("verificou ha exatamente 6h: procura", deveVerificar(AGORA - 6 * HORA, AGORA) === true);
+check("verificou ontem: procura", deveVerificar(AGORA - 24 * HORA, AGORA) === true);
+check(
+  "marca no futuro (relogio voltou) nao cala a verificacao",
+  deveVerificar(AGORA + 3 * 24 * HORA, AGORA) === true
+);
+check("marca ilegivel (NaN) conta como nunca", deveVerificar(Number.NaN, AGORA) === true);
+
+// O localStorage de mentira instalado mais acima continua valendo.
+memoria.delete("whatscord.atualizacao.ultimaVerificacao");
+check("sem marca gravada, a ultima verificacao e null", ultimaVerificacao() === null);
+marcarVerificacao(AGORA);
+check("a marca gravada volta igual", ultimaVerificacao() === AGORA, AGORA, ultimaVerificacao());
+check("e com ela, uma hora depois, nao procura", deveVerificar(ultimaVerificacao(), AGORA + HORA) === false);
+memoria.set("whatscord.atualizacao.ultimaVerificacao", "");
+check("marca vazia e null, nao 1970", ultimaVerificacao() === null, null, ultimaVerificacao());
+memoria.set("whatscord.atualizacao.ultimaVerificacao", "ontem");
+check("marca corrompida e null", ultimaVerificacao() === null, null, ultimaVerificacao());
+
+/*
+ * Um localStorage que LANCA (modo privado, cota estourada) nao pode derrubar a
+ * abertura do app: le como "nunca verificou" e a gravacao some em silencio.
+ */
+const lsDeMentira = (globalThis as { localStorage?: unknown }).localStorage;
+(globalThis as { localStorage?: unknown }).localStorage = {
+  getItem: () => {
+    throw new Error("SecurityError");
+  },
+  setItem: () => {
+    throw new Error("QuotaExceededError");
+  },
+  removeItem: () => {}
+};
+let explodiu = false;
+try {
+  marcarVerificacao(AGORA);
+  check("localStorage que lanca: a leitura vira null", ultimaVerificacao() === null);
+} catch {
+  explodiu = true;
+}
+check("e nada explode", explodiu === false);
+(globalThis as { localStorage?: unknown }).localStorage = lsDeMentira;
+
+// ---------------------------------------------------------------------------
+section("atualizacao do app desktop — progresso do download");
+
+function rodar(eventos: EventoDeDownload[]): Progresso {
+  return eventos.reduce(aplicarEvento, PROGRESSO_INICIAL);
+}
+
+check("antes de comecar nao ha porcentagem", porcentagem(PROGRESSO_INICIAL) === null);
+
+const comTotal = rodar([{ event: "Started", data: { contentLength: 1000 } }]);
+check("comecou com tamanho conhecido: 0%", porcentagem(comTotal) === 0, 0, porcentagem(comTotal));
+
+const metade = rodar([
+  { event: "Started", data: { contentLength: 1000 } },
+  { event: "Progress", data: { chunkLength: 300 } },
+  { event: "Progress", data: { chunkLength: 200 } }
+]);
+check("soma os pedacos: 500 de 1000 = 50%", porcentagem(metade) === 50, 50, porcentagem(metade));
+
+const quase = rodar([
+  { event: "Started", data: { contentLength: 1000 } },
+  { event: "Progress", data: { chunkLength: 999 } }
+]);
+check("arredonda para baixo: 99,9% mostra 99", porcentagem(quase) === 99, 99, porcentagem(quase));
+
+const tudoSemFinished = rodar([
+  { event: "Started", data: { contentLength: 1000 } },
+  { event: "Progress", data: { chunkLength: 1000 } }
+]);
+check(
+  "todos os bytes chegaram mas sem Finished: ainda 99, nao 100",
+  porcentagem(tudoSemFinished) === 99,
+  99,
+  porcentagem(tudoSemFinished)
+);
+
+const terminou = rodar([
+  { event: "Started", data: { contentLength: 1000 } },
+  { event: "Progress", data: { chunkLength: 1000 } },
+  { event: "Finished" }
+]);
+check("Finished: 100%", porcentagem(terminou) === 100, 100, porcentagem(terminou));
+
+const passou = rodar([
+  { event: "Started", data: { contentLength: 1000 } },
+  { event: "Progress", data: { chunkLength: 5000 } }
+]);
+check("servidor mandou mais que o anunciado: nao passa de 99", porcentagem(passou) === 99, 99, porcentagem(passou));
+
+const semTamanho = rodar([
+  { event: "Started", data: {} },
+  { event: "Progress", data: { chunkLength: 4096 } }
+]);
+check("sem contentLength: porcentagem desconhecida (null)", porcentagem(semTamanho) === null, null, porcentagem(semTamanho));
+check("mas os bytes baixados continuam contados", semTamanho.baixado === 4096, 4096, semTamanho.baixado);
+check(
+  "sem contentLength e Finished: 100%",
+  porcentagem(aplicarEvento(semTamanho, { event: "Finished" })) === 100
+);
+
+const tamanhoZero = rodar([
+  { event: "Started", data: { contentLength: 0 } },
+  { event: "Progress", data: { chunkLength: 10 } }
+]);
+check("contentLength 0 e tratado como desconhecido (sem dividir por zero)", porcentagem(tamanhoZero) === null, null, porcentagem(tamanhoZero));
+
+const recomecou = rodar([
+  { event: "Started", data: { contentLength: 1000 } },
+  { event: "Progress", data: { chunkLength: 800 } },
+  { event: "Started", data: { contentLength: 2000 } }
+]);
+check("um Started novo zera a contagem", recomecou.baixado === 0 && porcentagem(recomecou) === 0);
+
+const pedacoRuim = rodar([
+  { event: "Started", data: { contentLength: 1000 } },
+  { event: "Progress", data: { chunkLength: Number.NaN } },
+  { event: "Progress", data: { chunkLength: -50 } },
+  { event: "Progress", data: { chunkLength: 100 } }
+]);
+check("pedaco NaN ou negativo nao estraga a soma", pedacoRuim.baixado === 100, 100, pedacoRuim.baixado);
+check("aplicarEvento nao altera o progresso inicial", PROGRESSO_INICIAL.baixado === 0 && PROGRESSO_INICIAL.total === null);
+
+// ---------------------------------------------------------------------------
+section("atualizacao do app desktop — que tipo de erro foi");
+
+check("sem internet (navigator.onLine falso) e offline, seja qual for o texto", tipoDeErro(new Error("qualquer coisa"), false) === "offline");
+check(
+  "nenhuma release publicada (texto do plugin)",
+  tipoDeErro("Could not fetch a valid release JSON from the remote") === "sem-versao-publicada"
+);
+check(
+  "release sem build para esta plataforma conta como nao publicada",
+  tipoDeErro("the platform `windows-x86_64` was not found in the response `platforms` object") === "sem-versao-publicada"
+);
+check(
+  "erro de rede do reqwest",
+  tipoDeErro("error sending request for url (https://github.com/x/latest.json)") === "offline"
+);
+check(
+  "assinatura que nao decodifica",
+  tipoDeErro(new Error("The signature abc could not be decoded, please check if it is a valid base64 string.")) === "assinatura"
+);
+check("assinatura invalida", tipoDeErro("Invalid signature") === "assinatura");
+check("o resto cai em outro", tipoDeErro("Failed to install package") === "outro");
+check("undefined nao explode", tipoDeErro(undefined) === "outro");
+check("objeto qualquer nao explode", tipoDeErro({ codigo: 1 }) === "outro");
 
 // ---------------------------------------------------------------------------
 console.log(`\n${passed} passaram, ${failures.length} falharam`);
