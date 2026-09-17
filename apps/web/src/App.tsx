@@ -15,6 +15,8 @@ import { Chat } from "./ui/Chat";
 import { PainelDeMembros } from "./ui/Membros";
 import { Toasts } from "./ui/Toasts";
 import { InviteGate } from "./ui/InviteGate";
+import { AvisoDeAtualizacao } from "./ui/Atualizacao";
+import { iniciarVerificacaoAutomatica } from "./lib/atualizador";
 
 /*
  * A tela de chamada carrega sob demanda porque ela traz junto o livekit-client,
@@ -87,6 +89,14 @@ export default function App() {
   useEffect(() => watchSystemTheme(() => useStore.getState().theme), []);
 
   /*
+   * Procura versão nova do app desktop alguns segundos depois de abrir, sem
+   * segurar a abertura. Mora aqui, e não no aviso, porque o aviso troca de lugar
+   * quando a pessoa entra na conta — e cada remontagem reiniciaria a espera.
+   * No navegador e no Android a função não faz nada.
+   */
+  useEffect(() => iniciarVerificacaoAutomatica(), []);
+
+  /*
    * O endereço com que a página abriu, uma vez só.
    *
    * Aqui NÃO se entra direto: o navegador não sabe se o app está instalado, e
@@ -150,7 +160,18 @@ export default function App() {
     );
   }
 
-  if (!me) return <Auth />;
+  /*
+   * O aviso de versão nova aparece também na tela de entrada: se o problema que
+   * impede alguém de entrar foi corrigido numa versão nova, é justamente ali
+   * que a pessoa precisa saber. Ele não desenha nada fora do app desktop.
+   */
+  if (!me)
+    return (
+      <>
+        <Auth />
+        <AvisoDeAtualizacao />
+      </>
+    );
 
   return (
     // On a narrow screen only one pane is on screen at a time, and this is what
@@ -172,6 +193,7 @@ export default function App() {
         </Suspense>
       )}
       <Toasts />
+      <AvisoDeAtualizacao />
     </div>
   );
 }

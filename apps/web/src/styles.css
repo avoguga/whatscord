@@ -2405,3 +2405,45 @@ input, textarea { font: inherit; color: inherit; }
 .device-choice-text > span { font-size: 13.5px; color: var(--text); }
 .device-choice-text small { font-size: 12px; line-height: 1.4; color: var(--text-dim); }
 .device-choice select { flex: 0 0 auto; min-width: 9rem; }
+
+/* ---- atualização do app desktop ---- */
+
+/*
+  No canto de baixo à esquerda, sobre a lista de conversas: embaixo no centro
+  moram os avisos de confirmação, e à direita ficam o campo de mensagem e os
+  botões do cabeçalho da conversa — o aviso cobriria algo que se usa o tempo
+  todo. Só existe no app desktop, então não precisa de versão para celular.
+*/
+.update-notice {
+  position: fixed; left: var(--gap-4); bottom: var(--gap-4);
+  z-index: 59;
+  display: flex; align-items: flex-start; gap: var(--gap-3);
+  width: min(340px, calc(100vw - 32px));
+  background: var(--overlay); color: var(--text);
+  border-left: 3px solid var(--accent);
+  padding: 11px var(--gap-3) 11px var(--gap-4);
+  border-radius: 8px; font-size: 14px;
+  box-shadow: var(--shadow-md);
+  animation: toast-in 160ms ease;
+}
+.update-notice-text { flex: 1; display: flex; flex-direction: column; gap: var(--gap-1); min-width: 0; }
+.update-notice-text small { color: var(--text-dim); font-size: 13px; }
+.update-notice-text .btn-link { align-self: flex-start; }
+.update-notice-close { color: var(--text-dim); display: grid; place-items: center; }
+.update-notice-close:hover { color: var(--text); }
+.update-notice .update-error { color: var(--danger-text); }
+
+.update-ok { color: var(--text); }
+.update-recheck { display: block; margin-top: var(--gap-3); }
+.update-check:disabled { color: var(--text-faint); border-color: var(--divider); cursor: default; }
+
+.update-progress { display: flex; flex-direction: column; gap: var(--gap-1); margin: var(--gap-2) 0 var(--gap-3); }
+.update-progress small { color: var(--text-dim); font-size: 13px; font-variant-numeric: tabular-nums; }
+.update-bar { height: 6px; border-radius: 3px; background: var(--divider); overflow: hidden; }
+.update-bar span { display: block; height: 100%; background: var(--accent); transition: width 200ms ease; }
+/* Sem tamanho anunciado não há porcentagem: uma faixa que anda diz "está vindo". */
+.update-bar[data-indeterminado] span { width: 30%; animation: update-indeterminado 1.2s ease-in-out infinite; }
+@keyframes update-indeterminado {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(340%); }
+}

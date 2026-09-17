@@ -15,6 +15,8 @@ import type { MessageDescriptor } from "@lingui/core";
 import { Avatar } from "./Avatar";
 import { Scrim } from "./Scrim";
 import { DevicePicker } from "./DevicePicker";
+import { SecaoAtualizacao } from "./Atualizacao";
+import { atualizacaoDisponivelAqui } from "../lib/atualizador";
 
 /**
  * Configurações, em seções.
@@ -35,7 +37,7 @@ import { DevicePicker } from "./DevicePicker";
  * dizer "ainda ninguém escolheu, mostre a primeira".
  */
 
-type SecaoId = "conta" | "voz" | "aparencia" | "idioma";
+type SecaoId = "conta" | "voz" | "aparencia" | "idioma" | "atualizacao";
 
 /*
  * `msg` guarda a mensagem SEM traduzir; quem traduz é o `i18n._()` na hora de
@@ -53,7 +55,15 @@ const SECOES: { id: SecaoId; titulo: MessageDescriptor; grupo: MessageDescriptor
   { id: "conta", titulo: msg`My account`, grupo: msg`Account`, icone: "person" },
   { id: "voz", titulo: msg`Voice and video`, grupo: msg`App`, icone: "mic" },
   { id: "aparencia", titulo: msg`Appearance`, grupo: msg`App`, icone: "palette" },
-  { id: "idioma", titulo: msg`Language`, grupo: msg`App`, icone: "globe" }
+  { id: "idioma", titulo: msg`Language`, grupo: msg`App`, icone: "globe" },
+  /*
+   * Só existe no app instalado no computador. No navegador a versão nova chega
+   * sozinha no próximo carregamento, e no Android o plugin de atualização nem
+   * é registrado — mostrar a seção lá seria oferecer um botão que só dá erro.
+   */
+  ...(atualizacaoDisponivelAqui
+    ? [{ id: "atualizacao" as const, titulo: msg`Updates`, grupo: msg`App`, icone: "update" }]
+    : [])
 ];
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
@@ -128,6 +138,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
             {atual === "voz" && <SecaoVoz />}
             {atual === "aparencia" && <SecaoAparencia />}
             {atual === "idioma" && <SecaoIdioma />}
+            {atual === "atualizacao" && <SecaoAtualizacao />}
           </div>
         </section>
       </div>
@@ -153,6 +164,8 @@ function Icone({ nome }: { nome: string }) {
     mic: "M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V22h2v-3.1A7 7 0 0 0 19 12h-2Z",
     globe:
       "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm6.9 9h-3a15.6 15.6 0 0 0-1-5.2A8 8 0 0 1 18.9 11ZM12 4.1c.7 1 1.5 2.9 1.8 6.9h-3.6c.3-4 1.1-5.9 1.8-6.9ZM5.1 11a8 8 0 0 1 4-5.2 15.6 15.6 0 0 0-1 5.2h-3Zm0 2h3c.1 2 .5 3.8 1 5.2A8 8 0 0 1 5.1 13Zm6.9 6.9c-.7-1-1.5-2.9-1.8-6.9h3.6c-.3 4-1.1 5.9-1.8 6.9Zm2.9-1.7c.5-1.4.9-3.2 1-5.2h3a8 8 0 0 1-4 5.2Z",
+    update:
+      "M12 4a8 8 0 0 0-7.4 5H2l3.5 4L9 9H6.8A6 6 0 1 1 6 12H4a8 8 0 1 0 8-8Zm-1 4v5l4.2 2.5.8-1.3-3.5-2.1V8h-1.5Z",
     palette:
       "M12 3a9 9 0 0 0 0 18c.8 0 1.5-.7 1.5-1.5 0-.4-.2-.8-.4-1-.3-.3-.4-.6-.4-1 0-.8.7-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.4-4-8-9-8Zm-4.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"
   };
