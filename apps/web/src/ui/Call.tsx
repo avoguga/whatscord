@@ -343,7 +343,20 @@ export function CallSheet({
           .on(RoomEvent.Reconnected, () => setStatus("connected"));
 
         await room.connect(res.url, res.token);
-        if (cancelled) return;
+        if (cancelled) {
+          /*
+           * A tela fechou ENQUANTO isto conectava.
+           *
+           * A limpeza já rodou, e o `disconnect` dela não teve o que fazer: a
+           * sala ainda não estava conectada, e o LiveKit responde "already
+           * disconnected" e volta. Sem esta linha, a conexão que acabou de
+           * subir fica aberta para sempre — sem tela, sem ninguém para
+           * fechá-la, e com o microfone publicando para quem estiver na sala.
+           * É como nasce um fantasma na chamada.
+           */
+          void room.disconnect().catch(() => undefined);
+          return;
+        }
         setStatus("connected");
         /*
          * O som de ENTRAR, para quem entrou.
@@ -734,7 +747,7 @@ export function CallSheet({
             <Trans>Open the call</Trans>
           </button>
           <button className="ribbon-hangup" onClick={sair}>
-            Leave
+            <Trans>Leave</Trans>
           </button>
         </div>
       </>
@@ -793,7 +806,7 @@ export function CallSheet({
           <span className={status === "failed" ? "bad" : undefined}>{statusLabel}</span>
         </div>
         <button className="call-leave-top" onClick={sair} title={t`Leave the call`}>
-          <IconHangup size={18} /> Leave
+          <IconHangup size={18} /> <Trans>Leave</Trans>
         </button>
       </header>
 

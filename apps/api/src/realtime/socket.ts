@@ -12,6 +12,7 @@ import {
   sairDaVoz
 } from "../lib/presencaDeVoz.js";
 import { anunciarPresencaDeVoz } from "./voz.js";
+import { expulsarDaChamada } from "../lib/livekitSala.js";
 import { emitToUsers, roomChannel, setIO, userChannel } from "./bus.js";
 
 /**
@@ -166,6 +167,12 @@ export async function attachSocketServer(httpServer: HttpServer) {
     const sair = (payload: { roomId?: string }) =>
       safe(async () => {
         if (!payload?.roomId || !(await isMember(payload.roomId, userId))) return;
+        /*
+         * A hora da saída, tomada ANTES de qualquer ida à rede: é com ela que se
+         * decide, lá no LiveKit, se a sessão que está na sala é a que acabou de
+         * sair ou uma que já voltou. Ver `expulsao.ts`.
+         */
+        const pedidoEm = Date.now();
         socket.to(roomChannel(payload.roomId)).emit("call:left", { roomId: payload.roomId, userId });
         /*
          * Sair é deliberado: derruba TODAS as conexões desta pessoa nesta sala,
@@ -177,6 +184,18 @@ export async function attachSocketServer(httpServer: HttpServer) {
         if (await sairDaVoz(payload.roomId, userId, socket.id, true)) {
           await anunciarPresencaDeVoz(payload.roomId);
         }
+        /*
+         * E tira do LIVEKIT também.
+         *
+         * Sair da nossa lista de presença é o que a barra lateral lê; continuar
+         * no LiveKit é o que os OUTROS continuam ouvindo. Os dois divergiam, e
+         * foi medido: quatro minutos depois de a tela de chamada fechar, o
+         * LiveKit ainda dava a pessoa como ativa, publicando áudio, porque o
+         * aviso de saída do navegador dela nunca foi entregue — aba congelada
+         * entrega o `sendLeave` nunca, e o soquete aberto impede o tempo limite
+         * de agir. Quem sempre sabe que a pessoa saiu é este servidor.
+         */
+        await expulsarDaChamada(payload.roomId, userId, pedidoEm);
       });
     socket.on("call:leave", sair);
     socket.on("voice:leave", sair);
@@ -192,9 +211,16 @@ export async function attachSocketServer(httpServer: HttpServer) {
          * daria conta em 90 s, mas 90 s olhando para alguém que já foi embora é
          * exatamente o defeito que a presença no servidor veio consertar.
          */
+        const caiuEm = Date.now();
         for (const roomId of await esquecerConexao(socket.id, userId)) {
           io.to(roomChannel(roomId)).emit("call:left", { roomId, userId });
           await anunciarPresencaDeVoz(roomId);
+          /*
+           * `esquecerConexao` só devolve as salas em que a pessoa sumiu de vez —
+           * era a última conexão dela. Nas outras ela continua em outra aba, e
+           * expulsar do LiveKit derrubaria essa aba.
+           */
+          await expulsarDaChamada(roomId, userId, caiuEm);
         }
 
         const wasLast = await markOffline(userId, socket.id);

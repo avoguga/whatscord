@@ -921,6 +921,8 @@ msgid "Later"
 msgstr "Más tarde"
 
 #: src/ui/Call.tsx
+#: src/ui/Call.tsx
+#: src/ui/Call.tsx
 msgid "Leave"
 msgstr "Salir"
 
