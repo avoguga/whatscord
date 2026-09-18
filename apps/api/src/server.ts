@@ -13,6 +13,7 @@ import { spaceRoutes } from "./routes/spaces.js";
 import { fileRoutes } from "./routes/files.js";
 import { callRoutes } from "./routes/calls.js";
 import { soundRoutes } from "./routes/sounds.js";
+import { streamRoutes } from "./routes/streams.js";
 import { attachSocketServer } from "./realtime/socket.js";
 import { falha } from "./lib/falha.js";
 
@@ -80,6 +81,7 @@ async function main() {
   await app.register(fileRoutes);
   await app.register(callRoutes);
   await app.register(soundRoutes);
+  await app.register(streamRoutes);
 
   // Storage failing to initialise must not stop the app from serving messages.
   await initStorage().catch((err) =>

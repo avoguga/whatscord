@@ -5,7 +5,7 @@ import { naoLidasForaDosEspacos, naoLidasNaVista, rotuloDeContador } from "../li
 import { assinarAtualizacao, estadoDaAtualizacao, temAtualizacaoPendente } from "../lib/atualizador";
 import { initials, listStamp } from "../lib/format";
 import {
-  IconChats, IconSearch, IconNewChat, IconMute, IconChecks,
+  IconAoVivo, IconChats, IconSearch, IconNewChat, IconMute, IconChecks,
   IconVoiceRoom, IconPhone, IconSettings, IconUserPlus, IconGroup, IconSpaces, IconHash
 } from "./icons";
 import { NewChatModal, NewSpaceModal } from "./Modals";
@@ -36,6 +36,9 @@ export function Sidebar() {
   const setFilter = useStore((s) => s.setFilter);
   const setSearch = useStore((s) => s.setSearch);
   const setActiveSpace = useStore((s) => s.setActiveSpace);
+  const superficie = useStore((s) => s.superficie);
+  const setSuperficie = useStore((s) => s.setSuperficie);
+  const transmissoes = useStore((s) => s.transmissoes);
 
   const [modal, setModal] = useState<
     "chat" | "space" | "group" | "spaceInfo" | "addPeople" | "groupInfo" | "settings" | null
@@ -114,11 +117,29 @@ export function Sidebar() {
         reads as the app being broken rather than as a feature not being ready.
       */}
       <nav className="rail" aria-label={t`Places`}>
+        {/*
+          A tela de início vem antes das conversas de propósito: é a vitrine, e
+          é a primeira coisa que alguém abre para ver "o que está rolando".
+        */}
+        <button
+          className="rail-btn"
+          data-tip={t`Live now`}
+          aria-pressed={superficie === "inicio"}
+          onClick={() => setSuperficie("inicio")}
+        >
+          <IconAoVivo />
+          {transmissoes.length > 0 && superficie !== "inicio" && (
+            <span className="rail-badge rail-badge-vivo">{transmissoes.length}</span>
+          )}
+        </button>
         <button
           className="rail-btn"
           data-tip="Chats"
-          aria-pressed={activeSpaceId === null}
-          onClick={() => setActiveSpace(null)}
+          aria-pressed={superficie === "conversas" && activeSpaceId === null}
+          onClick={() => {
+            setSuperficie("conversas");
+            setActiveSpace(null);
+          }}
         >
           <IconChats />
           {unreadDeConversas > 0 && activeSpaceId !== null && (

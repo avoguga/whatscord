@@ -2922,6 +2922,368 @@ function missingState(keys) {
  * estar de pé. Um teste que apaga o cenário dos outros passa hoje e derruba a
  * suíte inteira no dia em que alguém trocar a ordem das seções.
  */
+/* ================================================================== */
+/* 19. Transmissões: quem pode assistir, e com que crachá               */
+/* ================================================================== */
+
+/**
+ * O que importa aqui não é a tela: é o CRACHÁ.
+ *
+ * Transmitir é a chamada de sempre com as permissões trocadas, então a defesa
+ * inteira mora no token. Por isso esta seção abre o JWT e confere os `grants`
+ * campo a campo — um `canPublish` que escapasse para o lado de quem assiste
+ * transformaria toda plateia em gente com microfone aberto, e nenhuma tela
+ * mostraria isso até acontecer.
+ */
+function grantsDoToken(jwt) {
+  try {
+    const corpo = jwt.split(".")[1];
+    const json = Buffer.from(corpo.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
+    return JSON.parse(json).video ?? {};
+  } catch {
+    return null;
+  }
+}
+
+async function secTransmissoes() {
+  console.log("\n=== 19. Transmissões ===");
+  const { A, B, C } = state;
+  const tr = {};
+
+  await t("criar uma transmissão pública", async () => {
+    const r = await POST("/streams", {
+      token: A.token,
+      body: { title: "Jogo da noite", visibility: "PUBLIC" }
+    });
+    tr.publica = r.json?.stream;
+    check(
+      "201 com id, sala de bate-papo e código",
+      r.status === 201 && tr.publica?.id && tr.publica?.roomId && tr.publica?.inviteCode,
+      "201 completo",
+      short(r)
+    );
+    check("nasce fora do ar", tr.publica?.aoVivo === false, "false", String(tr.publica?.aoVivo));
+  });
+
+  await t("título e visibilidade são obrigatórios", async () => {
+    const semTitulo = await POST("/streams", {
+      token: A.token,
+      body: { title: "   ", visibility: "PUBLIC" }
+    });
+    check(
+      "título em branco é 400 streams.needs_title",
+      semTitulo.status === 400 && semTitulo.json?.code === "streams.needs_title",
+      "400 streams.needs_title",
+      short(semTitulo)
+    );
+    const semQuem = await POST("/streams", { token: A.token, body: { title: "Sem quem" } });
+    check(
+      "sem visibilidade é 400 streams.pick_visibility",
+      semQuem.status === 400 && semQuem.json?.code === "streams.pick_visibility",
+      "400 streams.pick_visibility",
+      short(semQuem)
+    );
+  });
+
+  await t("transmissão de espaço exige o espaço, e ser dele", async () => {
+    const semEspaco = await POST("/streams", {
+      token: A.token,
+      body: { title: "Do espaço", visibility: "SPACE" }
+    });
+    check(
+      "SPACE sem spaceId é 400 streams.pick_space",
+      semEspaco.status === 400 && semEspaco.json?.code === "streams.pick_space",
+      "400 streams.pick_space",
+      short(semEspaco)
+    );
+    const alheio = await POST("/streams", {
+      token: C.token,
+      body: { title: "No espaço dos outros", visibility: "SPACE", spaceId: state.space.id }
+    });
+    check(
+      "C, que não é do espaço, recebe 403 spaces.not_member",
+      alheio.status === 403 && alheio.json?.code === "spaces.not_member",
+      "403 spaces.not_member",
+      short(alheio)
+    );
+  });
+
+  await t("assistir antes de entrar no ar", async () => {
+    const r = await POST(`/streams/${tr.publica.id}/watch`, { token: B.token });
+    check(
+      "quem chega antes recebe 409 streams.offline",
+      r.status === 409 && r.json?.code === "streams.offline",
+      "409 streams.offline",
+      short(r)
+    );
+  });
+
+  await t("entrar no ar: o crachá de quem PUBLICA", async () => {
+    const r = await POST(`/streams/${tr.publica.id}/go-live`, { token: A.token });
+    check("go-live devolve 200", r.status === 200, "200", short(r));
+    check("o modo é webrtc", r.json?.modo === "webrtc", "webrtc", String(r.json?.modo));
+
+    const g = grantsDoToken(r.json?.token ?? "");
+    check("o token traz grants legíveis", g !== null && typeof g === "object", "objeto", String(g));
+    check(
+      "quem transmite PODE publicar",
+      g?.canPublish === true,
+      "canPublish true",
+      JSON.stringify(g)
+    );
+    check("quem transmite não é escondido", !g?.hidden, "hidden ausente/false", String(g?.hidden));
+    check(
+      "a sala é a da transmissão, e não a de uma chamada",
+      g?.room === `stream_${tr.publica.id}`,
+      `stream_${tr.publica.id}`,
+      String(g?.room)
+    );
+    check(
+      "pode publicar as quatro fontes de sempre",
+      Array.isArray(g?.canPublishSources) && g.canPublishSources.length === 4,
+      "4 fontes",
+      JSON.stringify(g?.canPublishSources)
+    );
+  });
+
+  await t("assistir: o crachá de quem SÓ ESCUTA", async () => {
+    const r = await POST(`/streams/${tr.publica.id}/watch`, { token: B.token });
+    check("200 para quem pode assistir", r.status === 200, "200", short(r));
+
+    const g = grantsDoToken(r.json?.token ?? "");
+    check("quem assiste NÃO publica", g?.canPublish === false, "canPublish false", JSON.stringify(g));
+    check("quem assiste NÃO manda dados", g?.canPublishData === false, "canPublishData false", JSON.stringify(g));
+    check("quem assiste assina", g?.canSubscribe === true, "canSubscribe true", JSON.stringify(g));
+    /*
+     * O escondido é o que impede a tela de quem transmite de tentar desenhar um
+     * quadradinho por pessoa na plateia — ela monta um tile por participante
+     * remoto, sem teto nenhum.
+     */
+    check("quem assiste é ESCONDIDO", g?.hidden === true, "hidden true", JSON.stringify(g));
+    check(
+      "o código secreto não vai para quem assiste",
+      r.json?.stream?.inviteCode === null,
+      "null",
+      String(r.json?.stream?.inviteCode)
+    );
+  });
+
+  await t("quem assiste ganha o bate-papo junto", async () => {
+    const r = await POST(`/rooms/${tr.publica.roomId}/messages`, {
+      token: B.token,
+      body: { content: "boa jogada" }
+    });
+    check(
+      "B escreve na sala da transmissão sem nenhuma rota nova",
+      r.status === 201,
+      "201",
+      short(r)
+    );
+  });
+
+  await t("a vitrine mostra a pública para estranhos", async () => {
+    const r = await GET("/streams/live", { token: C.token });
+    check(
+      "C vê a transmissão pública de A",
+      r.status === 200 && (r.json?.streams ?? []).some((x) => x.id === tr.publica.id),
+      "a pública na lista",
+      short(r)
+    );
+    check("o teto de espectadores vem junto", typeof r.json?.teto === "number", "número", String(r.json?.teto));
+  });
+
+  /* ------------------------------------------------------------ privadas */
+
+  await t("por link: só com o código", async () => {
+    const criada = await POST("/streams", {
+      token: A.token,
+      body: { title: "Só para os chegados", visibility: "LINK" }
+    });
+    tr.link = criada.json?.stream;
+    await POST(`/streams/${tr.link.id}/go-live`, { token: A.token });
+
+    const semCodigo = await POST(`/streams/${tr.link.id}/watch`, { token: C.token });
+    check(
+      "sem código é 403 streams.private",
+      semCodigo.status === 403 && semCodigo.json?.code === "streams.private",
+      "403 streams.private",
+      short(semCodigo)
+    );
+    const errado = await POST(`/streams/${tr.link.id}/watch`, {
+      token: C.token,
+      body: { codigo: "0000000000" }
+    });
+    check("código errado é 403", errado.status === 403, "403", short(errado));
+
+    const certo = await POST(`/streams/${tr.link.id}/watch`, {
+      token: C.token,
+      body: { codigo: tr.link.inviteCode }
+    });
+    check("com o código certo, entra", certo.status === 200, "200", short(certo));
+  });
+
+  /*
+   * A pergunta que mais importa nesta seção. Quem tem o código PODE assistir —
+   * e a transmissão dele NÃO PODE aparecer numa vitrine, ou o código deixa de
+   * ser segredo no instante em que qualquer pessoa abre a tela de início.
+   */
+  await t("por link NUNCA aparece na vitrine", async () => {
+    const deC = await GET("/streams/live", { token: C.token });
+    check(
+      "não aparece nem para C, que acabou de assistir com o código",
+      !(deC.json?.streams ?? []).some((x) => x.id === tr.link.id),
+      "fora da lista",
+      short(deC)
+    );
+    const deB = await GET("/streams/live", { token: B.token });
+    check(
+      "não aparece para B, que nunca viu o código",
+      !(deB.json?.streams ?? []).some((x) => x.id === tr.link.id),
+      "fora da lista",
+      short(deB)
+    );
+    const deA = await GET("/streams/live", { token: A.token });
+    check(
+      "aparece só para o dono",
+      (deA.json?.streams ?? []).some((x) => x.id === tr.link.id),
+      "na lista de A",
+      short(deA)
+    );
+  });
+
+  await t("de espaço: só quem é do espaço", async () => {
+    const criada = await POST("/streams", {
+      token: A.token,
+      body: { title: "Do servidor", visibility: "SPACE", spaceId: state.space.id }
+    });
+    tr.espaco = criada.json?.stream;
+    check("criada", criada.status === 201, "201", short(criada));
+    await POST(`/streams/${tr.espaco.id}/go-live`, { token: A.token });
+
+    const deFora = await POST(`/streams/${tr.espaco.id}/watch`, { token: C.token });
+    check(
+      "C, de fora do espaço, recebe 403 streams.private",
+      deFora.status === 403 && deFora.json?.code === "streams.private",
+      "403 streams.private",
+      short(deFora)
+    );
+    const membro = await POST(`/streams/${tr.espaco.id}/watch`, { token: B.token });
+    check("B, membro do espaço, entra", membro.status === 200, "200", short(membro));
+
+    const vitrineC = await GET("/streams/live", { token: C.token });
+    check(
+      "e ela não aparece na vitrine de quem é de fora",
+      !(vitrineC.json?.streams ?? []).some((x) => x.id === tr.espaco.id),
+      "fora da lista de C",
+      short(vitrineC)
+    );
+    const vitrineB = await GET("/streams/live", { token: B.token });
+    check(
+      "mas aparece na de quem é do espaço",
+      (vitrineB.json?.streams ?? []).some((x) => x.id === tr.espaco.id),
+      "na lista de B",
+      short(vitrineB)
+    );
+  });
+
+  await t("abrir pelo código, sem entrar", async () => {
+    const ok = await GET(`/streams/code/${tr.link.inviteCode}`, { token: C.token });
+    check("com o código, vê o título e quem transmite", ok.status === 200 && ok.json?.stream?.title, "200", short(ok));
+    const inventado = await GET("/streams/code/deadbeef99", { token: C.token });
+    check(
+      "código inventado é 404, e não 403 — 403 já contaria que existe",
+      inventado.status === 404 && inventado.json?.code === "streams.missing",
+      "404 streams.missing",
+      short(inventado)
+    );
+  });
+
+  /* ------------------------------------------------------------- o dono */
+
+  await t("só o dono manda na transmissão dele", async () => {
+    for (const [nome, r] of [
+      ["go-live", await POST(`/streams/${tr.publica.id}/go-live`, { token: B.token })],
+      ["stop", await POST(`/streams/${tr.publica.id}/stop`, { token: B.token })],
+      ["patch", await PATCH(`/streams/${tr.publica.id}`, { token: B.token, body: { title: "meu agora" } })],
+      ["delete", await DEL(`/streams/${tr.publica.id}`, { token: B.token })]
+    ]) {
+      check(
+        `B recebe 403 streams.not_yours em ${nome}`,
+        r.status === 403 && r.json?.code === "streams.not_yours",
+        "403 streams.not_yours",
+        short(r)
+      );
+    }
+  });
+
+  await t("apertar a visibilidade põe para fora quem já estava", async () => {
+    const r = await PATCH(`/streams/${tr.publica.id}`, {
+      token: A.token,
+      body: { visibility: "LINK" }
+    });
+    check("o dono aperta a visibilidade", r.status === 200, "200", short(r));
+    /*
+     * B era membro da sala do bate-papo porque assistiu quando era pública. Se
+     * a associação ficasse de pé, a transmissão recém-fechada continuaria
+     * aberta justamente para quem se quis deixar de fora.
+     */
+    const escreve = await POST(`/rooms/${tr.publica.roomId}/messages`, {
+      token: B.token,
+      body: { content: "ainda estou aqui?" }
+    });
+    check(
+      "B perde o acesso ao bate-papo dela",
+      escreve.status === 404 || escreve.status === 403,
+      "404 ou 403",
+      short(escreve)
+    );
+  });
+
+  await t("sair do ar", async () => {
+    const r = await POST(`/streams/${tr.espaco.id}/stop`, { token: A.token });
+    check("stop devolve 204", r.status === 204, "204", short(r));
+    const vitrine = await GET("/streams/live", { token: B.token });
+    check(
+      "sai da vitrine na hora",
+      !(vitrine.json?.streams ?? []).some((x) => x.id === tr.espaco.id),
+      "fora da lista",
+      short(vitrine)
+    );
+    const tarde = await POST(`/streams/${tr.espaco.id}/watch`, { token: B.token });
+    check(
+      "quem chega depois recebe 409 streams.offline",
+      tarde.status === 409 && tarde.json?.code === "streams.offline",
+      "409 streams.offline",
+      short(tarde)
+    );
+  });
+
+  await t("apagar leva a sala e o bate-papo junto", async () => {
+    const r = await DEL(`/streams/${tr.espaco.id}`, { token: A.token });
+    check("204", r.status === 204, "204", short(r));
+    const denovo = await DEL(`/streams/${tr.espaco.id}`, { token: A.token });
+    check(
+      "apagar de novo é 404 streams.missing",
+      denovo.status === 404 && denovo.json?.code === "streams.missing",
+      "404 streams.missing",
+      short(denovo)
+    );
+    const sala = await GET(`/rooms/${tr.espaco.roomId}`, { token: A.token });
+    check("a sala do bate-papo foi junto", sala.status === 404, "404", short(sala));
+  });
+
+  await t("limpeza das que sobraram", async () => {
+    for (const x of [tr.publica, tr.link]) {
+      if (x) await DEL(`/streams/${x.id}`, { token: A.token });
+    }
+    const minhas = await GET("/streams/mine", { token: A.token });
+    const restaram = (minhas.json?.streams ?? []).filter((x) =>
+      [tr.publica?.id, tr.link?.id, tr.espaco?.id].includes(x.id)
+    );
+    check("nada da seção ficou para trás", restaram.length === 0, "0", String(restaram.length));
+  });
+}
+
 async function secConfigDoEspaco() {
   console.log("\n=== 18. Configurar o espaço ===");
   const { A, B, C } = state;
@@ -3380,7 +3742,8 @@ async function main() {
     ["grupo", secGrupo, ["A", "B", "C", "dmAB", "generalId"]],
     ["papeis", secPapeis, ["A", "B", "C", "D"]],
     ["sons", secSons, ["A", "B", "C"]],
-    ["configespaco", secConfigDoEspaco, ["A", "B", "C"]]
+    ["configespaco", secConfigDoEspaco, ["A", "B", "C"]],
+    ["transmissoes", secTransmissoes, ["A", "B", "C", "space"]]
   ];
 
   for (const [name, section, needs] of sections) {

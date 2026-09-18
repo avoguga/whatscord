@@ -1,6 +1,7 @@
 import { prisma } from "../lib/prisma.js";
 import { vozUserSelect } from "../lib/shapes.js";
 import { usuariosNaVoz } from "../lib/presencaDeVoz.js";
+import { chaveDeEspectadores } from "../lib/transmissao.js";
 import { emitToRoom } from "./bus.js";
 
 /**
@@ -22,4 +23,17 @@ export async function usuariosDaSala(roomId: string) {
   const users = await prisma.user.findMany({ where: { id: { in: ids } }, select: vozUserSelect });
   // A ordem do banco não tem significado; o nome dá uma lista estável.
   return users.sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
+/**
+ * Avisa quem está numa transmissão de quantos são.
+ *
+ * Vai só o NÚMERO, e não a lista de nomes como na voz. Numa chamada saber quem
+ * está lá é o ponto; numa transmissão, publicar a lista de quem assiste seria
+ * entregar a audiência inteira para qualquer pessoa que entrasse — e num
+ * servidor pequeno, com gente que se conhece, isso é mais do que ninguém pediu.
+ */
+export async function anunciarEspectadores(streamId: string, roomId: string) {
+  const quantos = (await usuariosNaVoz(chaveDeEspectadores(streamId))).length;
+  emitToRoom(roomId, "stream:viewers", { streamId, roomId, assistindo: quantos });
 }

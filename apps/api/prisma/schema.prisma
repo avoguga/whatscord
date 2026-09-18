@@ -18,6 +18,21 @@ enum RoomKind {
   GROUP
   TEXT
   VOICE
+  // O chat de uma transmissão. É uma sala como as outras — e é justamente por
+  // isso que transmitir não precisou de um sistema de mensagens novo.
+  STREAM
+}
+
+/**
+ * Quem pode assistir a uma transmissão.
+ * `LINK` não é "sem proteção": é proteção por posse do código, o mesmo que já
+ * vale para entrar num espaço. `SPACE` amarra a transmissão a um servidor e
+ * herda a régua de quem já está lá dentro.
+ */
+enum StreamVisibility {
+  PUBLIC
+  SPACE
+  LINK
 }
 
 enum MemberRole {
@@ -67,6 +82,7 @@ model User {
   spaceFolders  SpaceFolder[]
   sounds        Sound[]        @relation("SoundOwner")
   soundsCreated Sound[]        @relation("SoundAuthor")
+  streams       Stream[]       @relation("StreamOwner")
 
   @@index([username])
 }
@@ -134,6 +150,7 @@ model Space {
   members SpaceMember[]
   rooms   Room[]
   sounds  Sound[]
+  streams Stream[]
 }
 
 model SpaceMember {
@@ -193,7 +210,52 @@ model Room {
   space    Space?       @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   members  RoomMember[]
   messages Message[]
+  stream   Stream?
 
+  @@index([spaceId])
+}
+
+/**
+ * Uma transmissão: uma pessoa apresenta, muitas assistem sem publicar nada.
+ * A MÍDIA não está aqui e nem no banco — ela passa direto pelo LiveKit, na sala
+ * `stream_<id>`. O que esta tabela guarda é quem é dono, quem pode assistir, e
+ * se está no ar. Isso é de propósito: trocar a forma de entregar o vídeo (hoje
+ * WebRTC para todos, amanhã HLS atrás de uma CDN) não deve mexer em uma linha
+ * deste modelo.
+ * `roomId` aponta para a sala do CHAT, e a relação é obrigatória e única: toda
+ * transmissão nasce com a sala dela. É o que fez o bate-papo, os anexos, as
+ * respostas e as não lidas virem prontos, sem uma linha nova.
+ */
+model Stream {
+  id         String           @id @default(cuid())
+  title      String
+  ownerId    String
+  // Só faz sentido — e só é permitido — quando `visibility` é SPACE. O CHECK
+  // da migração impede a combinação sem sentido de existir.
+  spaceId    String?
+  visibility StreamVisibility
+  /**
+   * Existe SEMPRE, mesmo numa transmissão pública: é o endereço que se manda
+   * para alguém. O que muda com a visibilidade é o que o código abre sozinho.
+   */
+  inviteCode String           @unique
+  roomId     String           @unique
+  /**
+   * `startedAt` e `endedAt` contam a história; quem está no ar AGORA é a
+   * presença no Redis, com vencimento por conexão. Um app que morre sem avisar
+   * não pode deixar uma transmissão "ao vivo" para sempre na tela de todo mundo.
+   */
+  startedAt  DateTime?
+  endedAt    DateTime?
+  createdAt  DateTime         @default(now())
+
+  owner User   @relation("StreamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  space Space? @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  // Apagar a sala apaga a transmissão. É o caminho de apagar: some a sala, some
+  // o chat por cascata, some a transmissão — uma operação só, sem sobra.
+  room  Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
   @@index([spaceId])
 }
 

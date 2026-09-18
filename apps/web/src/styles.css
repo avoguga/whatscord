@@ -70,6 +70,13 @@
   --warn: #f0c14b;
   --media-ink: #000;
   --media-scrim: rgba(0, 0, 0, 0.6);
+  /* O veu mais escuro, do estado de foco. Existia so como valor de reserva
+     escrito dentro de um `var()`, o que o deixava fora da paleta — e fora da
+     paleta ele nao troca de tema nem aparece na tela de aparencia. */
+  --media-scrim-forte: rgba(0, 0, 0, 0.72);
+  /* Texto sobre veu escuro. Claro nos DOIS temas de proposito: o veu e
+     escuro nos dois, entao o que esta por cima dele nao acompanha o tema. */
+  --media-texto: #fff;
   --on-danger: #fff;
   /* Amostras da tela de aparência. Fixas de propósito: são o retrato de um
      tema, então a do claro tem de continuar clara enquanto o app está escuro. */
@@ -2189,9 +2196,9 @@ input, textarea { font: inherit; color: inherit; }
 .tile-acao {
   display: grid; place-items: center;
   width: 28px; height: 28px; border-radius: 6px;
-  color: #fff; background: var(--media-scrim);
+  color: var(--media-texto); background: var(--media-scrim);
 }
-.tile-acao:hover { background: var(--media-scrim-forte, rgba(0, 0, 0, 0.72)); }
+.tile-acao:hover { background: var(--media-scrim-forte); }
 
 .tile-volume {
   display: flex; align-items: center; gap: 6px;
@@ -2203,7 +2210,7 @@ input, textarea { font: inherit; color: inherit; }
    comeria a largura do quadro em grade, onde os tiles ja sao pequenos. */
 .tile-volume-barra { width: 92px; accent-color: var(--accent-bright); }
 .tile-volume-num {
-  font-size: 11px; color: #fff; min-width: 34px; text-align: right;
+  font-size: 11px; color: var(--media-texto); min-width: 34px; text-align: right;
   /* Largura minima para o numero nao empurrar a barra a cada 5%. */
   font-variant-numeric: tabular-nums;
 }
@@ -2552,3 +2559,129 @@ input, textarea { font: inherit; color: inherit; }
 @keyframes foto-entra { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .foto-ampliada { animation: none; } }
 .member-pop-foto { font-size: 7px; }
+
+/* ======================= transmissões ao vivo ======================= */
+/*
+ * A tela de início e a de assistir. Duas telas, uma grade e um palco — e nenhuma
+ * cor literal aqui, porque o tema claro e o escuro são trocados por variável e
+ * um `#fff` cravado no meio reaparece branco no escuro. Há um teste que cobra.
+ */
+
+.home {
+  flex: 1; min-width: 0; display: flex; flex-direction: column;
+  background: var(--bg); overflow-y: auto;
+}
+.home-top {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--gap-3);
+  padding: var(--gap-4) var(--gap-4) var(--gap-3);
+  border-bottom: 1px solid var(--divider);
+}
+.home-top h2 { margin: 0; font-size: 19px; }
+.home-top span { display: block; font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+.home-top .btn-ghost { display: inline-flex; align-items: center; gap: 7px; }
+
+.home-vazio {
+  margin: auto; max-width: 420px; padding: var(--gap-4);
+  text-align: center; color: var(--text-dim); font-size: 14px; line-height: 1.6;
+}
+
+.home-grade {
+  display: grid; gap: var(--gap-4); padding: var(--gap-4);
+  /* Cartões que se acomodam sozinhos: numa janela estreita viram uma coluna,
+     numa larga viram quatro, sem ponto de quebra escrito à mão. */
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+}
+
+.live-card {
+  display: flex; flex-direction: column; gap: 0; padding: 0; overflow: hidden;
+  background: var(--panel); border: 1px solid var(--divider); border-radius: 12px;
+  color: var(--text); text-align: left; cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.live-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.live-card:disabled { opacity: 0.6; cursor: default; transform: none; }
+.live-card-palco {
+  position: relative; aspect-ratio: 16 / 9; display: grid; place-items: center;
+  background: var(--call-bg); color: var(--text-faint);
+}
+.live-card-pe { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+.live-card-pe strong {
+  display: block; font-size: 14.5px; line-height: 1.25;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.live-card-pe span { display: block; font-size: 12.5px; color: var(--text-dim); }
+.live-card-pe > div { min-width: 0; }
+
+/* O selo de "ao vivo". Vermelho por convenção — é o que todo mundo já lê sem
+   precisar de legenda. */
+.live-tag {
+  position: absolute; top: 8px; left: 8px;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--danger); color: var(--on-danger);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  padding: 3px 7px; border-radius: 5px;
+}
+.rail-badge-vivo { background: var(--danger); color: var(--on-danger); }
+
+/* ------------------------------------------------------- assistir */
+
+.live { flex: 1; min-width: 0; display: flex; background: var(--bg); }
+.live-palco { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.live-top {
+  display: flex; align-items: center; gap: var(--gap-3);
+  padding: var(--gap-3) var(--gap-4); border-bottom: 1px solid var(--divider);
+}
+.live-top .live-tag { position: static; }
+.live-top-title { flex: 1; min-width: 0; }
+.live-top-title strong {
+  display: block; font-size: 15.5px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.live-top-title span { display: block; font-size: 12.5px; color: var(--text-dim); }
+
+.live-video {
+  position: relative; flex: 1; min-height: 0;
+  display: grid; place-items: center; background: var(--call-bg);
+}
+.live-video video { width: 100%; height: 100%; object-fit: contain; background: var(--call-bg); }
+.live-aviso {
+  position: absolute; display: flex; flex-direction: column; align-items: center; gap: 12px;
+  color: var(--text-dim); font-size: 14px; text-align: center; padding: var(--gap-4);
+}
+.live-aviso p { margin: 0; }
+/* Some quando a imagem chega: o vídeo cobre o aviso, e o aviso não precisa
+   saber que isso aconteceu. */
+.live-aviso-sumindo { pointer-events: none; }
+
+.live-controles {
+  display: flex; align-items: center; justify-content: center; gap: var(--gap-3);
+  padding: var(--gap-3); border-top: 1px solid var(--divider);
+}
+
+.live-link {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px var(--gap-4); border-top: 1px solid var(--divider);
+  font-size: 12.5px; color: var(--text-dim);
+}
+.live-link code {
+  flex: 1; min-width: 180px; font-size: 12px; color: var(--text);
+  background: var(--input); border-radius: 6px; padding: 6px 9px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* O bate-papo ao lado, como em qualquer transmissão que já se viu. É a MESMA
+   tela de conversa do resto do app — por isso ela só precisa de uma largura. */
+.live-chat {
+  width: 320px; flex-shrink: 0; display: flex; flex-direction: column;
+  border-left: 1px solid var(--divider);
+}
+.live-chat .chat { flex: 1; min-width: 0; }
+
+.live-escolha { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+
+/* Numa janela estreita o bate-papo sai de cena: 320 px ao lado de um vídeo não
+   deixam nem um nem outro utilizáveis. */
+@media (max-width: 900px) {
+  .live { flex-direction: column; }
+  .live-chat { width: auto; border-left: 0; border-top: 1px solid var(--divider); height: 45%; }
+}

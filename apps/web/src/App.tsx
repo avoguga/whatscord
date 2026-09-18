@@ -18,6 +18,8 @@ import { InviteGate } from "./ui/InviteGate";
 import { AvisosDoApp } from "./ui/Atualizacao";
 import { iniciarVerificacaoAutomatica } from "./lib/atualizador";
 import { reabrirVisivelSePreciso } from "./lib/inicializacao";
+import { Home } from "./ui/Home";
+import { codigoDaTransmissaoEm, transmissaoPeloCodigo } from "./lib/transmissoes";
 
 /*
  * A tela de chamada carrega sob demanda porque ela traz junto o livekit-client,
@@ -34,6 +36,8 @@ export default function App() {
   const booting = useStore((s) => s.booting);
   const bootstrap = useStore((s) => s.bootstrap);
   const activeRoomId = useStore((s) => s.activeRoomId);
+  const superficie = useStore((s) => s.superficie);
+  const abrirTransmissao = useStore((s) => s.abrirTransmissao);
 
   const joinSpaceByCode = useStore((s) => s.joinSpaceByCode);
   const notify = useStore((s) => s.notify);
@@ -42,6 +46,8 @@ export default function App() {
   const endCall = useStore((s) => s.endCall);
   /** Convite chegado pela web, esperando a pessoa escolher app ou navegador. */
   const [gate, setGate] = useState<string | null>(null);
+  /** O código de transmissão que veio no endereço, esperando a sessão. */
+  const [convidadoAoVivo, setConvidadoAoVivo] = useState<string | null>(null);
 
   useEffect(() => {
     bootstrap();
@@ -107,9 +113,45 @@ export default function App() {
    * entregue pelo próprio app (o efeito acima) entra direto — ela já está nele.
    */
   useEffect(() => {
+    /*
+     * Duas portas diferentes no mesmo endereço: `?join=` leva a um espaço e
+     * `?live=` a uma transmissão. A da transmissão é lida ANTES porque
+     * `inviteFromLocation` limpa a barra de endereços ao ler — se viesse
+     * depois, encontraria a URL já apagada.
+     */
+    const aoVivo = codigoDaTransmissaoEm(window.location.search);
+    if (aoVivo) setConvidadoAoVivo(aoVivo);
     const code = inviteFromLocation();
     if (code) setGate(code);
   }, []);
+
+  /*
+   * O link de uma transmissão, depois de a pessoa estar na conta.
+   *
+   * Sem sessão não dá para abrir — nem para saber se ela pode — então o código
+   * espera aqui até `me` existir, igual ao convite de espaço faz com o dele.
+   */
+  useEffect(() => {
+    if (!me || !convidadoAoVivo) return;
+    let vivo = true;
+    (async () => {
+      try {
+        const t = await transmissaoPeloCodigo(convidadoAoVivo);
+        if (vivo) await abrirTransmissao(t.id, convidadoAoVivo);
+      } catch {
+        /*
+         * Código que não abre nada é silêncio de propósito: a rota responde 404
+         * tanto para "não existe" quanto para "não é para você", e repetir isso
+         * na tela só contaria que existe.
+         */
+      } finally {
+        if (vivo) setConvidadoAoVivo(null);
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [me, convidadoAoVivo, abrirTransmissao]);
 
   // E o convite que ficou esperando alguém entrar.
   useEffect(() => {
@@ -182,8 +224,17 @@ export default function App() {
     // after that. On a wide screen it has no effect.
     <div className="app" data-room-open={activeRoomId ? "true" : "false"}>
       <Sidebar />
-      <Chat onStartCall={(video) => activeRoomId && startCall(activeRoomId, video)} />
-      <PainelDeMembros />
+      {/*
+        Duas superfícies, uma de cada vez. A tela de início ocupa o lugar da
+        conversa — e não o da barra lateral — para o rail continuar à vista: dá
+        para estar assistindo e trocar de espaço sem sair do ar.
+      */}
+      {superficie === "inicio" ? (
+        <Home />
+      ) : (
+        <Chat onStartCall={(video) => activeRoomId && startCall(activeRoomId, video)} />
+      )}
+      {superficie === "conversas" && <PainelDeMembros />}
       {call && (
         <Suspense
           fallback={

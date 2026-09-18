@@ -1,6 +1,7 @@
 import { RoomServiceClient } from "livekit-server-sdk";
 import { env, callsEnabled } from "../env.js";
 import { deveExpulsar, entradaEmMs } from "./expulsao.js";
+import { salaDaTransmissao } from "./transmissao.js";
 
 /**
  * Falar com o LiveKit como servidor, e não como mais um participante.
@@ -59,5 +60,32 @@ export async function expulsarDaChamada(
     return "expulso";
   } catch {
     return "indisponivel";
+  }
+}
+
+/**
+ * Derruba a sala de uma transmissão inteira.
+ *
+ * Chamada quando o dono sai do ar ou apaga a transmissão. Sem ela, quem estava
+ * assistindo continuaria conectado a uma sala que a nossa lista já não mostra —
+ * o mesmo fantasma que custou caro nas chamadas, só que ao contrário: lá sobrava
+ * quem tinha saído, aqui sobraria a plateia de um palco vazio.
+ *
+ * `deleteRoom` derruba todos de uma vez, e não precisa da ressalva de
+ * `expulsarDaChamada` sobre quem já voltou: aqui não há sessão nova a proteger,
+ * porque a transmissão acabou para todo mundo ao mesmo tempo.
+ *
+ * NUNCA lança, pelo mesmo motivo da irmã: é chamada de dentro de uma rota que
+ * precisa terminar de marcar o fim no banco mesmo com o LiveKit fora do ar.
+ */
+export async function encerrarTransmissao(streamId: string): Promise<boolean> {
+  const svc = servico();
+  if (!svc) return false;
+  try {
+    await svc.deleteRoom(salaDaTransmissao(streamId));
+    return true;
+  } catch {
+    // Sala que não existe é o caso comum: ninguém chegou a entrar no ar.
+    return false;
   }
 }

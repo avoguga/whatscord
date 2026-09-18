@@ -408,6 +408,8 @@ const fontesDaApi = [
   "routes/messages.ts",
   "routes/rooms.ts",
   "routes/spaces.ts",
+  "routes/sounds.ts",
+  "routes/streams.ts",
   "routes/users.ts",
   "lib/rooms.ts",
   "lib/falha.ts",
@@ -425,9 +427,15 @@ const tudoDaApi = fontesDaApi.join("\n") + readFileSync(
 );
 
 const naoUsados = declarados.filter((c) => {
-  // A declaração da união também casa; conta as ocorrências e desconta uma.
+  /*
+   * A declaração da união em `falha.ts` também casa, e `falha.ts` está na lista.
+   * Descontar essa ocorrência é o que faz o teste testar o que ele diz: com
+   * `< 1`, todo código passava pela própria declaração e o aviso nunca disparava
+   * — um teste que não testa é pior do que teste nenhum, porque ninguém
+   * desconfia dele.
+   */
   const vezes = tudoDaApi.split(`"${c}"`).length - 1;
-  return vezes < 1;
+  return vezes < 2;
 });
 check(
   "todo código declarado é emitido por alguma rota",

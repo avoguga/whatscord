@@ -367,6 +367,11 @@ const fixasDeProposito = new Set([
   "--preview-dark-bar",
   "--preview-dark-bubble",
   "--media-scrim",
+  // O véu forte e o texto sobre ele. Ficam de fora pelo mesmo motivo do
+  // --media-scrim: o véu é escuro nos dois temas, então o que está por cima
+  // dele é claro nos dois. Eram literais cravados no CSS até virarem tokens.
+  "--media-scrim-forte",
+  "--media-texto",
   // Visualizador de foto: fundo escuro e texto claro nos dois temas, como o
   // --media-scrim. Foto em fundo claro perde contraste.
   "--foto-fundo",

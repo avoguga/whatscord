@@ -205,6 +205,13 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
         </div>
 
         <div className="header-actions" style={{ position: "relative" }}>
+          {/*
+            Numa sala de transmissão não se "liga" para ninguém: a chamada já É a
+            transmissão, e quem assiste não publica. Deixar os botões ali daria
+            um caminho que termina em erro do servidor.
+          */}
+          {room.kind !== "STREAM" && (
+          <>
           <button
             className="icon-btn"
             data-tip={t`Start a video call`}
@@ -223,6 +230,8 @@ export function Chat({ onStartCall }: { onStartCall: (video: boolean) => void })
           >
             <IconPhone />
           </button>
+          </>
+          )}
           {/*
             Quem está aqui. Só existe onde há "aqui" para mostrar: um canal de
             espaço ou um grupo. Numa conversa direta a outra pessoa já está no

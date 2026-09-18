@@ -104,6 +104,22 @@ const MENSAGENS: Record<string, MessageDescriptor> = {
   "spaces.needs_folder_name": msg`Give the folder a name.`,
   "spaces.bad_order": msg`That ordering is not valid.`,
 
+  "streams.missing": msg`That broadcast does not exist.`,
+  "streams.not_yours": msg`Only the person broadcasting can do that.`,
+  "streams.needs_title": msg`Give the broadcast a title.`,
+  "streams.pick_visibility": msg`Say who can watch this.`,
+  "streams.pick_space": msg`Pick the space this broadcast belongs to.`,
+  "streams.private": msg`This broadcast is private.`,
+  "streams.offline": msg`This broadcast is not live right now.`,
+  /*
+   * Diz o número, e não só "cheio". Cada pessoa assistindo recebe a própria
+   * cópia do vídeo, então o teto é a conta de banda do servidor — e saber qual é
+   * transforma "quebrou" em "está cheio agora, tenta daqui a pouco".
+   */
+  // Forma de objeto pelo mesmo motivo de `files.too_big`: o marcador precisa
+  // ter NOME, senão a tradução recebe um número sem saber qual é.
+  "streams.full": msg({ message: "This broadcast is full right now — it holds {teto} people." }),
+
   "users.missing": msg`That account does not exist.`,
 
   /*

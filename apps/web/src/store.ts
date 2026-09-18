@@ -4,6 +4,12 @@ import { saveTheme, storedTheme, type Theme } from "./lib/theme";
 import { preferenciaSalva, salvarIdioma, type PreferenciaIdioma } from "./lib/i18n";
 import { playCue, timbreDaSala } from "./lib/sounds";
 import { painelDeMembrosAberto, salvarPainelDeMembros } from "./lib/membros";
+import {
+  assistir,
+  transmissoesAoVivo,
+  type ComoAssistir,
+  type Transmissao
+} from "./lib/transmissoes";
 
 /**
  * Collapses a message list to one entry per message and keeps it in time order.
@@ -85,7 +91,12 @@ export type Message = {
 
 export type Toast = { id: string; text: string; kind: "ok" | "bad" };
 
-export type RoomKind = "DM" | "GROUP" | "TEXT" | "VOICE";
+/*
+ * `STREAM` é a sala de bate-papo de uma transmissão. Ela entra aqui porque o
+ * cliente precisa distinguir: numa sala dessas não se liga para ninguém — a
+ * chamada já É a transmissão — e ela não aparece na lista de conversas.
+ */
+export type RoomKind = "DM" | "GROUP" | "TEXT" | "VOICE" | "STREAM";
 
 export type Room = {
   id: string;
@@ -112,6 +123,9 @@ export type Room = {
 };
 
 export type SpaceRole = "OWNER" | "ADMIN" | "MEMBER";
+
+/** As duas superfícies de topo: as conversas de sempre, e a tela de início. */
+export type Superficie = "conversas" | "inicio";
 
 export type Space = {
   id: string;
@@ -208,6 +222,21 @@ type State = {
    */
   call: { roomId: string; video: boolean } | null;
 
+  /*
+   * Qual superfície está à vista. A navegação deste app é estado, não URL — o
+   * espaço ativo e a sala aberta já eram assim, e a tela de início entra pela
+   * mesma porta em vez de arrastar um roteador para dentro.
+   */
+  superficie: Superficie;
+  /** O que está no ar agora e que esta pessoa pode ver. */
+  transmissoes: Transmissao[];
+  /** Quantas pessoas cabem por transmissão. Vem do servidor; é conta de banda. */
+  tetoDeEspectadores: number;
+  /** A transmissão aberta, já com a resposta de COMO assisti-la. */
+  aoVivo: { stream: Transmissao; como: ComoAssistir } | null;
+  /** Verdadeiro enquanto o "como assistir" ainda está sendo pedido. */
+  abrindoTransmissao: boolean;
+
   bootstrap: () => Promise<void>;
   signIn: (identifier: string, password: string) => Promise<void>;
   signUp: (input: {
@@ -245,6 +274,12 @@ type State = {
   setSearch: (s: string) => void;
   setReplyTo: (m: Message | null) => void;
   setActiveSpace: (id: string | null) => void;
+  setSuperficie: (s: Superficie) => void;
+  refreshTransmissoes: () => Promise<void>;
+  abrirTransmissao: (id: string, codigo?: string | null) => Promise<void>;
+  fecharTransmissao: () => void;
+  /** Só o número, vindo do socket: a lista de quem assiste não é publicada. */
+  setEspectadores: (streamId: string, assistindo: number) => void;
   notify: (text: string, kind?: "ok" | "bad") => void;
   setTheme: (t: Theme) => void;
   setLocale: (l: PreferenciaIdioma) => Promise<void>;
@@ -298,7 +333,18 @@ const blankSession = {
   search: "",
   replyTo: null as Message | null,
   voicePresence: {} as Record<string, string[]>,
-  voicePeople: {} as Record<string, VoiceUser[]>
+  voicePeople: {} as Record<string, VoiceUser[]>,
+  /*
+   * A tela de início e a transmissão aberta entram aqui, e não ao lado de
+   * `theme`, porque são CONTEÚDO: sair da conta tem de levá-las junto. Um tema
+   * sobrevive à troca de conta; a transmissão que a conta anterior estava vendo,
+   * não.
+   */
+  superficie: "conversas" as Superficie,
+  transmissoes: [] as Transmissao[],
+  tetoDeEspectadores: 0,
+  aoVivo: null as { stream: Transmissao; como: ComoAssistir } | null,
+  abrindoTransmissao: false
 };
 
 export const useStore = create<State>((set, get) => ({
@@ -755,6 +801,66 @@ export const useStore = create<State>((set, get) => ({
   setFilter: (filter) => set({ filter }),
   setSearch: (search) => set({ search }),
   setReplyTo: (replyTo) => set({ replyTo }),
+  setSuperficie(superficie) {
+    set({ superficie });
+    if (superficie === "inicio") void get().refreshTransmissoes();
+  },
+
+  async refreshTransmissoes() {
+    try {
+      const { streams, teto } = await transmissoesAoVivo();
+      set({ transmissoes: streams, tetoDeEspectadores: teto });
+    } catch {
+      /*
+       * Um servidor que ainda não tem a rota responde 404, e isso NÃO pode
+       * derrubar a tela: o mesmo cuidado que as pastas de espaço já tomam. Fica
+       * com a lista que havia.
+       */
+    }
+  },
+
+  /**
+   * Abre uma transmissão.
+   *
+   * Abre TAMBÉM a sala de bate-papo dela, e é isso que faz o chat aparecer sem
+   * uma linha nova: a sala da transmissão é uma sala como as outras, e a tela de
+   * conversa já sabe desenhar qualquer uma.
+   */
+  async abrirTransmissao(id, codigo) {
+    set({ abrindoTransmissao: true });
+    try {
+      const como = await assistir(id, codigo ?? null);
+      set({ aoVivo: { stream: como.stream, como }, superficie: "inicio" });
+      await get().refreshRooms();
+      await get().openRoom(como.stream.roomId);
+    } finally {
+      set({ abrindoTransmissao: false });
+    }
+  },
+
+  fecharTransmissao() {
+    /*
+     * Solta a sala junto. Sem isso, fechar a transmissão deixaria o bate-papo
+     * dela aberto atrás — e no telefone, onde o layout esconde a lista enquanto
+     * há sala aberta, a pessoa voltaria para uma conversa que ela não escolheu.
+     */
+    const aberta = get().aoVivo;
+    set((s) => ({
+      aoVivo: null,
+      activeRoomId: aberta && s.activeRoomId === aberta.stream.roomId ? null : s.activeRoomId
+    }));
+  },
+
+  setEspectadores(streamId, assistindo) {
+    set((s) => ({
+      transmissoes: s.transmissoes.map((t) => (t.id === streamId ? { ...t, assistindo } : t)),
+      aoVivo:
+        s.aoVivo && s.aoVivo.stream.id === streamId
+          ? { ...s.aoVivo, stream: { ...s.aoVivo.stream, assistindo } }
+          : s.aoVivo
+    }));
+  },
+
   setActiveSpace: (activeSpaceId) => set({ activeSpaceId }),
 
   setTheme(t) {

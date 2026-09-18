@@ -322,3 +322,32 @@ export function suportaAudioDeJanela(ua: string = navigator.userAgent): boolean 
   const v = versaoDoChromium(ua);
   return v !== null && v >= CHROMIUM_COM_AUDIO_DE_JANELA;
 }
+
+/* --------------------------------------------------------- transmissões */
+
+/**
+ * O padrão de uma TRANSMISSÃO, mais baixo que o de uma chamada.
+ *
+ * Numa chamada de três pessoas, 1080p custa três cópias. Numa transmissão, custa
+ * uma por espectador — e é a saída do servidor, não a entrada de quem assiste,
+ * que estoura primeiro. A 720p30 (1,8 Mbps) quinze pessoas são 27 Mbps; a
+ * 1080p30 (3,5 Mbps), 52 Mbps. Começar embaixo é o que deixa o teto de
+ * espectadores ser um número e não uma aposta.
+ */
+export const QUALIDADE_DE_TRANSMISSAO: Qualidade = { resolucao: 720, fps: 30 };
+
+/**
+ * Publicar para uma plateia. A diferença é o SIMULCAST, e ele se inverte aqui.
+ *
+ * Numa chamada a tela vai em camada única de propósito (ver `publishOptions`):
+ * são poucas pessoas, quase sempre em boa rede, e uma camada só economiza a
+ * subida de quem compartilha. Numa transmissão isso vira defeito: quem estiver
+ * com internet ruim não tem para onde descer e simplesmente congela, e não há
+ * "quase sempre" quando a plateia é desconhecida.
+ *
+ * Custa cerca de 30% a mais de subida para quem transmite — uma pessoa — e
+ * salva todas as outras.
+ */
+export function publishOptionsDeTransmissao(q: Qualidade): SharePublishOptions {
+  return { ...publishOptions(q), simulcast: true };
+}

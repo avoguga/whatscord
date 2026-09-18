@@ -122,6 +122,29 @@ export function connectSocket() {
     store().refreshVoicePresence().catch(() => undefined);
   });
 
+  /* ------------------------------------------------------ transmissões */
+
+  // Só o número. A lista de quem assiste não é publicada a ninguém.
+  socket.on("stream:viewers", (p: { streamId?: string; assistindo?: number }) => {
+    if (p?.streamId && typeof p.assistindo === "number") {
+      store().setEspectadores(p.streamId, p.assistindo);
+    }
+  });
+
+  /*
+   * A transmissão acabou, ou deixou de ser minha (o dono apagou, ou apertou a
+   * visibilidade e eu não entro mais). Nos dois casos a tela tem de sair do ar
+   * aqui — o servidor já derrubou a sala no LiveKit, e insistir numa tela de
+   * vídeo que não vai voltar é pior do que fechá-la.
+   */
+  const acabou = (p: { streamId?: string }) => {
+    const aberta = useStore.getState().aoVivo;
+    if (p?.streamId && aberta?.stream.id === p.streamId) store().fecharTransmissao();
+    store().refreshTransmissoes().catch(() => undefined);
+  };
+  socket.on("stream:ended", acabou);
+  socket.on("stream:closed", acabou);
+
   socket.on("connect_error", (err) => console.warn("realtime:", err.message));
 
   return socket;

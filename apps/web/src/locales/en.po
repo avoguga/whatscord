@@ -19,6 +19,11 @@ msgstr ""
 msgid "(you)"
 msgstr "(you)"
 
+#. placeholder {0}: transmissoes.length
+#: src/ui/Home.tsx
+msgid "{0, plural, one {# broadcast going on} other {# broadcasts going on}}"
+msgstr "{0, plural, one {# broadcast going on} other {# broadcasts going on}}"
+
 #. placeholder {0}: voicePresence[room.id]?.length ?? 0
 #: src/ui/Chat.tsx
 msgid "{0, plural, one {# connected} other {# connected}}"
@@ -46,6 +51,13 @@ msgstr "{0, plural, one {# person was added.} other {# people were added.}}"
 #: src/ui/Invites.tsx
 msgid "{0, plural, one {# person} other {# people}}"
 msgstr "{0, plural, one {# person} other {# people}}"
+
+#. placeholder {0}: stream.assistindo
+#. placeholder {0}: tr.assistindo
+#: src/ui/Home.tsx
+#: src/ui/Transmissao.tsx
+msgid "{0, plural, one {# watching} other {# watching}}"
+msgstr "{0, plural, one {# watching} other {# watching}}"
 
 #: src/ui/Invites.tsx
 msgid "{comoSeChamava} was deleted."
@@ -235,6 +247,10 @@ msgstr "An account already uses that email."
 msgid "announcements"
 msgstr "announcements"
 
+#: src/ui/Home.tsx
+msgid "Anyone here"
+msgstr "Anyone here"
+
 #: src/ui/Invites.tsx
 msgid "Anyone with this link can join. Opening it signs them straight into the space — in the desktop app if they have it installed, in the browser if they do not."
 msgstr "Anyone with this link can join. Opening it signs them straight into the space — in the desktop app if they have it installed, in the browser if they do not."
@@ -335,6 +351,7 @@ msgstr "Camera options"
 
 #: src/ui/FolderModal.tsx
 #: src/ui/FolderModal.tsx
+#: src/ui/Home.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
@@ -455,6 +472,7 @@ msgid "Colour"
 msgstr "Colour"
 
 #: src/ui/Call.tsx
+#: src/ui/Transmissao.tsx
 msgid "Connecting…"
 msgstr "Connecting…"
 
@@ -475,11 +493,16 @@ msgstr "Conversation muted."
 msgid "Conversations"
 msgstr "Conversations"
 
+#: src/ui/Transmissao.tsx
+msgid "Copied"
+msgstr "Copied"
+
 #: src/ui/Invites.tsx
 msgid "Copied."
 msgstr "Copied."
 
 #: src/ui/Invites.tsx
+#: src/ui/Transmissao.tsx
 msgid "Copy"
 msgstr "Copy"
 
@@ -644,6 +667,11 @@ msgstr "Email"
 msgid "Email or username"
 msgstr "Email or username"
 
+#: src/ui/Transmissao.tsx
+#: src/ui/Transmissao.tsx
+msgid "End broadcast"
+msgstr "End broadcast"
+
 #: src/lib/erros.ts
 msgid "Enter a valid email address."
 msgstr "Enter a valid email address."
@@ -663,6 +691,10 @@ msgstr "Everyone in the call hears it. Right-click a built-in sound to pin it."
 #: src/ui/Invites.tsx
 msgid "Everyone in the group sees the name and the picture."
 msgstr "Everyone in the group sees the name and the picture."
+
+#: src/ui/Home.tsx
+msgid "Everyone with a WhatsCord account sees it on their Live now screen."
+msgstr "Everyone with a WhatsCord account sees it on their Live now screen."
 
 #: src/ui/Call.tsx
 msgid "Expand the call"
@@ -740,6 +772,10 @@ msgid "Full screen"
 msgstr "Full screen"
 
 #: src/lib/erros.ts
+msgid "Give the broadcast a title."
+msgstr "Give the broadcast a title."
+
+#: src/lib/erros.ts
 msgid "Give the folder a name."
 msgstr "Give the folder a name."
 
@@ -754,6 +790,11 @@ msgstr "Give the sound a short name and pick an emoji for it."
 #: src/lib/erros.ts
 msgid "Give the space a name."
 msgstr "Give the space a name."
+
+#: src/ui/Home.tsx
+#: src/ui/Home.tsx
+msgid "Go live"
+msgstr "Go live"
 
 #: src/ui/Atualizacao.tsx
 #: src/ui/Inicializacao.tsx
@@ -879,6 +920,10 @@ msgstr "Invite people and add channels"
 msgid "Invite people to this space"
 msgstr "Invite people to this space"
 
+#: src/ui/Home.tsx
+msgid "It never shows up on anyone's Live now screen. Only people you send the link to can open it — you get the link once the broadcast starts."
+msgstr "It never shows up on anyone's Live now screen. Only people you send the link to can open it — you get the link once the broadcast starts."
+
 #: src/ui/Inicializacao.tsx
 msgid "It starts in the tray, near the clock — no window in your way. You can change this in Settings."
 msgstr "It starts in the tray, near the clock — no window in your way. You can change this in Settings."
@@ -923,6 +968,7 @@ msgstr "Later"
 #: src/ui/Call.tsx
 #: src/ui/Call.tsx
 #: src/ui/Call.tsx
+#: src/ui/Transmissao.tsx
 msgid "Leave"
 msgstr "Leave"
 
@@ -958,6 +1004,16 @@ msgstr "Leaving…"
 #: src/ui/Settings.tsx
 msgid "Light"
 msgstr "Light"
+
+#: src/ui/Home.tsx
+#: src/ui/Transmissao.tsx
+msgid "LIVE"
+msgstr "LIVE"
+
+#: src/ui/Home.tsx
+#: src/ui/Sidebar.tsx
+msgid "Live now"
+msgstr "Live now"
 
 #: src/ui/Chat.tsx
 msgid "Loading earlier messages…"
@@ -1084,6 +1140,7 @@ msgid "Moving {nome} was cancelled."
 msgstr "Moving {nome} was cancelled."
 
 #: src/ui/Call.tsx
+#: src/ui/Transmissao.tsx
 msgid "Mute"
 msgstr "Mute"
 
@@ -1166,6 +1223,10 @@ msgstr "No conversations yet."
 msgid "No messages yet"
 msgstr "No messages yet"
 
+#: src/ui/Transmissao.tsx
+msgid "No microphone found."
+msgstr "No microphone found."
+
 #: src/ui/Call.tsx
 msgid "No microphone found. You can hear everyone, but they cannot hear you."
 msgstr "No microphone found. You can hear everyone, but they cannot hear you."
@@ -1204,6 +1265,10 @@ msgstr "Nobody here goes by that."
 #: src/ui/Sidebar.tsx
 msgid "Nobody here right now"
 msgstr "Nobody here right now"
+
+#: src/ui/Home.tsx
+msgid "Nobody is broadcasting right now."
+msgstr "Nobody is broadcasting right now."
 
 #: src/ui/DevicePicker.tsx
 msgid "Noise suppression"
@@ -1269,6 +1334,10 @@ msgstr "Offline"
 msgid "One moment…"
 msgstr "One moment…"
 
+#: src/ui/Home.tsx
+msgid "One space"
+msgstr "One space"
+
 #: src/ui/Chat.tsx
 #: src/ui/Membros.tsx
 msgid "online"
@@ -1298,9 +1367,17 @@ msgstr "Only group admins can change the group."
 msgid "Only group chats can be edited here."
 msgstr "Only group chats can be edited here."
 
+#: src/ui/Transmissao.tsx
+msgid "Only people with this link can watch:"
+msgstr "Only people with this link can watch:"
+
 #: src/lib/erros.ts
 msgid "Only space admins can manage members."
 msgstr "Only space admins can manage members."
+
+#: src/lib/erros.ts
+msgid "Only the person broadcasting can do that."
+msgstr "Only the person broadcasting can do that."
 
 #: src/lib/erros.ts
 msgid "Only the space owner can do that."
@@ -1325,6 +1402,10 @@ msgstr "Open the space from the left rail to invite people."
 #: src/ui/Inicializacao.tsx
 msgid "Open WhatsCord when Windows starts"
 msgstr "Open WhatsCord when Windows starts"
+
+#: src/ui/Home.tsx
+msgid "Opening the broadcast…"
+msgstr "Opening the broadcast…"
 
 #: src/App.tsx
 msgid "Opening the call…"
@@ -1398,6 +1479,10 @@ msgid "Pick someone to message."
 msgstr "Pick someone to message."
 
 #: src/lib/erros.ts
+msgid "Pick the space this broadcast belongs to."
+msgstr "Pick the space this broadcast belongs to."
+
+#: src/lib/erros.ts
 msgid "Pick who should own the space."
 msgstr "Pick who should own the space."
 
@@ -1436,6 +1521,10 @@ msgstr "Press space to pick this up, then the arrow keys to move it and space ag
 #: src/ui/Settings.tsx
 msgid "Profile saved."
 msgstr "Profile saved."
+
+#: src/ui/Home.tsx
+msgid "Ranked with the crew"
+msgstr "Ranked with the crew"
 
 #: src/ui/Chat.tsx
 msgid "React"
@@ -1583,6 +1672,10 @@ msgstr "Saving…"
 msgid "Say whether to mute or unmute."
 msgstr "Say whether to mute or unmute."
 
+#: src/lib/erros.ts
+msgid "Say who can watch this."
+msgstr "Say who can watch this."
+
 #: src/ui/Call.tsx
 msgid "screen"
 msgstr "screen"
@@ -1625,18 +1718,35 @@ msgstr "Search in this conversation"
 msgid "Search people"
 msgstr "Search people"
 
+#: src/ui/Home.tsx
+msgid "Secret link"
+msgstr "Secret link"
+
 #: src/ui/CallChat.tsx
 #: src/ui/Chat.tsx
 msgid "Send"
 msgstr "Send"
 
+#: src/ui/Transmissao.tsx
+msgid "Send this to bring someone in:"
+msgstr "Send this to bring someone in:"
+
 #: src/ui/Settings.tsx
 msgid "Settings"
 msgstr "Settings"
 
+#: src/ui/Transmissao.tsx
+msgid "Share a different screen"
+msgstr "Share a different screen"
+
 #: src/ui/Call.tsx
 msgid "Share screen"
 msgstr "Share screen"
+
+#: src/ui/Transmissao.tsx
+#: src/ui/Transmissao.tsx
+msgid "Share your screen"
+msgstr "Share your screen"
 
 #: src/ui/Call.tsx
 msgid "Sharing without sound. To include it, share again and tick “Also share tab audio” (or “Share system audio”) in the browser's dialog — this browser only offers sound for a tab or a whole screen, not a single window."
@@ -1771,6 +1881,10 @@ msgstr "Speaker"
 msgid "Standard"
 msgstr "Standard"
 
+#: src/ui/Home.tsx
+msgid "Start"
+msgstr "Start"
+
 #: src/ui/Chat.tsx
 #: src/ui/Chat.tsx
 msgid "Start a video call"
@@ -1788,6 +1902,10 @@ msgstr "Start something new"
 #: src/ui/Call.tsx
 msgid "Start video"
 msgstr "Start video"
+
+#: src/ui/Home.tsx
+msgid "Starting…"
+msgstr "Starting…"
 
 #: src/ui/Call.tsx
 msgid "Stop sharing"
@@ -1818,6 +1936,10 @@ msgstr "System default"
 msgid "Ta-da"
 msgstr "Ta-da"
 
+#: src/ui/Transmissao.tsx
+msgid "Talk"
+msgstr "Talk"
+
 #: src/ui/DevicePicker.tsx
 msgid "Test microphone"
 msgstr "Test microphone"
@@ -1841,6 +1963,14 @@ msgstr "That attachment is no longer available. Upload it again."
 #: src/lib/erros.ts
 msgid "That attachment is not yours to send."
 msgstr "That attachment is not yours to send."
+
+#: src/ui/Home.tsx
+msgid "That broadcast could not be opened."
+msgstr "That broadcast could not be opened."
+
+#: src/lib/erros.ts
+msgid "That broadcast does not exist."
+msgstr "That broadcast does not exist."
 
 #: src/ui/Invites.tsx
 msgid "That channel could not be created."
@@ -2037,6 +2167,14 @@ msgstr "That username is taken."
 msgid "The advanced noise suppression could not start; the standard one is on."
 msgstr "The advanced noise suppression could not start; the standard one is on."
 
+#: src/ui/Transmissao.tsx
+msgid "The broadcast could not be opened."
+msgstr "The broadcast could not be opened."
+
+#: src/ui/Home.tsx
+msgid "The broadcast could not be started."
+msgstr "The broadcast could not be started."
+
 #: src/ui/Call.tsx
 msgid "The browser blocked your microphone or camera. Allow it in the address bar, then try again."
 msgstr "The browser blocked your microphone or camera. Allow it in the address bar, then try again."
@@ -2065,6 +2203,10 @@ msgstr "The connection dropped during the upload."
 msgid "The device you picked is not there any more. Choose another under Devices."
 msgstr "The device you picked is not there any more. Choose another under Devices."
 
+#: src/ui/Transmissao.tsx
+msgid "The link could not be copied."
+msgstr "The link could not be copied."
+
 #: src/lib/erros.ts
 msgid "The message cannot be empty."
 msgstr "The message cannot be empty."
@@ -2088,6 +2230,10 @@ msgstr "The owner cannot be removed from the space."
 #: src/ui/Invites.tsx
 msgid "The ownership could not be transferred."
 msgstr "The ownership could not be transferred."
+
+#: src/ui/Transmissao.tsx
+msgid "The screen could not be shared."
+msgstr "The screen could not be shared."
 
 #: src/ui/Atualizacao.tsx
 msgid "The update could not be verified, so it was not installed. Try again later."
@@ -2113,6 +2259,22 @@ msgstr "Things"
 #: src/ui/DevicePicker.tsx
 msgid "This app cannot read the device names on this system, so only the system default can be picked. The call still works, and the microphone in use is the one Windows is set to."
 msgstr "This app cannot read the device names on this system, so only the system default can be picked. The call still works, and the microphone in use is the one Windows is set to."
+
+#: src/lib/erros.ts
+#~ msgid "This broadcast is full right now — it holds {0} people."
+#~ msgstr "This broadcast is full right now — it holds {0} people."
+
+#: src/lib/erros.ts
+msgid "This broadcast is full right now — it holds {teto} people."
+msgstr "This broadcast is full right now — it holds {teto} people."
+
+#: src/lib/erros.ts
+msgid "This broadcast is not live right now."
+msgstr "This broadcast is not live right now."
+
+#: src/lib/erros.ts
+msgid "This broadcast is private."
+msgstr "This broadcast is private."
 
 #: src/ui/DevicePicker.tsx
 msgid "This browser always uses the system's default speaker; change it in the operating system's sound settings."
@@ -2323,6 +2485,10 @@ msgstr "Volume of this person"
 msgid "Volume of this screen share"
 msgstr "Volume of this screen share"
 
+#: src/ui/Transmissao.tsx
+msgid "Waiting for the picture…"
+msgstr "Waiting for the picture…"
+
 #: src/ui/Call.tsx
 msgid "Weak connection"
 msgstr "Weak connection"
@@ -2330,6 +2496,10 @@ msgstr "Weak connection"
 #: src/ui/Invites.tsx
 msgid "Weekend plans"
 msgstr "Weekend plans"
+
+#: src/ui/Home.tsx
+msgid "What are you showing?"
+msgstr "What are you showing?"
 
 #: src/ui/Atualizacao.tsx
 #: src/ui/Atualizacao.tsx
@@ -2365,9 +2535,21 @@ msgstr "WhatsCord now opens when Windows starts"
 msgid "WhatsCord updated to {versao}"
 msgstr "WhatsCord updated to {versao}"
 
+#: src/ui/Home.tsx
+msgid "When someone starts a broadcast you can see, it shows up here. Yours can be open to everyone, kept to one space, or shared by a secret link."
+msgstr "When someone starts a broadcast you can see, it shows up here. Yours can be open to everyone, kept to one space, or shared by a secret link."
+
 #: src/ui/Soundboard.tsx
 msgid "Where the sound goes"
 msgstr "Where the sound goes"
+
+#: src/ui/Home.tsx
+msgid "Which space"
+msgstr "Which space"
+
+#: src/ui/Home.tsx
+msgid "Who can watch"
+msgstr "Who can watch"
 
 #: src/ui/Membros.tsx
 msgid "Who is here"
@@ -2443,6 +2625,14 @@ msgstr "You already have your {limite} sounds. Remove one to add another."
 msgid "You are connected."
 msgstr "You are connected."
 
+#: src/ui/Home.tsx
+msgid "You are live."
+msgstr "You are live."
+
+#: src/ui/Transmissao.tsx
+msgid "You are live. Nothing is on screen yet."
+msgstr "You are live. Nothing is on screen yet."
+
 #: src/lib/erros.ts
 msgid "You are not in that conversation."
 msgstr "You are not in that conversation."
@@ -2516,6 +2706,10 @@ msgstr "You were invited to a space. Sign in and you will be taken straight in."
 #: src/ui/Atualizacao.tsx
 msgid "You're up to date."
 msgstr "You're up to date."
+
+#: src/ui/Transmissao.tsx
+msgid "Your broadcast has ended."
+msgstr "Your broadcast has ended."
 
 #: src/ui/Call.tsx
 msgid "Your camera could not be turned on. Check the browser's permission."

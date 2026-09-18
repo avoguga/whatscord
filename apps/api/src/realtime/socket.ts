@@ -11,8 +11,9 @@ import {
   RENOVACAO_DE_VOZ_MS,
   sairDaVoz
 } from "../lib/presencaDeVoz.js";
-import { anunciarPresencaDeVoz } from "./voz.js";
+import { anunciarPresencaDeVoz, anunciarEspectadores } from "./voz.js";
 import { expulsarDaChamada } from "../lib/livekitSala.js";
+import { chaveDeEspectadores, ehChaveDeEspectadores } from "../lib/transmissao.js";
 import { emitToUsers, roomChannel, setIO, userChannel } from "./bus.js";
 
 /**
@@ -200,6 +201,45 @@ export async function attachSocketServer(httpServer: HttpServer) {
     socket.on("call:leave", sair);
     socket.on("voice:leave", sair);
 
+    /**
+     * Entrar e sair de uma transmissão, para efeito de CONTAGEM.
+     *
+     * Quem autoriza é `POST /streams/:id/watch`, não isto: lá se confere a
+     * visibilidade, o código e o teto, e só então a pessoa vira membro da sala
+     * do chat. Aqui só se pergunta "já é membro?", que é a marca deixada por
+     * aquela porta — por isso este par de eventos não repete a regra de acesso,
+     * e não pode virar um segundo caminho de entrada.
+     *
+     * O `roomId` vem do BANCO e não do cliente: com ele vindo de fora, alguém
+     * poderia se contar como espectador de uma transmissão qualquer passando o
+     * id de uma sala em que de fato está.
+     */
+    const transmissaoEntrar = (payload: { streamId?: string }) =>
+      safe(async () => {
+        if (!payload?.streamId) return;
+        const t = await prisma.stream.findUnique({
+          where: { id: payload.streamId },
+          select: { roomId: true }
+        });
+        if (!t || !(await isMember(t.roomId, userId))) return;
+        await entrarNaVoz(chaveDeEspectadores(payload.streamId), userId, socket.id);
+        await anunciarEspectadores(payload.streamId, t.roomId);
+      });
+    socket.on("stream:join", transmissaoEntrar);
+
+    const transmissaoSair = (payload: { streamId?: string }) =>
+      safe(async () => {
+        if (!payload?.streamId) return;
+        const t = await prisma.stream.findUnique({
+          where: { id: payload.streamId },
+          select: { roomId: true }
+        });
+        if (!t) return;
+        await sairDaVoz(chaveDeEspectadores(payload.streamId), userId, socket.id, true);
+        await anunciarEspectadores(payload.streamId, t.roomId);
+      });
+    socket.on("stream:leave", transmissaoSair);
+
     // Renovação vinda do cliente. O servidor renova sozinho de qualquer forma;
     // esta é só uma segunda rede, para o caso de um relógio dormindo.
     socket.on("voice:heartbeat", () => safe(() => renovarConexao(socket.id)));
@@ -213,6 +253,17 @@ export async function attachSocketServer(httpServer: HttpServer) {
          */
         const caiuEm = Date.now();
         for (const roomId of await esquecerConexao(socket.id, userId)) {
+          /*
+           * A mesma máquina de presença conta duas coisas diferentes, separadas
+           * pelo prefixo da chave. Uma transmissão não tem "call:left", não tem
+           * lista de quem está na voz, e a sala dela no LiveKit não se chama
+           * `room_<id>` — tratá-la como chamada mandaria três avisos errados e
+           * uma expulsão para uma sala que não existe.
+           *
+           * A contagem de espectadores se corrige sozinha: a linha já saiu da
+           * presença aqui em cima, e a tela relê ao abrir e a cada atualização.
+           */
+          if (ehChaveDeEspectadores(roomId)) continue;
           io.to(roomChannel(roomId)).emit("call:left", { roomId, userId });
           await anunciarPresencaDeVoz(roomId);
           /*
