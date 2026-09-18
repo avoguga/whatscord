@@ -100,12 +100,22 @@ export function TelaDaTransmissao() {
           .on(RoomEvent.LocalTrackUnpublished, () => bump())
           .on(RoomEvent.Disconnected, () => {
             /*
-             * Pode ser o fim da transmissão: quando o dono sai do ar, o servidor
-             * derruba a sala inteira no LiveKit, e é assim que a plateia fica
-             * sabendo sem depender de um aviso que pode não chegar.
+             * Só sai da tela se ELA CHEGOU A ABRIR.
+             *
+             * Um `Disconnected` que chega antes da primeira conexão bem-sucedida
+             * é falha de conexão, não fim de transmissão — e fechar a tela nele
+             * devolve a pessoa para a lista sem dizer o que houve. Foi
+             * exatamente o que aconteceu: uma desconexão atrasada, de uma
+             * tentativa anterior, fechava a tela que tinha acabado de abrir.
+             *
+             * Quando ela chega DEPOIS de estar no ar, aí sim é o fim: o servidor
+             * derruba a sala inteira quando o dono sai, e é assim que a plateia
+             * fica sabendo sem depender de um aviso que pode não chegar.
              */
-            setEstado("falhou");
-            fecharRef.current();
+            setEstado((antes) => {
+              if (antes === "no-ar") fecharRef.current();
+              return "falhou";
+            });
           });
 
         await room.connect(endereco, cracha);

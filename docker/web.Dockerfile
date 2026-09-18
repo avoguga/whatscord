@@ -19,7 +19,15 @@ COPY apps/web ./apps/web
 # `vite build` recebe o root como argumento posicional, nao como --root.
 # Rodar de dentro do workspace resolve: o npx acha o node_modules hoisted na raiz.
 WORKDIR /app/apps/web
-RUN npx vite build
+# NODE_ENV=production SO NESTE COMANDO.
+#
+# O `development` la em cima e para o npm instalar as devDependencies, e ficava
+# valendo tambem na hora de empacotar: o site publicado saia com o React de
+# DESENVOLVIMENTO. Isso nao e so peso extra — em desenvolvimento o StrictMode
+# roda cada efeito duas vezes, e foi assim que a tela de transmissao conectava
+# ao LiveKit e se desconectava sozinha no mesmo instante. A mensagem "Download
+# the React DevTools" no console do site publicado foi o que entregou.
+RUN NODE_ENV=production npx vite build
 
 FROM nginx:1.27-alpine AS runtime
 RUN apk add --no-cache curl
