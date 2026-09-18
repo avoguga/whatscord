@@ -12,6 +12,12 @@ Formato: um `## <versão>` por versão, a mais nova em cima, e um item por linha
 começando com `- `. Texto simples, sem HTML — é mostrado como texto. Escreva para
 quem usa o app, não para quem programa: o que a pessoa nota de diferente.
 
+## 0.2.8
+
+- Transmissões ao vivo. Há uma aba Ao vivo na barra da esquerda: ali você vê quem está transmitindo agora e começa a sua, compartilhando a tela para quem quiser assistir.
+- Cada transmissão tem bate-papo do lado, e você escolhe quem pode ver: qualquer pessoa daqui, só os membros de um espaço, ou só quem receber um link secreto.
+- O app abre mais rápido: o site estava sendo publicado com uma versão de desenvolvimento do React.
+
 ## 0.2.7
 
 - Sair da chamada tira você da chamada de verdade. Havia casos em que a tela fechava mas a conexão de voz continuava aberta, e quem entrasse no canal depois ainda ouvia o seu microfone.

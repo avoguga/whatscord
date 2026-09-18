@@ -77,6 +77,15 @@ O arquivo é `/data/coolify/proxy/dynamic/whatscord-livekit.yml` (cópia canôni
 for recriado, o arquivo some e o `wss://` para de responder, sem nada aparecer no
 log de deploy. Repor o arquivo é suficiente — o Traefik recarrega sozinho.
 
+**9. O `NODE_ENV=development` do Dockerfile vazava para o empacotamento.** Ele é
+necessário para o npm instalar as devDependencies (vite e typescript são dev), e
+continuava valendo no `vite build` — o site publicado saía com o **React de
+desenvolvimento**. Não é só peso: em desenvolvimento o StrictMode roda cada
+efeito duas vezes, e foi assim que a tela de transmissão conectava ao LiveKit e
+se desconectava sozinha no mesmo instante. A pista foi a mensagem "Download the
+React DevTools" no console do site publicado. Hoje o `vite build` roda com
+`NODE_ENV=production` só nele (`docker/web.Dockerfile`).
+
 ## MinIO: por que está parado
 
 O plano era MinIO para anexos. Ele entrou em loop de crash sem escrever log mesmo

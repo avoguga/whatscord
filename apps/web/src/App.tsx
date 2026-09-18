@@ -20,6 +20,7 @@ import { iniciarVerificacaoAutomatica } from "./lib/atualizador";
 import { reabrirVisivelSePreciso } from "./lib/inicializacao";
 import { Home } from "./ui/Home";
 import { codigoDaTransmissaoEm, transmissaoPeloCodigo } from "./lib/transmissoes";
+import { ApiError } from "./lib/api";
 
 /*
  * A tela de chamada carrega sob demanda porque ela traz junto o livekit-client,
@@ -138,12 +139,20 @@ export default function App() {
       try {
         const t = await transmissaoPeloCodigo(convidadoAoVivo);
         if (vivo) await abrirTransmissao(t.id, convidadoAoVivo);
-      } catch {
+      } catch (err) {
         /*
-         * Código que não abre nada é silêncio de propósito: a rota responde 404
-         * tanto para "não existe" quanto para "não é para você", e repetir isso
-         * na tela só contaria que existe.
+         * "Não existe" e "não é para você" respondem 404 pelos dois lados, e
+         * repetir isso na tela contaria que existe. Esses dois são silêncio.
+         *
+         * "Está fora do ar" é outra coisa: é uma transmissão que a pessoa PODE
+         * ver e que simplesmente ainda não começou — ou já acabou. Cair na tela
+         * de conversas sem uma palavra, depois de clicar num link que alguém
+         * mandou, parece o app engolindo o clique. Foi o que aconteceu num teste
+         * com um link real.
          */
+        if (err instanceof ApiError && err.status === 409) {
+          useStore.getState().notify(err.message, "bad");
+        }
       } finally {
         if (vivo) setConvidadoAoVivo(null);
       }

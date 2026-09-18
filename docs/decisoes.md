@@ -580,3 +580,87 @@ disconnected" e volta. A conexão que sobe logo depois fica aberta para sempre:
 sem tela, sem ninguém para fechá-la, e com o microfone publicando. Por isso o
 `if (cancelled)` que vem depois do `connect` desliga a sala antes de sair, em vez
 de só retornar.
+
+## Transmissões
+
+### Transmitir é a chamada de sempre, com o crachá trocado
+
+Uma pessoa apresenta e muitas assistem — e a camada de mídia não precisou de
+nada novo. O que muda é o token: quem transmite recebe `canPublish: true`; quem
+assiste recebe `canPublish: false`, `canPublishData: false` e **`hidden: true`**.
+
+`hidden` não é privacidade, é sobrevivência da tela. `Call.tsx` monta **um tile
+por participante remoto, sem teto nenhum**; se a plateia fosse visível, a tela de
+quem transmite tentaria desenhar um quadradinho por espectador. Escondidos, eles
+não existem para o cliente — e por isso a contagem de quem assiste vem da NOSSA
+presença, não do LiveKit.
+
+A sala se chama `stream_<id>`, separada do `room_<id>` das chamadas, para a
+expulsão e a presença de voz não confundirem as duas.
+
+### Quem decide o crachá é o servidor
+
+A primeira versão deixava o cliente escolher a porta — `/go-live` para quem
+transmite, `/watch` para quem assiste — e a tela do dono entrava pela segunda.
+Medido pela API de administração do LiveKit, com duas sessões reais: **os dois
+participantes apareciam com `canPublish: false` e `hidden: true`**, ou seja, o
+dono não conseguia transmitir a própria transmissão.
+
+Agora `/watch` olha quem está pedindo. Não há o que o cliente possa errar.
+
+### `podeAssistir` e `apareceNoInicio` são perguntas diferentes
+
+Confundir as duas é o que vazaria uma transmissão privada. Quem tem o código
+**pode assistir** a uma transmissão por link; ela **nunca aparece** numa vitrine
+— nem para quem acabou de assistir com o código —, senão o segredo acaba no
+instante em que alguém abre a tela de início. Só o dono a vê listada.
+
+### O bate-papo saiu de graça
+
+A transmissão é dona de uma `Room` (de tipo `STREAM`), e quem entra para assistir
+vira `RoomMember` por `upsert`, igual a quem entra num espaço. Com isso
+mensagens, anexos, respostas, reações, não lidas e o socket funcionam sem uma
+linha nova, e `requireMembership` — o portão de toda rota de sala — ficou
+intocado.
+
+O preço: quando o dono **aperta** a visibilidade, as associações antigas têm de
+cair. Sem isso, uma transmissão que acabou de virar privada continuaria aberta
+justamente para quem se quis deixar de fora.
+
+### Simulcast: a regra se inverte
+
+Numa chamada a tela vai em camada única de propósito (poucas pessoas, quase
+sempre em boa rede, e economiza a subida de quem compartilha). Numa transmissão
+isso vira defeito: quem tem internet ruim não tem para onde descer e congela, e
+não existe "quase sempre" quando a plateia é desconhecida. Custa ~30% a mais de
+subida para **uma** pessoa e salva todas as outras. O padrão também desce para
+720p30 — ver a conta abaixo.
+
+### A escada de escala, e a costura que a torna barata
+
+Saída do servidor = **espectadores × bitrate**. A 720p30 (1,8 Mbps): 10 pessoas
+são 18 Mbps, 50 são 90 Mbps, 500 são 900 Mbps. O LiveKit roda em 1 GB / 1,5 vCPU
+num host com ~105 contêineres de outros projetos. Daí o teto de 15 espectadores
+(`TETO_DE_ESPECTADORES`, ajustável por `STREAM_MAX_VIEWERS`).
+
+O caminho para centenas **não é subir esse número**: é parar de mandar uma cópia
+para cada um — Egress do LiveKit gerando HLS, com CDN na frente. Por isso
+`/watch` devolve uma união marcada por `modo`:
+
+```ts
+{ modo: "webrtc", url, token }   // hoje
+{ modo: "hls",    url }          // o degrau seguinte
+```
+
+O tocador decide pelo `modo`. Ligar o degrau 2 passa a ser instalar um contêiner
+e acrescentar um ramo no cliente, em vez de reescrever a tela. O `EgressClient`
+já vem no SDK instalado; falta só o contêiner.
+
+### O que ficou de fora, de propósito
+
+- **Miniatura**: `GET /files/*` é público por endereço, então a prévia de uma
+  transmissão privada ficaria ao alcance de quem tivesse a URL.
+- **Moderação do chat**: hoje só o autor apaga a própria mensagem. Numa
+  transmissão pública o dono precisa apagar e silenciar.
+- **Lista de quem assiste**: vai só o número. Publicar a audiência inteira para
+  qualquer um que entrasse é mais do que ninguém pediu.
