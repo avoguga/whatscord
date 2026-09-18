@@ -3068,6 +3068,27 @@ async function secTransmissoes() {
     );
   });
 
+  /*
+   * O caso que a primeira versão errou: o DONO abrindo a própria transmissão.
+   * A tela dele entra pela mesma porta que a plateia, e se essa porta devolvesse
+   * o crachá de espectador ele apareceria na própria sala sem poder publicar —
+   * foi o que a API de administração do LiveKit mostrou. Quem decide é o
+   * servidor, e é isto que confere.
+   */
+  await t("o dono entrando pela porta da plateia ainda PUBLICA", async () => {
+    const r = await POST(`/streams/${tr.publica.id}/watch`, { token: A.token });
+    check("o dono entra", r.status === 200, "200", short(r));
+    const g = grantsDoToken(r.json?.token ?? "");
+    check("e recebe o crachá de quem publica", g?.canPublish === true, "canPublish true", JSON.stringify(g));
+    check("e NÃO é escondido", !g?.hidden, "hidden ausente/false", String(g?.hidden));
+    check(
+      "o código secreto vai para o dono",
+      typeof r.json?.stream?.inviteCode === "string",
+      "o código",
+      String(r.json?.stream?.inviteCode)
+    );
+  });
+
   await t("quem assiste ganha o bate-papo junto", async () => {
     const r = await POST(`/rooms/${tr.publica.roomId}/messages`, {
       token: B.token,

@@ -468,20 +468,47 @@ export async function streamRoutes(app: FastifyInstance) {
       metadata: JSON.stringify({ username: eu.username, avatarUrl: eu.avatarUrl }),
       ttl: "4h"
     });
-    token.addGrant({
-      room: salaDaTransmissao(id),
-      roomJoin: true,
-      /*
-       * Os três "não" que fazem de alguém um espectador. O `hidden` é o que
-       * impede a tela de quem transmite de tentar desenhar um quadradinho por
-       * pessoa que está assistindo — ela monta um tile por participante remoto,
-       * sem teto nenhum.
-       */
-      canPublish: false,
-      canPublishData: false,
-      canSubscribe: true,
-      hidden: true
-    });
+    /*
+     * QUEM DECIDE O CRACHÁ É O SERVIDOR, e não a tela.
+     *
+     * A primeira versão deixava o cliente escolher a porta — `/go-live` para
+     * quem transmite, `/watch` para quem assiste — e a tela do dono entrava
+     * pela segunda. Resultado, medido na API de administração do LiveKit: o
+     * dono aparecia na própria sala com `canPublish: false` e `hidden: true`,
+     * ou seja, incapaz de transmitir a própria transmissão.
+     *
+     * Aqui não há o que o cliente possa errar: a rota olha quem está pedindo.
+     */
+    if (souDono) {
+      token.addGrant({
+        room: salaDaTransmissao(id),
+        roomJoin: true,
+        canPublish: true,
+        canSubscribe: true,
+        canPublishData: true,
+        canPublishSources: [
+          TrackSource.CAMERA,
+          TrackSource.MICROPHONE,
+          TrackSource.SCREEN_SHARE,
+          TrackSource.SCREEN_SHARE_AUDIO
+        ]
+      });
+    } else {
+      token.addGrant({
+        room: salaDaTransmissao(id),
+        roomJoin: true,
+        /*
+         * Os três "não" que fazem de alguém um espectador. O `hidden` é o que
+         * impede a tela de quem transmite de tentar desenhar um quadradinho por
+         * pessoa que está assistindo — ela monta um tile por participante
+         * remoto, sem teto nenhum.
+         */
+        canPublish: false,
+        canPublishData: false,
+        canSubscribe: true,
+        hidden: true
+      });
+    }
 
     return {
       modo: "webrtc" as const,

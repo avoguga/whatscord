@@ -147,13 +147,18 @@ export function TelaDaTransmissao() {
 
   /* ----------------------------------------------- presença de quem assiste */
   useEffect(() => {
-    if (!stream) return;
+    /*
+     * O dono não se conta como plateia. "3 assistindo" tem de querer dizer três
+     * pessoas assistindo — se quem apresenta entrasse na conta, uma transmissão
+     * vazia diria "1 assistindo" e ninguém saberia que está falando sozinho.
+     */
+    if (!stream || souDono) return;
     const s = getSocket();
     s?.emit("stream:join", { streamId: stream.id });
     return () => {
       s?.emit("stream:leave", { streamId: stream.id });
     };
-  }, [stream?.id]);
+  }, [stream?.id, souDono]);
 
   /* ---------------------------------------------------- pendurar as faixas */
   useEffect(() => {
