@@ -839,6 +839,9 @@ export const useStore = create<State>((set, get) => ({
   },
 
   fecharTransmissao() {
+    // SONDA TEMPORARIA
+    try { (window as any).__fechou = ((window as any).__fechou ?? []).concat([new Error("fechou").stack]); } catch {}
+
     /*
      * Solta a sala junto. Sem isso, fechar a transmissão deixaria o bate-papo
      * dela aberto atrás — e no telefone, onde o layout esconde a lista enquanto
@@ -1046,3 +1049,6 @@ export const useStore = create<State>((set, get) => ({
     }));
   }
 }));
+
+// SONDA TEMPORARIA
+try { (window as any).__store = useStore; } catch {}
