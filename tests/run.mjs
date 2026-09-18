@@ -2910,6 +2910,229 @@ function missingState(keys) {
    som para todos, a sala viraria inutilizável em uma tarde — e esse é o tipo de
    regra que quebra em silêncio, porque ninguém repara que passou a ser permitido.
    ===================================================================== */
+/* ================================================================== */
+/* 18. Configurar o espaço: nome, ícone, canais e apagar               */
+/* ================================================================== */
+
+/**
+ * Tudo aqui num espaço PRÓPRIO, criado e destruído dentro da seção.
+ *
+ * Não dá para usar `state.space`: a última coisa que esta seção faz é apagar o
+ * espaço, e as seções de chamadas, presença de voz e ordem dependem daquele
+ * estar de pé. Um teste que apaga o cenário dos outros passa hoje e derruba a
+ * suíte inteira no dia em que alguém trocar a ordem das seções.
+ */
+async function secConfigDoEspaco() {
+  console.log("\n=== 18. Configurar o espaço ===");
+  const { A, B, C } = state;
+  const cfg = {};
+
+  await t("espaço próprio da seção", async () => {
+    const r = await POST("/spaces", { token: A.token, body: { name: "Antes de Renomear" } });
+    cfg.space = r.json?.space;
+    cfg.texto = r.json?.space?.channels?.find((c) => c.kind === "TEXT")?.id;
+    cfg.voz = r.json?.space?.channels?.find((c) => c.kind === "VOICE")?.id;
+    check(
+      "criado com um canal de texto e um de voz",
+      r.status === 201 && cfg.texto && cfg.voz,
+      "201 com os dois canais",
+      short(r)
+    );
+  });
+
+  await t("quem não é do espaço não mexe no nome", async () => {
+    const r = await PATCH(`/spaces/${cfg.space.id}`, {
+      token: C.token,
+      body: { name: "Invadido" }
+    });
+    check(
+      "C, fora do espaço, recebe 404 spaces.not_member",
+      r.status === 404 && r.json?.code === "spaces.not_member",
+      "404 spaces.not_member",
+      short(r)
+    );
+  });
+
+  await t("membro comum não muda o nome", async () => {
+    await POST(`/spaces/join/${cfg.space.inviteCode}`, { token: B.token });
+    const r = await PATCH(`/spaces/${cfg.space.id}`, {
+      token: B.token,
+      body: { name: "Renomeado por membro" }
+    });
+    check(
+      "B, membro comum, recebe 403 spaces.change_admin_only",
+      r.status === 403 && r.json?.code === "spaces.change_admin_only",
+      "403 spaces.change_admin_only",
+      short(r)
+    );
+  });
+
+  await t("o dono renomeia", async () => {
+    const r = await PATCH(`/spaces/${cfg.space.id}`, {
+      token: A.token,
+      body: { name: "Depois de Renomear" }
+    });
+    check(
+      "PATCH devolve 200 com o nome novo",
+      r.status === 200 && r.json?.space?.name === "Depois de Renomear",
+      "200 com o nome novo",
+      short(r)
+    );
+    // O nome tem de chegar a quem NÃO renomeou: é o que a barra lateral lê.
+    const lista = await GET("/spaces", { token: B.token });
+    const visto = lista.json?.spaces?.find((x) => x.id === cfg.space.id)?.name;
+    check("B vê o nome novo na lista dele", visto === "Depois de Renomear", "Depois de Renomear", String(visto));
+  });
+
+  await t("nome vazio não passa", async () => {
+    const r = await PATCH(`/spaces/${cfg.space.id}`, { token: A.token, body: { name: "   " } });
+    check(
+      "espaço em branco é 400 spaces.needs_name",
+      r.status === 400 && r.json?.code === "spaces.needs_name",
+      "400 spaces.needs_name",
+      short(r)
+    );
+  });
+
+  await t("ícone de fora não passa", async () => {
+    const r = await PATCH(`/spaces/${cfg.space.id}`, {
+      token: A.token,
+      body: { iconUrl: "https://rastreador.example/pixel.png" }
+    });
+    check(
+      "endereço de outro servidor é 400 validation.avatar_url",
+      r.status === 400 && r.json?.code === "validation.avatar_url",
+      "400 validation.avatar_url",
+      short(r)
+    );
+  });
+
+  await t("corpo vazio não muda nada", async () => {
+    const r = await PATCH(`/spaces/${cfg.space.id}`, { token: A.token, body: {} });
+    check(
+      "PATCH sem campo devolve o espaço como está",
+      r.status === 200 && r.json?.space?.name === "Depois de Renomear",
+      "200 com o nome intacto",
+      short(r)
+    );
+  });
+
+  await t("renomear canal do espaço", async () => {
+    const r = await PATCH(`/spaces/${cfg.space.id}/channels/${cfg.texto}`, {
+      token: A.token,
+      body: { name: "avisos" }
+    });
+    check(
+      "canal renomeado devolve 200",
+      r.status === 200 && r.json?.channel?.name === "avisos",
+      "200 com o nome novo",
+      short(r)
+    );
+    const salas = await GET("/rooms", { token: B.token });
+    const visto = salas.json?.rooms?.find((x) => x.id === cfg.texto)?.name;
+    check("B vê o canal renomeado", visto === "avisos", "avisos", String(visto));
+  });
+
+  await t("por que a rota existe: /rooms recusa canal de espaço", async () => {
+    const r = await PATCH(`/rooms/${cfg.texto}`, { token: A.token, body: { name: "pela outra porta" } });
+    check(
+      "PATCH /rooms num canal de espaço é 400 rooms.group_only",
+      r.status === 400 && r.json?.code === "rooms.group_only",
+      "400 rooms.group_only",
+      short(r)
+    );
+  });
+
+  await t("canal de outro espaço não se renomeia por aqui", async () => {
+    const outro = await POST("/spaces", { token: A.token, body: { name: "O Outro" } });
+    const alheio = outro.json?.space?.channels?.find((c) => c.kind === "TEXT")?.id;
+    cfg.outroId = outro.json?.space?.id;
+    const r = await PATCH(`/spaces/${cfg.space.id}/channels/${alheio}`, {
+      token: A.token,
+      body: { name: "sequestrado" }
+    });
+    check(
+      "id de canal de outro espaço é 404 spaces.channel_missing",
+      r.status === 404 && r.json?.code === "spaces.channel_missing",
+      "404 spaces.channel_missing",
+      short(r)
+    );
+  });
+
+  await t("membro comum não apaga canal", async () => {
+    const r = await DEL(`/spaces/${cfg.space.id}/channels/${cfg.voz}`, { token: B.token });
+    check(
+      "B recebe 403 spaces.change_admin_only",
+      r.status === 403 && r.json?.code === "spaces.change_admin_only",
+      "403 spaces.change_admin_only",
+      short(r)
+    );
+  });
+
+  await t("o dono apaga um canal", async () => {
+    const r = await DEL(`/spaces/${cfg.space.id}/channels/${cfg.voz}`, { token: A.token });
+    check("apagar canal devolve 204", r.status === 204, "204", short(r));
+    const lista = await GET("/spaces", { token: A.token });
+    const quantos = lista.json?.spaces?.find((x) => x.id === cfg.space.id)?.channels?.length;
+    check("sobrou um canal só", quantos === 1, "1", String(quantos));
+    const salas = await GET("/rooms", { token: B.token });
+    const aindaLa = salas.json?.rooms?.some((x) => x.id === cfg.voz);
+    check("o canal apagado sumiu da lista de B", aindaLa === false, "false", String(aindaLa));
+  });
+
+  await t("o último canal não sai", async () => {
+    const r = await DEL(`/spaces/${cfg.space.id}/channels/${cfg.texto}`, { token: A.token });
+    check(
+      "apagar o último canal é 409 spaces.last_channel",
+      r.status === 409 && r.json?.code === "spaces.last_channel",
+      "409 spaces.last_channel",
+      short(r)
+    );
+  });
+
+  await t("quem não é dono não apaga o espaço", async () => {
+    const r = await DEL(`/spaces/${cfg.space.id}`, { token: B.token });
+    check(
+      "B recebe 403 spaces.owner_only",
+      r.status === 403 && r.json?.code === "spaces.owner_only",
+      "403 spaces.owner_only",
+      short(r)
+    );
+  });
+
+  await t("o dono apaga o espaço", async () => {
+    const r = await DEL(`/spaces/${cfg.space.id}`, { token: A.token });
+    check("apagar o espaço devolve 204", r.status === 204, "204", short(r));
+
+    const deA = await GET("/spaces", { token: A.token });
+    const deB = await GET("/spaces", { token: B.token });
+    check(
+      "o espaço sumiu das duas listas",
+      !deA.json?.spaces?.some((x) => x.id === cfg.space.id) &&
+        !deB.json?.spaces?.some((x) => x.id === cfg.space.id),
+      "fora das duas",
+      `A=${deA.json?.spaces?.some((x) => x.id === cfg.space.id)} B=${deB.json?.spaces?.some((x) => x.id === cfg.space.id)}`
+    );
+
+    // O canal foi junto: quem tentar abrir agora não encontra nada.
+    const sala = await GET(`/rooms/${cfg.texto}`, { token: A.token });
+    check("o canal do espaço apagado não abre mais", sala.status === 404, "404", short(sala));
+
+    const denovo = await DEL(`/spaces/${cfg.space.id}`, { token: A.token });
+    check(
+      "apagar de novo é 404 spaces.missing",
+      denovo.status === 404 && denovo.json?.code === "spaces.missing",
+      "404 spaces.missing",
+      short(denovo)
+    );
+  });
+
+  await t("limpeza do espaço auxiliar", async () => {
+    const r = await DEL(`/spaces/${cfg.outroId}`, { token: A.token });
+    check("o espaço auxiliar da seção também some", r.status === 204, "204", short(r));
+  });
+}
+
 async function secSons() {
   console.log("\n=== 16. Sons da bandeja ===");
   const { A, B, C } = state;
@@ -3156,7 +3379,8 @@ async function main() {
     ["ordem", secOrdemEPastas, ["A", "B", "C", "space"]],
     ["grupo", secGrupo, ["A", "B", "C", "dmAB", "generalId"]],
     ["papeis", secPapeis, ["A", "B", "C", "D"]],
-    ["sons", secSons, ["A", "B", "C"]]
+    ["sons", secSons, ["A", "B", "C"]],
+    ["configespaco", secConfigDoEspaco, ["A", "B", "C"]]
   ];
 
   for (const [name, section, needs] of sections) {

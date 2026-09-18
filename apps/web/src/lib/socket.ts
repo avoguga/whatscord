@@ -40,7 +40,15 @@ export function connectSocket() {
 
   socket.on("room:new", () => store().refreshRooms().catch(() => undefined));
   socket.on("room:members", () => store().refreshRooms().catch(() => undefined));
-  socket.on("room:left", () => store().refreshRooms().catch(() => undefined));
+  /*
+   * Pode ser o canal que está aberto agora: um administrador apagou daqui a
+   * pouco, do outro lado. Sem soltar a sala, o telefone fica preso num painel
+   * vazio — o layout esconde a barra lateral enquanto há sala aberta.
+   */
+  socket.on("room:left", (p: { roomId?: string }) => {
+    if (p?.roomId && store().activeRoomId === p.roomId) store().closeRoom();
+    store().refreshRooms().catch(() => undefined);
+  });
   socket.on("space:joined", () => {
     store().refreshSpaces().catch(() => undefined);
     store().refreshRooms().catch(() => undefined);
@@ -53,7 +61,14 @@ export function connectSocket() {
   });
   // Saiu de um espaco (possivelmente noutra aba ou noutro aparelho): as salas
   // dele tem que sumir daqui tambem, senao ficam clicaveis e dao 403.
-  socket.on("space:left", () => {
+  socket.on("space:left", (p: { spaceId?: string }) => {
+    /*
+     * Três caminhos chegam aqui: eu saí noutra aba, me tiraram, ou o dono
+     * apagou o espaço. Nos três o espaço deixou de existir para esta conta, e
+     * segurá-lo como o espaço aberto deixaria a barra lateral filtrando pelo
+     * que não está mais na lista.
+     */
+    if (p?.spaceId) store().esquecerEspaco(p.spaceId);
     store().refreshSpaces().catch(() => undefined);
     store().refreshRooms().catch(() => undefined);
   });

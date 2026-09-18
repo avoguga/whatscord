@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { api, uploadFile } from "../lib/api";
 import { inviteLink } from "../lib/deeplink";
 import { ImageError, squareThumbnail } from "../lib/image";
@@ -18,6 +18,16 @@ import type { I18n } from "@lingui/core";
  * cover the three ways someone gets in: a code for a space, a group you build
  * from a list, and adding people to a group after the fact.
  */
+
+/** O mesmo campo de texto que este painel já usava, escrito uma vez só. */
+const CAMPO: CSSProperties = {
+  flex: 1,
+  background: "var(--input)",
+  border: "1px solid transparent",
+  borderRadius: 8,
+  padding: "10px 12px",
+  outline: "none"
+};
 
 /** Copies to the clipboard and confirms in place, the way a copy button should. */
 function CopyField({ value, label }: { value: string; label: string }) {
@@ -91,9 +101,17 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
   const refreshSpaces = useStore((s) => s.refreshSpaces);
   const refreshRooms = useStore((s) => s.refreshRooms);
   const leaveSpace = useStore((s) => s.leaveSpace);
+  const deleteSpace = useStore((s) => s.deleteSpace);
+  const deleteChannel = useStore((s) => s.deleteChannel);
   const notify = useStore((s) => s.notify);
   const space = spaces.find((s) => s.id === spaceId);
   const [confirmarSaida, setConfirmarSaida] = useState(false);
+
+  const [nome, setNome] = useState(space?.name ?? "");
+  const [enviandoIcone, setEnviandoIcone] = useState(false);
+  /** O canal que está sendo renomeado agora, e o texto em edição. */
+  const [renomeando, setRenomeando] = useState<{ id: string; nome: string } | null>(null);
+  const iconeRef = useRef<HTMLInputElement>(null);
 
   const [members, setMembers] = useState<SpaceMember[]>([]);
   const [channelName, setChannelName] = useState("");
@@ -102,7 +120,11 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
   const [error, setError] = useState<string | null>(null);
   /** Qual ação destrutiva está esperando confirmação. Só uma por vez. */
   const [confirmar, setConfirmar] = useState<
-    { tipo: "remover" | "posse"; membro: SpaceMember } | { tipo: "convite" } | null
+    | { tipo: "remover" | "posse"; membro: SpaceMember }
+    | { tipo: "convite" }
+    | { tipo: "canal"; canalId: string }
+    | { tipo: "espaco" }
+    | null
   >(null);
 
   async function carregarMembros() {
@@ -202,6 +224,114 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
     }
   }
 
+  /**
+   * Troca a imagem do espaço.
+   *
+   * Reduz para um quadrado de 640 px ANTES de subir, como a foto de perfil e a
+   * do grupo. O `POST /files` é genérico e não redimensiona nada: sem isto, uma
+   * foto de 4 MB tirada no celular seria baixada inteira toda vez que alguém
+   * abrisse o app, porque o ícone do espaço fica na barra lateral de todo mundo.
+   */
+  async function trocarIcone(file: File) {
+    setEnviandoIcone(true);
+    setError(null);
+    try {
+      const pequena = await squareThumbnail(file);
+      const enviado = await uploadFile(pequena);
+      await api.patch(`/spaces/${spaceId}`, { iconUrl: enviado.url });
+      await refreshSpaces();
+      notify(t`Space picture updated.`);
+    } catch (err) {
+      setError(
+        err instanceof ImageError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : t`That picture could not be saved.`
+      );
+    } finally {
+      setEnviandoIcone(false);
+      if (iconeRef.current) iconeRef.current.value = "";
+    }
+  }
+
+  async function removerIcone() {
+    setEnviandoIcone(true);
+    setError(null);
+    try {
+      await api.patch(`/spaces/${spaceId}`, { iconUrl: null });
+      await refreshSpaces();
+      notify(t`Space picture removed.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t`That picture could not be removed.`);
+    } finally {
+      setEnviandoIcone(false);
+    }
+  }
+
+  async function salvarNome() {
+    const limpo = nome.trim();
+    if (!limpo || limpo === space?.name) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.patch(`/spaces/${spaceId}`, { name: limpo });
+      await refreshSpaces();
+      notify(t`Space name saved.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t`That name could not be saved.`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function salvarCanal(canalId: string) {
+    const limpo = renomeando?.nome.trim() ?? "";
+    if (!limpo) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.patch(`/spaces/${spaceId}/channels/${encodeURIComponent(canalId)}`, {
+        name: limpo
+      });
+      setRenomeando(null);
+      await Promise.all([refreshSpaces(), refreshRooms()]);
+      notify(t`Channel renamed to ${limpo}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t`That channel could not be renamed.`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function apagarCanal(canalId: string, nomeDoCanal: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteChannel(spaceId, canalId);
+      notify(t`${nomeDoCanal} was deleted.`);
+      setConfirmar(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t`That channel could not be deleted.`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function apagarEspaco() {
+    setBusy(true);
+    setError(null);
+    try {
+      const comoSeChamava = space?.name ?? "";
+      await deleteSpace(spaceId);
+      notify(t`${comoSeChamava} was deleted.`);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t`That space could not be deleted.`);
+      setBusy(false);
+    }
+  }
+
   async function addChannel() {
     if (!channelName.trim()) return;
     setBusy(true);
@@ -234,6 +364,73 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
       <header>{space.name}</header>
       <div className="modal-body">
         {error && <div className="form-error">{error}</div>}
+
+        <div className="settings-id">
+          {mando ? (
+            <button
+              className="avatar-edit"
+              onClick={() => iconeRef.current?.click()}
+              disabled={enviandoIcone}
+              title={t`Change the space picture`}
+              aria-label={t`Change the space picture`}
+            >
+              <Avatar name={space.name} url={space.iconUrl} size={64} />
+              <span className="avatar-edit-hint">{enviandoIcone ? t`Saving…` : t`Change`}</span>
+            </button>
+          ) : (
+            <Avatar name={space.name} url={space.iconUrl} size={64} />
+          )}
+          <input
+            ref={iconeRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void trocarIcone(f);
+            }}
+          />
+          <div>
+            <strong>{space.name}</strong>
+            <span>{plural(space.memberCount, { one: "# person", other: "# people" })}</span>
+            {mando && space.iconUrl && (
+              <button
+                className="btn-link"
+                disabled={enviandoIcone}
+                onClick={() => void removerIcone()}
+              >
+                <Trans>Remove the picture</Trans>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {mando && (
+          <div className="field">
+            <label htmlFor="space-rename">
+              <Trans>Space name</Trans>
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                id="space-rename"
+                value={nome}
+                maxLength={60}
+                onChange={(e) => setNome(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && void salvarNome()}
+                style={CAMPO}
+              />
+              <button
+                className="btn-ghost"
+                disabled={busy || !nome.trim() || nome.trim() === space.name}
+                onClick={() => void salvarNome()}
+              >
+                <Trans>Save</Trans>
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div style={{ height: 1, background: "var(--divider)", margin: "20px 0" }} />
 
         <p style={{ color: "var(--text-dim)", fontSize: 13.5, margin: "0 0 14px" }}>
           <Trans>
@@ -426,6 +623,114 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
         <div style={{ height: 1, background: "var(--divider)", margin: "20px 0" }} />
 
         <p className="section-label" style={{ padding: 0, marginBottom: 8 }}>
+          <Trans>Channels</Trans> · {space.channels.length}
+        </p>
+
+        {space.channels.map((c) => {
+          const nomeDoCanal = c.name ?? t`Channel`;
+          const editando = renomeando?.id === c.id;
+          return (
+            <div key={c.id} className="member-row">
+              {editando ? (
+                <div style={{ display: "flex", gap: 8, padding: "8px 0" }}>
+                  <input
+                    autoFocus
+                    value={renomeando.nome}
+                    maxLength={60}
+                    onChange={(e) => setRenomeando({ id: c.id, nome: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void salvarCanal(c.id);
+                      if (e.key === "Escape") setRenomeando(null);
+                    }}
+                    style={CAMPO}
+                  />
+                  <button
+                    className="btn-ghost"
+                    disabled={busy || !renomeando.nome.trim()}
+                    onClick={() => void salvarCanal(c.id)}
+                  >
+                    <Trans>Save</Trans>
+                  </button>
+                  <button className="btn-ghost" onClick={() => setRenomeando(null)}>
+                    <Trans>Cancel</Trans>
+                  </button>
+                </div>
+              ) : (
+                <div className="row" style={{ height: 46, padding: 0, gap: 10 }}>
+                  {/*
+                    O mesmo sinal que a barra lateral usa para separar os dois
+                    tipos. Aqui ele importa mais do que lá: a lista está fora de
+                    contexto, e sem ele um canal de voz e um de texto com nomes
+                    parecidos viram a mesma linha na hora de apagar.
+                  */}
+                  <span style={{ color: "var(--text-faint)", width: 14, textAlign: "center" }}>
+                    {c.kind === "VOICE" ? "♪" : "#"}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }} className="row-name">
+                    {nomeDoCanal}
+                  </div>
+                  {mando && (
+                    <div className="member-actions" style={{ margin: 0 }}>
+                      <button
+                        className="btn-link"
+                        disabled={busy}
+                        onClick={() => {
+                          setConfirmar(null);
+                          setRenomeando({ id: c.id, nome: nomeDoCanal });
+                        }}
+                      >
+                        <Trans>Rename</Trans>
+                      </button>
+                      <button
+                        className="btn-link danger"
+                        disabled={busy}
+                        onClick={() => {
+                          setRenomeando(null);
+                          setConfirmar({ tipo: "canal", canalId: c.id });
+                        }}
+                      >
+                        <Trans>Delete</Trans>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/*
+                O aviso diz o que some, e não "tem certeza?". Apagar um canal
+                leva junto tudo o que foi escrito nele, para todo mundo — é a
+                regra oposta à de expulsar alguém, onde as mensagens ficam.
+              */}
+              {confirmar?.tipo === "canal" && confirmar.canalId === c.id && (
+                <div className="leave-confirm">
+                  <p>
+                    <Trans>
+                      Delete <b>{nomeDoCanal}</b>? Everything written there goes with it —
+                      messages, pictures and files — for everyone in the space. There is no way
+                      back.
+                    </Trans>
+                  </p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="btn-ghost" onClick={() => setConfirmar(null)}>
+                      <Trans>Cancel</Trans>
+                    </button>
+                    <button
+                      className="btn-outline danger"
+                      disabled={busy}
+                      onClick={() => void apagarCanal(c.id, nomeDoCanal)}
+                    >
+                      {busy ? <Trans>Deleting…</Trans> : <Trans>Yes, delete it</Trans>}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        <div style={{ height: 1, background: "var(--divider)", margin: "20px 0" }} />
+
+        <p className="section-label" style={{ padding: 0, marginBottom: 8 }}>
           <Trans>New channel</Trans>
         </p>
         <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
@@ -450,14 +755,7 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
             onChange={(e) => setChannelName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addChannel()}
             placeholder={channelKind === "TEXT" ? t`announcements` : t`Lounge`}
-            style={{
-              flex: 1,
-              background: "var(--input)",
-              border: "1px solid transparent",
-              borderRadius: 8,
-              padding: "10px 12px",
-              outline: "none"
-            }}
+            style={CAMPO}
           />
           <button className="btn-ghost" disabled={busy || !channelName.trim()} onClick={addChannel}>
             <Trans>Add</Trans>
@@ -510,6 +808,48 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
             <Trans>Leave this space</Trans>
           </button>
         )}
+
+        {/*
+          Apagar o espaço fica DEPOIS de sair, e só para o dono. A ordem é de
+          propósito: quem quer só se ver livre do espaço encontra "sair"
+          primeiro, que é o que quase todo mundo quer. Apagar é o fim de tudo
+          para catorze pessoas, não uma saída pessoal.
+        */}
+        {souDono &&
+          (confirmar?.tipo === "espaco" ? (
+            <div className="leave-confirm" style={{ marginTop: 12 }}>
+              <p>
+                <Trans>
+                  Delete <b>{space.name}</b> for everyone? Every channel, every message, every
+                  picture and every file in this space goes with it, for all{" "}
+                  {space.memberCount} people. There is no way back, and no copy is kept.
+                </Trans>
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn-ghost" onClick={() => setConfirmar(null)}>
+                  <Trans>Cancel</Trans>
+                </button>
+                <button
+                  className="btn-outline danger"
+                  disabled={busy}
+                  onClick={() => void apagarEspaco()}
+                >
+                  {busy ? <Trans>Deleting…</Trans> : <Trans>Yes, delete the space</Trans>}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              className="btn-link danger"
+              style={{ marginTop: 14 }}
+              onClick={() => {
+                setRenomeando(null);
+                setConfirmar({ tipo: "espaco" });
+              }}
+            >
+              <Trans>Delete this space</Trans>
+            </button>
+          ))}
       </div>
       <footer>
         <button className="btn-ghost" onClick={onClose}>

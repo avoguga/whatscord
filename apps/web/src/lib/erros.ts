@@ -72,6 +72,15 @@ const MENSAGENS: Record<string, MessageDescriptor> = {
 
   "spaces.not_member": msg`You are not in that space.`,
   "spaces.admin_only": msg`Only admins can add channels.`,
+  "spaces.change_admin_only": msg`Only admins can change this space.`,
+  "spaces.channel_missing": msg`That channel is not in this space.`,
+  /*
+   * O espaço sem canal nenhum abriria numa tela vazia onde não há o que
+   * clicar, e quem não administra não teria como criar o próximo. A frase diz
+   * a regra, e não "não pode": é o que faz a pessoa procurar apagar o espaço
+   * inteiro, que é o que ela queria.
+   */
+  "spaces.last_channel": msg`A space needs at least one channel.`,
   "spaces.bad_invite": msg`That invite is not valid.`,
   "spaces.missing": msg`That space does not exist.`,
   "spaces.needs_name": msg`Give the space a name.`,

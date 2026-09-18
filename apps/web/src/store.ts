@@ -230,6 +230,10 @@ type State = {
   toggleFolder: (id: string) => void;
   joinSpaceByCode: (code: string) => Promise<{ id: string; name: string }>;
   leaveSpace: (spaceId: string) => Promise<{ spaceDeleted: boolean }>;
+  deleteSpace: (spaceId: string) => Promise<void>;
+  /** Solta o espaço aberto quando ele deixa de existir para esta conta. */
+  esquecerEspaco: (spaceId: string) => void;
+  deleteChannel: (spaceId: string, channelId: string) => Promise<void>;
   openRoom: (roomId: string) => Promise<void>;
   closeRoom: () => void;
   loadOlder: (roomId: string) => Promise<void>;
@@ -563,18 +567,56 @@ export const useStore = create<State>((set, get) => ({
       `/spaces/${encodeURIComponent(spaceId)}/members/me`
     );
 
-    const saiuDoAtivo = get().activeSpaceId === spaceId;
-    const salasDoEspaco = new Set(
-      get().rooms.filter((r) => r.space?.id === spaceId).map((r) => r.id)
-    );
-
-    set((s) => ({
-      activeSpaceId: saiuDoAtivo ? null : s.activeSpaceId,
-      activeRoomId: s.activeRoomId && salasDoEspaco.has(s.activeRoomId) ? null : s.activeRoomId
-    }));
+    get().esquecerEspaco(spaceId);
 
     await Promise.all([get().refreshSpaces(), get().refreshRooms()]);
     return { spaceDeleted: res.spaceDeleted };
+  },
+
+  /**
+   * Apaga o espaço inteiro. Só o dono consegue; o servidor confere de novo.
+   *
+   * A limpeza é a mesma de sair, e pelo mesmo motivo: um `activeSpaceId`
+   * apontando para o que não existe mais deixa a barra lateral filtrando por um
+   * espaço fantasma — foi o sintoma de "entrei e a conversa sumiu" que já
+   * apareceu aqui antes, por outro caminho.
+   */
+  async deleteSpace(spaceId) {
+    await api.del(`/spaces/${encodeURIComponent(spaceId)}`);
+    get().esquecerEspaco(spaceId);
+    await Promise.all([get().refreshSpaces(), get().refreshRooms()]);
+  },
+
+  /**
+   * Apaga um canal do espaço, com as mensagens dele.
+   *
+   * Soltar o canal aberto não é detalhe de arrumação: no telefone o layout
+   * esconde a barra lateral enquanto há sala aberta, e uma sala que sumiu
+   * deixaria a pessoa presa num painel vazio, sem caminho de volta.
+   */
+  async deleteChannel(spaceId, channelId) {
+    await api.del(
+      `/spaces/${encodeURIComponent(spaceId)}/channels/${encodeURIComponent(channelId)}`
+    );
+    set((s) => ({ activeRoomId: s.activeRoomId === channelId ? null : s.activeRoomId }));
+    await Promise.all([get().refreshSpaces(), get().refreshRooms()]);
+  },
+
+  /**
+   * Solta um espaço que deixou de existir para esta conta.
+   *
+   * Serve a três caminhos que terminam igual: sair, apagar, e o aviso que chega
+   * pelo socket quando quem apagou foi outra pessoa. Sem o terceiro, os outros
+   * membros ficariam olhando para um espaço fantasma até recarregar a página.
+   */
+  esquecerEspaco(spaceId) {
+    const salasDoEspaco = new Set(
+      get().rooms.filter((r) => r.space?.id === spaceId).map((r) => r.id)
+    );
+    set((s) => ({
+      activeSpaceId: s.activeSpaceId === spaceId ? null : s.activeSpaceId,
+      activeRoomId: s.activeRoomId && salasDoEspaco.has(s.activeRoomId) ? null : s.activeRoomId
+    }));
   },
 
   async joinSpaceByCode(code) {

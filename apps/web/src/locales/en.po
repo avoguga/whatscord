@@ -40,9 +40,15 @@ msgid "{0, plural, one {# person was added.} other {# people were added.}}"
 msgstr "{0, plural, one {# person was added.} other {# people were added.}}"
 
 #. placeholder {0}: room.memberCount
+#. placeholder {0}: space.memberCount
+#: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 msgid "{0, plural, one {# person} other {# people}}"
 msgstr "{0, plural, one {# person} other {# people}}"
+
+#: src/ui/Invites.tsx
+msgid "{comoSeChamava} was deleted."
+msgstr "{comoSeChamava} was deleted."
 
 #: src/ui/Sidebar.tsx
 msgid "{inVoice, plural, one {# connected} other {# connected}}"
@@ -59,6 +65,10 @@ msgstr "{nome} was dropped at {alvo}."
 #: src/ui/SpaceRail.tsx
 msgid "{nome} was left where it was."
 msgstr "{nome} was left where it was."
+
+#: src/ui/Invites.tsx
+msgid "{nomeDoCanal} was deleted."
+msgstr "{nomeDoCanal} was deleted."
 
 #: src/ui/Invites.tsx
 msgid "{quem} is now a member."
@@ -107,6 +117,10 @@ msgstr "A small neural network cleans the microphone before sending. Best for ke
 #: src/ui/Modals.tsx
 msgid "A space holds text channels and voice rooms, and everyone you invite sees all of them."
 msgstr "A space holds text channels and voice rooms, and everyone you invite sees all of them."
+
+#: src/lib/erros.ts
+msgid "A space needs at least one channel."
+msgstr "A space needs at least one channel."
 
 #: src/ui/Settings.tsx
 msgid "A white background all day."
@@ -325,6 +339,9 @@ msgstr "Camera options"
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
 #: src/ui/Modals.tsx
 #: src/ui/SpaceRail.tsx
 msgid "Cancel"
@@ -339,6 +356,7 @@ msgid "Categories"
 msgstr "Categories"
 
 #: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
 #: src/ui/Settings.tsx
 msgid "Change"
 msgstr "Change"
@@ -348,10 +366,19 @@ msgstr "Change"
 msgid "Change the group picture"
 msgstr "Change the group picture"
 
+#: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
+msgid "Change the space picture"
+msgstr "Change the space picture"
+
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
 msgid "Change your photo"
 msgstr "Change your photo"
+
+#: src/ui/Invites.tsx
+msgid "Channel"
+msgstr "Channel"
 
 #: src/ui/Invites.tsx
 msgid "Channel {nome} created."
@@ -360,6 +387,14 @@ msgstr "Channel {nome} created."
 #: src/ui/CallChat.tsx
 msgid "Channel chat"
 msgstr "Channel chat"
+
+#: src/ui/Invites.tsx
+msgid "Channel renamed to {limpo}."
+msgstr "Channel renamed to {limpo}."
+
+#: src/ui/Invites.tsx
+msgid "Channels"
+msgstr "Channels"
 
 #: src/ui/Call.tsx
 #: src/ui/CallChat.tsx
@@ -508,16 +543,36 @@ msgstr "Dark"
 msgid "Default"
 msgstr "Default"
 
+#: src/ui/Invites.tsx
+msgid "Delete"
+msgstr "Delete"
+
+#. placeholder {0}: space.name
+#. placeholder {1}: space.memberCount
+#: src/ui/Invites.tsx
+msgid "Delete <0>{0}</0> for everyone? Every channel, every message, every picture and every file in this space goes with it, for all {1} people. There is no way back, and no copy is kept."
+msgstr "Delete <0>{0}</0> for everyone? Every channel, every message, every picture and every file in this space goes with it, for all {1} people. There is no way back, and no copy is kept."
+
 #. placeholder {0}: pasta.name
 #: src/ui/FolderModal.tsx
 msgid "Delete <0>{0}</0>? The spaces inside go back to the bar on their own. Nothing is removed and nobody is told."
 msgstr "Delete <0>{0}</0>? The spaces inside go back to the bar on their own. Nothing is removed and nobody is told."
 
+#: src/ui/Invites.tsx
+msgid "Delete <0>{nomeDoCanal}</0>? Everything written there goes with it — messages, pictures and files — for everyone in the space. There is no way back."
+msgstr "Delete <0>{nomeDoCanal}</0>? Everything written there goes with it — messages, pictures and files — for everyone in the space. There is no way back."
+
 #: src/ui/FolderModal.tsx
 msgid "Delete this folder"
 msgstr "Delete this folder"
 
+#: src/ui/Invites.tsx
+msgid "Delete this space"
+msgstr "Delete this space"
+
 #: src/ui/FolderModal.tsx
+#: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
 msgid "Deleting…"
 msgstr "Deleting…"
 
@@ -1221,6 +1276,10 @@ msgstr "Online"
 msgid "Only admins can add channels."
 msgstr "Only admins can add channels."
 
+#: src/lib/erros.ts
+msgid "Only admins can change this space."
+msgstr "Only admins can change this space."
+
 #: src/ui/Invites.tsx
 msgid "Only an admin or the owner can change who is here."
 msgstr "Only an admin or the owner can change who is here."
@@ -1430,6 +1489,7 @@ msgid "Remove photo"
 msgstr "Remove photo"
 
 #: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
 msgid "Remove the picture"
 msgstr "Remove the picture"
 
@@ -1448,6 +1508,10 @@ msgstr "Removing someone takes them out of every channel here. What they wrote s
 #: src/ui/Invites.tsx
 msgid "Removing…"
 msgstr "Removing…"
+
+#: src/ui/Invites.tsx
+msgid "Rename"
+msgstr "Rename"
 
 #: src/ui/Chat.tsx
 msgid "Reply to this message"
@@ -1491,6 +1555,8 @@ msgstr "Same as device"
 
 #: src/ui/FolderModal.tsx
 #: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
 msgid "Save"
 msgstr "Save"
 
@@ -1499,6 +1565,7 @@ msgid "Save changes"
 msgstr "Save changes"
 
 #: src/ui/FolderModal.tsx
+#: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Settings.tsx
@@ -1670,6 +1737,22 @@ msgstr "Source"
 msgid "Space"
 msgstr "Space"
 
+#: src/ui/Invites.tsx
+msgid "Space name"
+msgstr "Space name"
+
+#: src/ui/Invites.tsx
+msgid "Space name saved."
+msgstr "Space name saved."
+
+#: src/ui/Invites.tsx
+msgid "Space picture removed."
+msgstr "Space picture removed."
+
+#: src/ui/Invites.tsx
+msgid "Space picture updated."
+msgstr "Space picture updated."
+
 #: src/ui/DevicePicker.tsx
 msgid "Speak — the bar should move."
 msgstr "Speak — the bar should move."
@@ -1756,6 +1839,18 @@ msgstr "That attachment is not yours to send."
 #: src/ui/Invites.tsx
 msgid "That channel could not be created."
 msgstr "That channel could not be created."
+
+#: src/ui/Invites.tsx
+msgid "That channel could not be deleted."
+msgstr "That channel could not be deleted."
+
+#: src/ui/Invites.tsx
+msgid "That channel could not be renamed."
+msgstr "That channel could not be renamed."
+
+#: src/lib/erros.ts
+msgid "That channel is not in this space."
+msgstr "That channel is not in this space."
 
 #: src/ui/Membros.tsx
 msgid "That conversation could not be opened."
@@ -1854,6 +1949,7 @@ msgid "That message is gone."
 msgstr "That message is gone."
 
 #: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
 msgid "That name could not be saved."
 msgstr "That name could not be saved."
 
@@ -1882,9 +1978,11 @@ msgid "That photo could not be saved."
 msgstr "That photo could not be saved."
 
 #: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
 msgid "That picture could not be removed."
 msgstr "That picture could not be removed."
 
+#: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 msgid "That picture could not be saved."
 msgstr "That picture could not be saved."
@@ -1912,6 +2010,10 @@ msgstr "That sound is no longer here."
 #: src/lib/erros.ts
 msgid "That sound is not yours to remove."
 msgstr "That sound is not yours to remove."
+
+#: src/ui/Invites.tsx
+msgid "That space could not be deleted."
+msgstr "That space could not be deleted."
 
 #: src/lib/erros.ts
 msgid "That space does not exist."
@@ -2295,9 +2397,17 @@ msgstr "Write to the channel"
 msgid "Wrong"
 msgstr "Wrong"
 
+#: src/ui/Invites.tsx
+msgid "Yes, delete it"
+msgstr "Yes, delete it"
+
 #: src/ui/FolderModal.tsx
 msgid "Yes, delete the folder"
 msgstr "Yes, delete the folder"
+
+#: src/ui/Invites.tsx
+msgid "Yes, delete the space"
+msgstr "Yes, delete the space"
 
 #: src/ui/Invites.tsx
 msgid "Yes, leave"

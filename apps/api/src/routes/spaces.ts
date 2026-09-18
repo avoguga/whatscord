@@ -6,6 +6,7 @@ import { userSelect } from "../lib/shapes.js";
 import { authGuard } from "../plugins/auth.js";
 import { emitToRoom, emitToUsers, joinUserSockets, leaveUserSockets } from "../realtime/bus.js";
 import { falha, falhaDeValidacao } from "../lib/falha.js";
+import { caminhoDeImagem } from "../lib/imagem.js";
 
 const inviteCode = () => crypto.randomBytes(5).toString("hex");
 
@@ -254,6 +255,69 @@ export async function spaceRoutes(app: FastifyInstance) {
     });
   });
 
+  /**
+   * Trocar o nome e o ícone do espaço.
+   *
+   * Não existia caminho nenhum para isto: `Space.name` só era escrito na
+   * criação, e `Space.iconUrl` nunca era escrito por ninguém — embora a barra
+   * lateral já soubesse desenhá-lo (`SpaceRail`). Um espaço criado com o nome
+   * errado ficava com o nome errado para sempre, e a única saída era criar
+   * outro e levar todo mundo junto.
+   *
+   * A régua é a de administrador, e não a de dono: é a mesma de criar canal e
+   * de expulsar gente. Um espaço cujo nome só o dono conserta fica com o nome
+   * errado enquanto o dono estiver sem aparecer.
+   */
+  app.patch("/spaces/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = z
+      .object({
+        name: z.string().trim().min(1).max(60).optional(),
+        // A mesma validação do avatar e do ícone de grupo. Ver `lib/imagem.ts`.
+        iconUrl: caminhoDeImagem
+      })
+      .safeParse(request.body ?? {});
+    if (!body.success) {
+      /*
+       * Dois motivos de recusa bem diferentes no mesmo corpo. O endereço de
+       * imagem tem código próprio, pela tabela do zod; nome vazio não passa por
+       * ela. Mandar os dois pelo mesmo caminho faria um deles chegar sem
+       * tradução na tela de quem tentou.
+       */
+      const problema = body.error.issues[0];
+      if (problema.path[0] === "iconUrl") return falhaDeValidacao(reply, problema.message);
+      return falha(reply, 400, "spaces.needs_name", "Give the space a name.");
+    }
+
+    const eu = await prisma.spaceMember.findUnique({
+      where: { spaceId_userId: { spaceId: id, userId: request.userId } }
+    });
+    if (!eu) return falha(reply, 404, "spaces.not_member", "You are not in that space.");
+    if (eu.role === "MEMBER") {
+      return falha(reply, 403, "spaces.change_admin_only", "Only admins can change this space.");
+    }
+
+    const seletor = { id: true, name: true, iconUrl: true } as const;
+    // Corpo sem campo nenhum devolve o espaço como está, sem gravar nem avisar.
+    if (body.data.name === undefined && body.data.iconUrl === undefined) {
+      return { space: await prisma.space.findUniqueOrThrow({ where: { id }, select: seletor }) };
+    }
+
+    const space = await prisma.space.update({
+      where: { id },
+      data: { name: body.data.name, iconUrl: body.data.iconUrl },
+      select: seletor
+    });
+
+    /*
+     * `avisarMembros` manda `space:members`, e no cliente esse evento recarrega
+     * a lista de espaços inteira. O nome e o ícone vêm dela — então o rail de
+     * todo mundo troca sozinho, sem ninguém apertar F5.
+     */
+    await avisarMembros(id);
+    return { space };
+  });
+
   app.post("/spaces/:id/channels", async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = z
@@ -298,6 +362,138 @@ export async function spaceRoutes(app: FastifyInstance) {
     emitToUsers(ids, "room:new", { roomId: room.id });
 
     return reply.code(201).send({ channel: { id: room.id, name: room.name, kind: room.kind } });
+  });
+
+  /**
+   * Renomear um canal do espaço, ou trocar o assunto dele.
+   *
+   * Mora aqui, e não em `PATCH /rooms/:id`, porque a AUTORIDADE é outra. Quem
+   * manda num canal de espaço é o papel da pessoa no ESPAÇO; `PATCH /rooms/:id`
+   * decide pelo papel dela na SALA, e num canal de espaço esse papel é `MEMBER`
+   * para todo mundo — inclusive para o dono, porque `POST /spaces/:id/channels`
+   * cria os `RoomMember` sem papel nenhum. Ou seja: por lá, nem o dono passava.
+   */
+  app.patch("/spaces/:id/channels/:channelId", async (request, reply) => {
+    const { id, channelId } = request.params as { id: string; channelId: string };
+    const body = z
+      .object({
+        name: z.string().trim().min(1).max(60).optional(),
+        topic: z.string().trim().max(300).nullable().optional()
+      })
+      .safeParse(request.body ?? {});
+    if (!body.success) return falhaDeValidacao(reply, body.error.issues[0].message);
+
+    const eu = await prisma.spaceMember.findUnique({
+      where: { spaceId_userId: { spaceId: id, userId: request.userId } }
+    });
+    if (!eu) return falha(reply, 404, "spaces.not_member", "You are not in that space.");
+    if (eu.role === "MEMBER") {
+      return falha(reply, 403, "spaces.change_admin_only", "Only admins can change this space.");
+    }
+
+    /*
+     * O canal tem de ser DESTE espaço. Sem esta conferência, quem administra um
+     * espaço qualquer renomearia o canal de outro só trocando o id na URL — a
+     * checagem de papel acima é sobre `id`, e não sobre `channelId`.
+     */
+    const canal = await prisma.room.findUnique({
+      where: { id: channelId },
+      select: { id: true, spaceId: true }
+    });
+    if (!canal || canal.spaceId !== id) {
+      return falha(reply, 404, "spaces.channel_missing", "That channel is not in this space.");
+    }
+
+    const seletor = { id: true, kind: true, name: true, topic: true } as const;
+    if (body.data.name === undefined && body.data.topic === undefined) {
+      const atual = await prisma.room.findUniqueOrThrow({
+        where: { id: channelId },
+        select: seletor
+      });
+      return { channel: atual };
+    }
+
+    const channel = await prisma.room.update({
+      where: { id: channelId },
+      data: { name: body.data.name, topic: body.data.topic },
+      select: seletor
+    });
+
+    /*
+     * Dois eventos, como no grupo: `room:updated` carrega o que mudou, para
+     * quem quiser trocar o cabeçalho na hora, e `room:members` é o que os
+     * clientes já instalados escutam para recarregar a barra lateral. Sem o
+     * segundo, o nome antigo ficaria na tela até alguém apertar F5.
+     */
+    emitToRoom(channelId, "room:updated", {
+      roomId: channelId,
+      name: channel.name,
+      topic: channel.topic
+    });
+    emitToRoom(channelId, "room:members", { roomId: channelId });
+    return { channel };
+  });
+
+  /**
+   * Apagar um canal.
+   *
+   * LEVA AS MENSAGENS JUNTO, por cascata — e é por isso que a tela confirma
+   * antes com todas as letras. É o oposto da regra de expulsar alguém, onde as
+   * mensagens ficam: ali some a pessoa e a conversa continua de pé; aqui some o
+   * lugar onde a conversa estava, e não há mais para quem mostrá-la.
+   */
+  app.delete("/spaces/:id/channels/:channelId", async (request, reply) => {
+    const { id, channelId } = request.params as { id: string; channelId: string };
+
+    const eu = await prisma.spaceMember.findUnique({
+      where: { spaceId_userId: { spaceId: id, userId: request.userId } }
+    });
+    if (!eu) return falha(reply, 404, "spaces.not_member", "You are not in that space.");
+    if (eu.role === "MEMBER") {
+      return falha(reply, 403, "spaces.change_admin_only", "Only admins can change this space.");
+    }
+
+    const canal = await prisma.room.findUnique({
+      where: { id: channelId },
+      select: { id: true, spaceId: true }
+    });
+    if (!canal || canal.spaceId !== id) {
+      return falha(reply, 404, "spaces.channel_missing", "That channel is not in this space.");
+    }
+
+    /*
+     * O último canal não sai. Um espaço sem canal nenhum abre numa tela vazia
+     * onde não há o que clicar, e quem não for administrador não tem como criar
+     * o próximo — ficaria um espaço que existe e não serve para nada. Apagar o
+     * espaço inteiro é outra rota, e ela diz isso em voz alta antes.
+     */
+    const quantos = await prisma.room.count({ where: { spaceId: id } });
+    if (quantos <= 1) {
+      return falha(reply, 409, "spaces.last_channel", "A space needs at least one channel.");
+    }
+
+    /*
+     * Quem estava ali é lido ANTES de apagar: depois do `delete` os
+     * `RoomMember` já foram embora por cascata, e não haveria mais a quem
+     * avisar.
+     */
+    const estavam = await prisma.roomMember.findMany({
+      where: { roomId: channelId },
+      select: { userId: true }
+    });
+    const ids = estavam.map((m) => m.userId);
+
+    await prisma.room.delete({ where: { id: channelId } });
+
+    /*
+     * Apagar a linha do banco não desfaz a inscrição no socket: a aba continua
+     * dentro da sala e receberia o que fosse emitido para ela. O aviso vai
+     * primeiro, justamente porque depois do `leaveUserSockets` não chega mais.
+     */
+    emitToUsers(ids, "room:left", { roomId: channelId });
+    await Promise.all(ids.map((u) => leaveUserSockets(u, channelId)));
+
+    return reply.code(204).send();
   });
 
   app.post("/spaces/join/:code", async (request, reply) => {
@@ -425,6 +621,53 @@ export async function spaceRoutes(app: FastifyInstance) {
     }
 
     return reply.send({ ok: true, spaceDeleted: false });
+  });
+
+  /**
+   * Apagar o espaço inteiro.
+   *
+   * Só o dono: administrador expulsa, renomeia e cria canal, mas não desfaz o
+   * lugar onde a conversa de todo mundo está guardada. Era o buraco que
+   * sobrava — até aqui, um espaço só sumia por acidente, quando a última pessoa
+   * saía. Não havia como apagar de propósito o que foi criado por engano, que é
+   * exatamente quando alguém quer apagar.
+   *
+   * Vai TUDO: canais, mensagens, anexos, reações e os sons da bandeja do
+   * espaço, por cascata do banco. Não há lixeira e não há volta.
+   */
+  app.delete("/spaces/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    const space = await prisma.space.findUnique({
+      where: { id },
+      select: { id: true, ownerId: true, rooms: { select: { id: true } } }
+    });
+    if (!space) return falha(reply, 404, "spaces.missing", "That space does not exist.");
+    if (space.ownerId !== request.userId) {
+      return falha(reply, 403, "spaces.owner_only", "Only the space owner can do that.");
+    }
+
+    // Lido antes do `delete`: depois, a lista de membros já foi por cascata.
+    const membros = await prisma.spaceMember.findMany({
+      where: { spaceId: id },
+      select: { userId: true }
+    });
+    const ids = membros.map((m) => m.userId);
+    const roomIds = space.rooms.map((r) => r.id);
+
+    await prisma.space.delete({ where: { id } });
+
+    /*
+     * `space:left` para todo mundo, e não só para quem apertou: é o mesmo
+     * evento que quem sai recebe, e o cliente já sabe o que fazer com ele —
+     * recarregar a lista e soltar o espaço que estava aberto. Um membro que não
+     * recebesse ficaria com a barra lateral filtrando por um espaço que não
+     * existe mais.
+     */
+    emitToUsers(ids, "space:left", { spaceId: id });
+    await Promise.all(roomIds.flatMap((roomId) => ids.map((u) => leaveUserSockets(u, roomId))));
+
+    return reply.code(204).send();
   });
 
   app.get("/spaces/:id/members", async (request, reply) => {
