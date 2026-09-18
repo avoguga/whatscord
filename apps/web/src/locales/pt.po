@@ -43,6 +43,7 @@ msgstr "{0, plural, one {# pessoa foi adicionada.} other {# pessoas foram adicio
 #. placeholder {0}: space.memberCount
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
 msgid "{0, plural, one {# person} other {# people}}"
 msgstr "{0, plural, one {# pessoa} other {# pessoas}}"
 
@@ -548,10 +549,13 @@ msgid "Delete"
 msgstr "Apagar"
 
 #. placeholder {0}: space.name
-#. placeholder {1}: space.memberCount
 #: src/ui/Invites.tsx
-msgid "Delete <0>{0}</0> for everyone? Every channel, every message, every picture and every file in this space goes with it, for all {1} people. There is no way back, and no copy is kept."
-msgstr "Apagar <0>{0}</0> para todo mundo? Cada canal, cada mensagem, cada imagem e cada arquivo deste espaço vão junto, para as {1} pessoas que estão aqui. Não há volta, e nenhuma cópia fica guardada."
+msgid "Delete <0>{0}</0> for everyone in it — {quantasPessoas}? Every channel, every message, every picture and every file in this space goes with it. There is no way back, and no copy is kept."
+msgstr "Apagar <0>{0}</0> para todo mundo que está nele — {quantasPessoas}? Cada canal, cada mensagem, cada imagem e cada arquivo deste espaço vai junto. Não há volta, e nenhuma cópia fica guardada."
+
+#: src/ui/Invites.tsx
+#~ msgid "Delete <0>{0}</0> for everyone? Every channel, every message, every picture and every file in this space goes with it, for all {1} people. There is no way back, and no copy is kept."
+#~ msgstr "Apagar <0>{0}</0> para todo mundo? Cada canal, cada mensagem, cada imagem e cada arquivo deste espaço vão junto, para as {1} pessoas que estão aqui. Não há volta, e nenhuma cópia fica guardada."
 
 #. placeholder {0}: pasta.name
 #: src/ui/FolderModal.tsx

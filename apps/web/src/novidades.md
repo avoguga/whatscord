@@ -12,6 +12,10 @@ Formato: um `## <versão>` por versão, a mais nova em cima, e um item por linha
 começando com `- `. Texto simples, sem HTML — é mostrado como texto. Escreva para
 quem usa o app, não para quem programa: o que a pessoa nota de diferente.
 
+## 0.2.6
+
+- Correção de texto: o aviso de apagar um espaço dizia "para as 1 pessoas" quando havia só uma pessoa nele.
+
 ## 0.2.5
 
 - Dá para mudar o nome do espaço e pôr uma imagem nele. Abra o espaço, em Convite e membros. Antes o nome era escolhido na criação e ficava assim para sempre.

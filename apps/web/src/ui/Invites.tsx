@@ -155,6 +155,14 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
   const souDono = meuPapel === "OWNER";
   const mando = souDono || meuPapel === "ADMIN";
 
+  /*
+   * O número de gente entra por `plural`, e não solto no meio da frase. Com
+   * uma pessoa só, a tela dizia "para as 1 pessoas que estão aqui" — foi o que
+   * apareceu no teste. Português e espanhol mudam a palavra, e o inglês também;
+   * concatenar o número obriga a tradução a escolher uma forma e errar a outra.
+   */
+  const quantasPessoas = plural(space.memberCount, { one: "# person", other: "# people" });
+
   async function mudarPapel(membro: SpaceMember, papel: SpaceRole) {
     setBusy(true);
     setError(null);
@@ -820,9 +828,9 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
             <div className="leave-confirm" style={{ marginTop: 12 }}>
               <p>
                 <Trans>
-                  Delete <b>{space.name}</b> for everyone? Every channel, every message, every
-                  picture and every file in this space goes with it, for all{" "}
-                  {space.memberCount} people. There is no way back, and no copy is kept.
+                  Delete <b>{space.name}</b> for everyone in it — {quantasPessoas}? Every
+                  channel, every message, every picture and every file in this space goes with
+                  it. There is no way back, and no copy is kept.
                 </Trans>
               </p>
               <div style={{ display: "flex", gap: 8 }}>
