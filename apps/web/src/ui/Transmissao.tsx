@@ -61,9 +61,29 @@ export function TelaDaTransmissao() {
   const como = aoVivo?.como;
   const souDono = stream?.souDono ?? false;
 
+  /*
+   * O endereço e o crachá, soltos do objeto que os trouxe.
+   *
+   * Isto não é preciosismo: o efeito que conecta depende deles, e `aoVivo` é um
+   * objeto novo a cada mudança no store — a contagem de quem assiste muda de
+   * minuto em minuto. Dependendo do objeto, o efeito desmontava a conexão e
+   * montava outra a cada atualização, e como `disconnect` é assíncrono, o
+   * `connect` seguinte era abortado pelo anterior. Resultado medido no
+   * navegador: "connecting → disconnect" em ciclo, e a tela nunca abria.
+   */
+  const endereco = como?.modo === "webrtc" ? como.url : null;
+  const cracha = como?.modo === "webrtc" ? como.token : null;
+
+  /*
+   * A frase de erro por referência: usada uma vez, dentro do efeito, e trazê-la
+   * pela dependência faria o efeito reconectar a cada troca de idioma.
+   */
+  const erroRef = useRef("");
+  erroRef.current = t`The broadcast could not be opened.`;
+
   /* ------------------------------------------------------------- conexão */
   useEffect(() => {
-    if (!como || como.modo !== "webrtc") return;
+    if (!endereco || !cracha) return;
     let cancelado = false;
 
     (async () => {
@@ -88,7 +108,7 @@ export function TelaDaTransmissao() {
             fecharRef.current();
           });
 
-        await room.connect(como.url, como.token);
+        await room.connect(endereco, cracha);
         if (cancelado) {
           /*
            * A tela fechou enquanto isto conectava. O `disconnect` da limpeza
@@ -104,7 +124,7 @@ export function TelaDaTransmissao() {
       } catch (e) {
         if (cancelado) return;
         setEstado("falhou");
-        setErro(e instanceof Error ? e.message : t`The broadcast could not be opened.`);
+        setErro(e instanceof Error ? e.message : erroRef.current);
       }
     })();
 
@@ -113,7 +133,7 @@ export function TelaDaTransmissao() {
       room.removeAllListeners();
       void room.disconnect().catch(() => undefined);
     };
-  }, [como, room, t]);
+  }, [endereco, cracha, room]);
 
   /* ----------------------------------------------- presença de quem assiste */
   useEffect(() => {

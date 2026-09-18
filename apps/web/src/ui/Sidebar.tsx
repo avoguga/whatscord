@@ -50,6 +50,13 @@ export function Sidebar() {
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase();
     return rooms
+      /*
+       * A sala de bate-papo de uma transmissão não é uma conversa: ela vive
+       * dentro da tela da transmissão e some com ela. Sem esta linha, assistir a
+       * qualquer coisa deixava um "Teste de transmissao" pendurado na lista de
+       * conversas — foi o que apareceu no primeiro teste em tela.
+       */
+      .filter((r) => r.kind !== "STREAM")
       .filter((r) => (activeSpaceId ? r.space?.id === activeSpaceId : !r.space))
       .filter((r) => (filter === "unread" ? r.unread > 0 : true))
       .filter((r) => {
