@@ -12,6 +12,11 @@ Formato: um `## <versão>` por versão, a mais nova em cima, e um item por linha
 começando com `- `. Texto simples, sem HTML — é mostrado como texto. Escreva para
 quem usa o app, não para quem programa: o que a pessoa nota de diferente.
 
+## 0.2.7
+
+- Sair da chamada tira você da chamada de verdade. Havia casos em que a tela fechava mas a conexão de voz continuava aberta, e quem entrasse no canal depois ainda ouvia o seu microfone.
+- Os botões de sair da chamada estavam escritos em inglês.
+
 ## 0.2.6
 
 - Correção de texto: o aviso de apagar um espaço dizia "para as 1 pessoas" quando havia só uma pessoa nele.

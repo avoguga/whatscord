@@ -530,3 +530,53 @@ seria mais curto e cobriria tudo de uma vez, mas `refreshRooms` também roda por
 evento de socket: uma resposta que saiu do servidor antes de uma conversa nova
 existir chegaria depois de abri-la, e fecharia a conversa que a pessoa acabou de
 abrir.
+
+## Sair da chamada
+
+### Quem tira a pessoa da chamada é o servidor
+
+Havia duas listas de "quem está na chamada" e elas podiam divergir: a nossa
+presença (Redis, alimentada por `call:leave` e pelo `disconnect` do socket) e o
+LiveKit, que só sabe de saída pelo aviso que o NAVEGADOR de quem sai manda.
+
+Medido em produção, com dois navegadores e a API de administração do LiveKit:
+**quatro minutos** depois de a tela de chamada fechar, `ListParticipants` ainda
+devolvia a pessoa como `ACTIVE`, publicando uma faixa de áudio, enquanto
+`GET /calls/presence` já dizia que a sala estava vazia. Quem entrasse no canal
+depois continuaria ouvindo um fantasma — e foi exatamente esse o relato: "saí e
+parecia que eu ainda estava dentro".
+
+A causa é o congelamento de página. O `livekit-client` registra `onPageLeave` em
+`pagehide`, `beforeunload` **e `freeze`**; uma aba em segundo plano que o Chrome
+congela enfileira o `sendLeave` e nunca o entrega, e como o soquete dela
+continua aberto, nem o tempo limite do LiveKit derruba a sessão.
+
+Por isso `call:leave` e a queda da última conexão passam a chamar
+`RemoveParticipant`. O servidor é a única ponta que sempre sabe que a pessoa
+saiu, e com isso as duas listas deixam de poder divergir.
+
+### O perigo da correção, e o que o segura
+
+`RemoveParticipant` mira a **identidade**, não aquela sessão. Uma expulsão que
+chegue atrasada derruba a pessoa que já voltou — e sair e entrar de novo
+depressa é das coisas mais comuns numa chamada (caiu o áudio, trocou de fone,
+clicou errado).
+
+Então consulta-se `getParticipant` antes e compara-se o `joinedAt` com o
+instante em que a saída chegou. `joinedAt` vem em **segundos**, arredondado para
+baixo, daí a folga de um segundo em `FOLGA_DE_ENTRADA_MS`. Na dúvida, não
+expulsa: um fantasma é chato, derrubar quem acabou de voltar é pior. A decisão é
+pura, em `lib/expulsao.ts`, e está coberta em `tests/chamada.test.ts`.
+
+`joinedAt` igual a zero é "ainda entrando", e não 1970 — tratá-lo como data faria
+a conta dizer "entrou há 56 anos" e a pessoa levaria a expulsão no meio da
+entrada.
+
+### A sala órfã, do lado do cliente
+
+Se a tela da chamada fecha **enquanto** a conexão sobe, o `disconnect` da limpeza
+encontra uma sala que ainda não conectou, o LiveKit responde "already
+disconnected" e volta. A conexão que sobe logo depois fica aberta para sempre:
+sem tela, sem ninguém para fechá-la, e com o microfone publicando. Por isso o
+`if (cancelled)` que vem depois do `connect` desliga a sala antes de sair, em vez
+de só retornar.
