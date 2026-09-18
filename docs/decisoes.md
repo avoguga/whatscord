@@ -477,3 +477,56 @@ Efeito cruzado com a atualização automática: o instalador reabre o app com os
 **mesmos** argumentos. Aberto pelo Windows (`--oculto`), voltaria escondido
 mesmo se a pessoa tivesse clicado "Reiniciar agora" com a janela aberta. Uma
 marca com validade de 2 minutos faz a janela voltar (`deveReabrirVisivel`).
+
+## Configurar o espaço
+
+### Por que renomear um canal não mora em `PATCH /rooms/:id`
+
+Porque a autoridade é outra. Num canal de espaço, quem manda é o papel da pessoa
+no **espaço**; `PATCH /rooms/:id` decide pelo papel dela na **sala**. E o papel
+na sala, num canal de espaço, é `MEMBER` para todo mundo — inclusive para o
+dono: `POST /spaces/:id/channels` cria os `RoomMember` sem papel nenhum, e só o
+espaço recém-criado dá `OWNER` ao criador, nos dois canais iniciais.
+
+Ou seja, tratar canal como grupo daria "só administradores do grupo" na cara de
+quem é dono do espaço. Por isso `PATCH /spaces/:id/channels/:channelId`, que
+confere a régua certa — e confere também que o canal é **daquele** espaço, senão
+bastava trocar o id na URL para renomear canal alheio.
+
+### O que existia e nunca tinha sido escrito
+
+`Space.iconUrl` estava no banco, estava no tipo do cliente e o `SpaceRail` já
+sabia desenhá-lo — mas nenhuma rota jamais gravou esse campo. Era uma coluna
+morta desenhando um ícone que ninguém podia escolher. `PATCH /spaces/:id` fechou
+o circuito; o desenho não precisou de uma linha.
+
+### O último canal não sai
+
+Um espaço sem canal nenhum abre numa tela vazia onde não há o que clicar, e quem
+não administra não tem como criar o próximo. `DELETE` do último canal responde
+409 `spaces.last_channel`, e a frase diz a regra em vez de "não pode" — é o que
+faz a pessoa procurar apagar o espaço inteiro, que é o que ela queria.
+
+### Apagar o espaço: o evento vai para todo mundo
+
+`emitToUsers(ids, "space:left")` para **todos** os membros, e não só para quem
+apertou. É o mesmo evento que quem sai recebe, e o cliente já sabe o que fazer
+com ele. Um membro que não recebesse ficaria com a barra lateral filtrando por
+um espaço que não está mais na lista — a tela vazia sem caminho de volta.
+
+Do lado do cliente, os três caminhos que terminam igual (sair, apagar, e o aviso
+de que outra pessoa apagou) passaram a chamar a mesma `esquecerEspaco`. Antes só
+o primeiro limpava `activeSpaceId`, e os outros dois nem existiam.
+
+### No telefone, sala que sumiu tem de ser solta
+
+O layout esconde a barra lateral enquanto há sala aberta (`data-room-open`). Uma
+sala apagada do outro lado deixaria a pessoa presa num painel vazio, sem
+caminho de volta — o `Chat` cai no `EmptyState`, mas o layout continua dizendo
+que há sala aberta. Por isso `room:left` agora solta a sala quando o id bate.
+
+A limpeza ficou nos pontos de chamada, e **não** dentro de `refreshRooms`. Ali
+seria mais curto e cobriria tudo de uma vez, mas `refreshRooms` também roda por
+evento de socket: uma resposta que saiu do servidor antes de uma conversa nova
+existir chegaria depois de abri-la, e fecharia a conversa que a pessoa acabou de
+abrir.

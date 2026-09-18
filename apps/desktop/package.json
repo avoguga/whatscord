@@ -1,7 +1,7 @@
 {
   "name": "@whatscord/desktop",
   "private": true,
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "WhatsCord desktop shell — Tauri v2 (Windows/WebView2)",
   "scripts": {
     "dev": "tauri dev",

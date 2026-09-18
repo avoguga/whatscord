@@ -1,6 +1,6 @@
 # Operação — o que está no ar e como mexer
 
-Servidor: `167.88.39.225`, Coolify v4.3.17, projeto **Ideias**, ambiente **production**.
+Servidor: `167.88.39.225`, Coolify v4.3.21, projeto **Ideias**, ambiente **production**.
 Esse host roda ~105 containers de outros projetos. **Todo recurso do WhatsCord tem
 limite explícito de RAM e CPU** — nenhum dos outros tem, e é a única proteção contra
 o OOM killer escolher a vítima errada.

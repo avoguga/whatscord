@@ -12,6 +12,12 @@ Formato: um `## <versão>` por versão, a mais nova em cima, e um item por linha
 começando com `- `. Texto simples, sem HTML — é mostrado como texto. Escreva para
 quem usa o app, não para quem programa: o que a pessoa nota de diferente.
 
+## 0.2.5
+
+- Dá para mudar o nome do espaço e pôr uma imagem nele. Abra o espaço, em Convite e membros. Antes o nome era escolhido na criação e ficava assim para sempre.
+- Os canais do espaço podem ser renomeados e apagados por quem administra, na mesma tela. Apagar um canal leva as mensagens dele junto, e a confirmação avisa antes.
+- O dono pode apagar o espaço inteiro. Até agora só dava para sair; um espaço criado por engano ficava na lista de todo mundo para sempre.
+
 ## 0.2.4
 
 - O WhatsCord abre sozinho quando o Windows inicia, direto na bandeja, perto do relógio — sem janela na sua frente. Para desligar, vá em Configurações, em Inicialização com o Windows.
