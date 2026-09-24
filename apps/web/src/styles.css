@@ -1050,13 +1050,15 @@ input, textarea { font: inherit; color: inherit; }
 
 /* ==================== configurações em seções ==================== */
 
-.modal.modal-wide { width: 720px; }
+/* Larga o bastante para uma lista de membros ou de canais não parecer espremida,
+   e presa à tela para nunca passar da borda num notebook pequeno. */
+.modal.modal-wide { width: min(960px, 94vw); }
 
 .settings-shell {
   display: grid;
-  grid-template-columns: 208px 1fr;
-  min-height: 420px;
-  max-height: min(74vh, 620px);
+  grid-template-columns: 232px 1fr;
+  min-height: min(560px, 80vh);
+  max-height: min(86vh, 820px);
 }
 
 .settings-nav {
