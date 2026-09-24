@@ -12,6 +12,11 @@ Formato: um `## <versão>` por versão, a mais nova em cima, e um item por linha
 começando com `- `. Texto simples, sem HTML — é mostrado como texto. Escreva para
 quem usa o app, não para quem programa: o que a pessoa nota de diferente.
 
+## 0.2.10
+
+- As configurações do espaço ganharam uma engrenagem própria no topo, ao lado do botão de convidar, e abrem numa janela maior, com Visão geral, Convite, Membros e Canais separados.
+- As janelas de configuração ficaram maiores.
+
 ## 0.2.9
 
 - Esqueceu a senha? Na tela de entrar há um "Esqueceu a senha?" que manda um link para o seu e-mail para você escolher uma nova.
