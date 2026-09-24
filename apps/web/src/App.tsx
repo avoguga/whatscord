@@ -21,6 +21,8 @@ import { reabrirVisivelSePreciso } from "./lib/inicializacao";
 import { Home } from "./ui/Home";
 import { codigoDaTransmissaoEm, transmissaoPeloCodigo } from "./lib/transmissoes";
 import { ApiError } from "./lib/api";
+import { tokenDeSenhaEm } from "./lib/senha";
+import { RedefinirSenha } from "./ui/RedefinirSenha";
 
 /*
  * A tela de chamada carrega sob demanda porque ela traz junto o livekit-client,
@@ -47,6 +49,13 @@ export default function App() {
   const endCall = useStore((s) => s.endCall);
   /** Convite chegado pela web, esperando a pessoa escolher app ou navegador. */
   const [gate, setGate] = useState<string | null>(null);
+  /*
+   * O link de "esqueci a senha". Lido no PRIMEIRO render — antes de qualquer
+   * efeito — porque outro efeito limpa a barra de endereços ao procurar convite.
+   */
+  const [tokenDeSenha, setTokenDeSenha] = useState<string | null>(() =>
+    tokenDeSenhaEm(window.location.search)
+  );
   /** O código de transmissão que veio no endereço, esperando a sessão. */
   const [convidadoAoVivo, setConvidadoAoVivo] = useState<string | null>(null);
 
@@ -162,6 +171,16 @@ export default function App() {
     };
   }, [me, convidadoAoVivo, abrirTransmissao]);
 
+  /*
+   * O token sai da barra de endereços assim que é lido. Ele é uma chave da conta
+   * por meia hora: não pode ficar no histórico do navegador, num print de tela ou
+   * num "copiar link" feito sem pensar.
+   */
+  useEffect(() => {
+    if (tokenDeSenha) window.history.replaceState(null, "", "/");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // E o convite que ficou esperando alguém entrar.
   useEffect(() => {
     if (!me) return;
@@ -190,6 +209,11 @@ export default function App() {
    * só o botão de sair encerra, e a tarja de chamada em andamento continua
    * visível enquanto se lê outro canal.
    */
+
+  // Quem clicou no link do e-mail veio para isto, com ou sem sessão.
+  if (tokenDeSenha) {
+    return <RedefinirSenha token={tokenDeSenha} onFim={() => setTokenDeSenha(null)} />;
+  }
 
   if (gate) {
     return (

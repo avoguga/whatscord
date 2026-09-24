@@ -26,6 +26,10 @@ const MENSAGENS: Record<string, MessageDescriptor> = {
   "auth.username_taken": msg`That username is taken.`,
   "auth.email_taken": msg`An account already uses that email.`,
   "auth.account_missing": msg`Account not found.`,
+  "auth.email_disabled": msg`Password reset by email isn't set up on this server yet. Ask whoever runs it.`,
+  "auth.slow_down": msg`Too many tries. Wait a little and try again.`,
+  "auth.reset_invalid": msg`This link is invalid or has expired. Ask for a new one.`,
+  "auth.wrong_password": msg`Your current password isn't right.`,
 
   "calls.disabled": msg`Calls are not set up on this server.`,
 

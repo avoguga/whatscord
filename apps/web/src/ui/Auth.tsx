@@ -2,10 +2,13 @@ import { useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useStore } from "../store";
 import { peekPendingInvite } from "../lib/deeplink";
+import { pedirLinkDeSenha } from "../lib/senha";
 
 export function Auth() {
-  const { t } = useLingui();
-  const [mode, setMode] = useState<"in" | "up">("in");
+  const { t, i18n } = useLingui();
+  const [mode, setMode] = useState<"in" | "up" | "esqueci">("in");
+  /** Já pediu o link: a tela troca o formulário pela confirmação. */
+  const [linkPedido, setLinkPedido] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -26,7 +29,11 @@ export function Auth() {
     setBusy(true);
     setError(null);
     try {
-      if (mode === "in") {
+      if (mode === "esqueci") {
+        // O e-mail sai na língua em que a pessoa está usando o app.
+        await pedirLinkDeSenha(form.email.trim(), (i18n.locale || "pt").slice(0, 2));
+        setLinkPedido(true);
+      } else if (mode === "in") {
         await signIn(form.identifier.trim(), form.password);
       } else {
         await signUp({
@@ -41,6 +48,72 @@ export function Auth() {
     } finally {
       setBusy(false);
     }
+  }
+
+  /*
+   * "Esqueci a senha", na mesma cartela do login.
+   *
+   * A confirmação diz "se houver uma conta" — e não "mandamos" — porque o
+   * servidor responde igual exista ou não a conta. Afirmar que mandou seria
+   * mentir para quem digitou um e-mail errado; dizer que não achou seria contar
+   * a qualquer um quem tem conta aqui.
+   */
+  if (mode === "esqueci") {
+    return (
+      <div className="auth">
+        <form className="auth-card" onSubmit={submit}>
+          <h1>WhatsCord</h1>
+          {linkPedido ? (
+            <>
+              <p className="sub">
+                <Trans>Check your email.</Trans>
+              </p>
+              <div className="auth-invite">
+                <Trans>
+                  If there is an account with that email, a link to choose a new password is on its
+                  way. It works for 30 minutes. Look in the spam folder too.
+                </Trans>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="sub">
+                <Trans>Type the email of your account and we'll send you a link to choose a new password.</Trans>
+              </p>
+              {error && <div className="form-error">{error}</div>}
+              <div className="field">
+                <label htmlFor="forgot-email">
+                  <Trans>Email</Trans>
+                </label>
+                <input
+                  id="forgot-email"
+                  type="email"
+                  value={form.email}
+                  onChange={set("email")}
+                  autoComplete="email"
+                  autoFocus
+                />
+              </div>
+              <button className="btn-primary" type="submit" disabled={busy || !form.email.trim()}>
+                {busy ? <Trans>One moment…</Trans> : <Trans>Send the link</Trans>}
+              </button>
+            </>
+          )}
+          <p className="auth-switch">
+            <button
+              type="button"
+              onClick={() => {
+                setMode("in");
+                setLinkPedido(false);
+                setError(null);
+              }}
+            >
+              <Trans>Back to sign in</Trans>
+            </button>
+          </p>
+        </form>
+      </div>
+    );
   }
 
   return (
@@ -86,6 +159,18 @@ export function Auth() {
               <label htmlFor="password"><Trans>Password</Trans></label>
               <input id="password" type="password" value={form.password} onChange={set("password")} autoComplete="current-password" />
             </div>
+            <button
+              type="button"
+              className="auth-forgot"
+              onClick={() => {
+                // Leva o que já foi digitado, se parecer um e-mail.
+                if (form.identifier.includes("@")) setForm({ ...form, email: form.identifier.trim() });
+                setMode("esqueci");
+                setError(null);
+              }}
+            >
+              <Trans>Forgot your password?</Trans>
+            </button>
           </>
         ) : (
           <>

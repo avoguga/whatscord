@@ -2945,6 +2945,135 @@ function grantsDoToken(jwt) {
   }
 }
 
+/* ================================================================== */
+/* 20. Senha: esqueci, e trocar estando dentro                          */
+/* ================================================================== */
+
+/**
+ * Conta própria da seção: ela troca a senha, e isso derrubaria as sessões que
+ * as outras seções estão usando.
+ *
+ * O envio do e-mail em si não dá para conferir daqui — depende das credenciais
+ * do Gmail no servidor. O que se confere é o contrato: a resposta do "esqueci"
+ * não conta quem tem conta, um link inválido é recusado, e trocar a senha
+ * derruba as sessões antigas.
+ */
+async function secSenha() {
+  console.log("\n=== 20. Senha ===");
+  const P = await makeUser("Senha");
+  const health = await GET("/health");
+  const emailLigado = health.json?.email === true;
+  note(`envio de e-mail no servidor: ${emailLigado ? "LIGADO" : "desligado (sem credenciais do Gmail)"}`);
+
+  await t("o /health diz se o e-mail está ligado", async () => {
+    check("o campo email existe e é booleano", typeof health.json?.email === "boolean", "booleano", short(health));
+  });
+
+  /*
+   * A pergunta que mais importa. Se a resposta mudasse conforme o e-mail
+   * existisse ou não, o formulário viraria um jeito de descobrir quem tem conta
+   * aqui, um endereço por vez.
+   */
+  await t("o esqueci não conta quem tem conta", async () => {
+    const existe = await POST("/auth/forgot", { body: { email: P.email, idioma: "pt" } });
+    const inventado = await POST("/auth/forgot", {
+      body: { email: `ninguem-${Date.now()}@nao-existe.dev`, idioma: "pt" }
+    });
+    check(
+      "e-mail cadastrado e inventado recebem a MESMA resposta",
+      existe.status === inventado.status && existe.json?.code === inventado.json?.code,
+      "mesmo status e código",
+      `${short(existe)} vs ${short(inventado)}`
+    );
+    if (emailLigado) {
+      check("com o envio ligado, a resposta é 204", existe.status === 204, "204", short(existe));
+    } else {
+      check(
+        "com o envio desligado, diz isso — igual para todo mundo",
+        existe.status === 503 && existe.json?.code === "auth.email_disabled",
+        "503 auth.email_disabled",
+        short(existe)
+      );
+    }
+  });
+
+  await t("link inválido é recusado", async () => {
+    const inventado = await POST("/auth/reset", {
+      body: { token: "a".repeat(43), password: "senha-nova-123" }
+    });
+    check(
+      "token que não existe é 400 auth.reset_invalid",
+      inventado.status === 400 && inventado.json?.code === "auth.reset_invalid",
+      "400 auth.reset_invalid",
+      short(inventado)
+    );
+    const curto = await POST("/auth/reset", { body: { token: "abc", password: "senha-nova-123" } });
+    check(
+      "token malformado também",
+      curto.status === 400 && curto.json?.code === "auth.reset_invalid",
+      "400 auth.reset_invalid",
+      short(curto)
+    );
+    const senhaCurta = await POST("/auth/reset", { body: { token: "a".repeat(43), password: "123" } });
+    check(
+      "senha curta é recusada pela regra de sempre",
+      senhaCurta.status === 400 && senhaCurta.json?.code === "validation.password_short",
+      "400 validation.password_short",
+      short(senhaCurta)
+    );
+  });
+
+  await t("trocar a senha pede a atual", async () => {
+    const semLogin = await POST("/auth/password", { body: { atual: P.password, nova: "outra-senha-123" } });
+    check("sem sessão é 401", semLogin.status === 401, "401", short(semLogin));
+    const errada = await POST("/auth/password", {
+      token: P.token,
+      body: { atual: "nao-e-esta", nova: "outra-senha-123" }
+    });
+    check(
+      "senha atual errada é 403 auth.wrong_password",
+      errada.status === 403 && errada.json?.code === "auth.wrong_password",
+      "403 auth.wrong_password",
+      short(errada)
+    );
+    const curta = await POST("/auth/password", {
+      token: P.token,
+      body: { atual: P.password, nova: "123" }
+    });
+    check(
+      "senha nova curta é 400 validation.password_short",
+      curta.status === 400 && curta.json?.code === "validation.password_short",
+      "400 validation.password_short",
+      short(curta)
+    );
+  });
+
+  await t("trocar a senha de verdade", async () => {
+    const NOVA = "senha-trocada-456";
+    const r = await POST("/auth/password", { token: P.token, body: { atual: P.password, nova: NOVA } });
+    check(
+      "200 com uma sessão nova para este aparelho",
+      r.status === 200 && r.json?.accessToken && r.json?.refreshToken,
+      "200 com tokens",
+      short(r)
+    );
+
+    /*
+     * As sessões antigas caem. Quem troca a senha às vezes está trocando porque
+     * desconfia de alguém; uma sessão aberta num aparelho alheio anularia a troca.
+     */
+    const antiga = await POST("/auth/refresh", { body: { refreshToken: P.refreshToken } });
+    check("a sessão antiga não renova mais", antiga.status === 401, "401", short(antiga));
+    const nova = await POST("/auth/refresh", { body: { refreshToken: r.json?.refreshToken } });
+    check("a sessão nova renova", nova.status === 200, "200", short(nova));
+
+    const velha = await POST("/auth/login", { body: { identifier: P.email, password: P.password } });
+    check("a senha velha não entra", velha.status === 401, "401", short(velha));
+    const certa = await POST("/auth/login", { body: { identifier: P.email, password: NOVA } });
+    check("a senha nova entra", certa.status === 200, "200", short(certa));
+  });
+}
+
 async function secTransmissoes() {
   console.log("\n=== 19. Transmissões ===");
   const { A, B, C } = state;
@@ -3764,7 +3893,8 @@ async function main() {
     ["papeis", secPapeis, ["A", "B", "C", "D"]],
     ["sons", secSons, ["A", "B", "C"]],
     ["configespaco", secConfigDoEspaco, ["A", "B", "C"]],
-    ["transmissoes", secTransmissoes, ["A", "B", "C", "space"]]
+    ["transmissoes", secTransmissoes, ["A", "B", "C", "space"]],
+    ["senha", secSenha, []]
   ];
 
   for (const [name, section, needs] of sections) {

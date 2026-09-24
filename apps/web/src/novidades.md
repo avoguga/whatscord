@@ -12,6 +12,11 @@ Formato: um `## <versão>` por versão, a mais nova em cima, e um item por linha
 começando com `- `. Texto simples, sem HTML — é mostrado como texto. Escreva para
 quem usa o app, não para quem programa: o que a pessoa nota de diferente.
 
+## 0.2.9
+
+- Esqueceu a senha? Na tela de entrar há um "Esqueceu a senha?" que manda um link para o seu e-mail para você escolher uma nova.
+- Dá para trocar a senha em Configurações, em Conta. Ao trocar, os outros aparelhos em que você estava conectado saem da conta.
+
 ## 0.2.8
 
 - Transmissões ao vivo. Há uma aba Ao vivo na barra da esquerda: ali você vê quem está transmitindo agora e começa a sua, compartilhando a tela para quem quiser assistir.

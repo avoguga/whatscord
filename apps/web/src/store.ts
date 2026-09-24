@@ -239,6 +239,12 @@ type State = {
 
   bootstrap: () => Promise<void>;
   signIn: (identifier: string, password: string) => Promise<void>;
+  /**
+   * Entra com uma sessão que veio pronta — da redefinição de senha, que já
+   * devolve a pessoa logada em vez de mandá-la digitar a senha que acabou de
+   * escolher.
+   */
+  entrarComSessao: (s: { user: unknown; accessToken: string; refreshToken: string }) => Promise<void>;
   signUp: (input: {
     email: string;
     username: string;
@@ -373,6 +379,12 @@ export const useStore = create<State>((set, get) => ({
     } finally {
       set({ booting: false });
     }
+  },
+
+  async entrarComSessao(sessao) {
+    saveTokens({ accessToken: sessao.accessToken, refreshToken: sessao.refreshToken });
+    set({ me: sessao.user as User, ...blankSession });
+    await carregarSessao(get);
   },
 
   async signIn(identifier, password) {

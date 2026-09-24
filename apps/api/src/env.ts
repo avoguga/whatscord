@@ -29,7 +29,28 @@ const schema = z.object({
   // Calls and screen sharing.
   LIVEKIT_URL: z.string().optional(),
   LIVEKIT_API_KEY: z.string().optional(),
-  LIVEKIT_API_SECRET: z.string().optional()
+  LIVEKIT_API_SECRET: z.string().optional(),
+
+  // E-mail ("esqueci a senha"). Ver `lib/email.ts` para as duas formas de
+  // entrar no Gmail. Tudo opcional: sem isto, o recurso diz que está desligado.
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().default(465),
+  SMTP_SECURE: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === "true")),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  GMAIL_CLIENT_ID: z.string().optional(),
+  GMAIL_CLIENT_SECRET: z.string().optional(),
+  GMAIL_REFRESH_TOKEN: z.string().optional(),
+  MAIL_FROM: z.string().optional(),
+  /*
+   * Para onde o link do e-mail aponta. É o SITE, e não a API: é lá que a tela
+   * de criar a senha nova existe, e é o que qualquer pessoa consegue abrir,
+   * tenha ou não o app instalado.
+   */
+  WEB_URL: z.string().default("https://whatscord.167.88.39.225.sslip.io")
 });
 
 const parsed = schema.safeParse(process.env);

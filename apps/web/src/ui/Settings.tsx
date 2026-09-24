@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { api, uploadFile } from "../lib/api";
+import { api, saveTokens, uploadFile } from "../lib/api";
+import { trocarSenha } from "../lib/senha";
 import { useStore, type User } from "../store";
 import { ImageError, squareThumbnail } from "../lib/image";
 import { resolveTheme, type Theme } from "../lib/theme";
@@ -335,6 +336,10 @@ function SecaoConta({ me, onClose }: { me: User; onClose: () => void }) {
 
       <div className="settings-rule" />
 
+      <TrocarSenha />
+
+      <div className="settings-rule" />
+
       <p className="settings-note">
         <Trans>
           Signing out clears this session on this device. Anything you sent stays where it is.
@@ -348,6 +353,109 @@ function SecaoConta({ me, onClose }: { me: User; onClose: () => void }) {
         }}
       >
         <Trans>Sign out</Trans>
+      </button>
+    </>
+  );
+}
+
+/**
+ * Trocar a senha estando dentro.
+ *
+ * Pede a senha ATUAL: sem ela, qualquer pessoa diante de um app deixado aberto
+ * trocaria a senha e tomaria a conta de quem saiu da frente da tela. E a nova
+ * vai duas vezes, porque aqui não há "conferir antes de valer".
+ */
+function TrocarSenha() {
+  const { t } = useLingui();
+  const notify = useStore((s) => s.notify);
+  const [atual, setAtual] = useState("");
+  const [nova, setNova] = useState("");
+  const [confirma, setConfirma] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const curta = nova.length > 0 && nova.length < 8;
+  const diferente = confirma.length > 0 && confirma !== nova;
+  const pode = atual.length > 0 && nova.length >= 8 && confirma === nova && !ocupado;
+
+  async function salvar() {
+    if (!pode) return;
+    setOcupado(true);
+    setErro(null);
+    try {
+      const sessao = await trocarSenha(atual, nova);
+      /*
+       * O servidor derrubou TODAS as sessões e devolveu uma nova para este
+       * aparelho. Guardá-la é o que mantém a pessoa dentro aqui — sem isso, a
+       * próxima renovação do token falharia e ela cairia na tela de login.
+       */
+      saveTokens({ accessToken: sessao.accessToken, refreshToken: sessao.refreshToken });
+      setAtual("");
+      setNova("");
+      setConfirma("");
+      notify(t`Password changed. Any other device you were signed in on has been signed out.`);
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : t`That could not be saved.`);
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  return (
+    <>
+      <h4 className="settings-head">
+        <Trans>Password</Trans>
+      </h4>
+      {erro && <div className="form-error">{erro}</div>}
+      <div className="field">
+        <label htmlFor="senha-atual">
+          <Trans>Current password</Trans>
+        </label>
+        <input
+          id="senha-atual"
+          type="password"
+          value={atual}
+          onChange={(e) => setAtual(e.target.value)}
+          autoComplete="current-password"
+        />
+      </div>
+      <div className="field">
+        <label htmlFor="senha-nova">
+          <Trans>New password</Trans>
+        </label>
+        <input
+          id="senha-nova"
+          type="password"
+          value={nova}
+          onChange={(e) => setNova(e.target.value)}
+          placeholder={t`at least 8 characters`}
+          autoComplete="new-password"
+        />
+      </div>
+      <div className="field">
+        <label htmlFor="senha-confirma">
+          <Trans>Type it again</Trans>
+        </label>
+        <input
+          id="senha-confirma"
+          type="password"
+          value={confirma}
+          onChange={(e) => setConfirma(e.target.value)}
+          autoComplete="new-password"
+        />
+      </div>
+      {curta && (
+        <p className="settings-note">
+          <Trans>Use at least 8 characters.</Trans>
+        </p>
+      )}
+      {!curta && diferente && (
+        <p className="settings-note">
+          <Trans>The two passwords don't match.</Trans>
+        </p>
+      )}
+      <button className="btn-outline" disabled={!pode} onClick={() => void salvar()}>
+        {ocupado ? <Trans>Saving…</Trans> : <Trans>Change password</Trans>}
       </button>
     </>
   );

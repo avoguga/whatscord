@@ -74,6 +74,7 @@ model User {
   updatedAt    DateTime @updatedAt
 
   refreshTokens RefreshToken[]
+  resets        PasswordReset[]
   spaces        SpaceMember[]
   rooms         RoomMember[]
   messages      Message[]
@@ -122,6 +123,31 @@ model Sound {
 
   @@index([userId])
   @@index([spaceId])
+}
+
+/**
+ * Um pedido de "esqueci a senha".
+ *
+ * Guarda o HASH do token, nunca o token: o token viaja só no e-mail. Quem ler
+ * esta tabela — um backup vazado, um acesso indevido ao banco — não consegue
+ * redefinir a senha de ninguém com o que achar aqui. É o mesmo cuidado que
+ * `RefreshToken` já toma.
+ *
+ * `usedAt` e não apagar a linha: o pedido usado continua servindo para contar
+ * quantos a pessoa fez na última hora, que é o que segura alguém de usar o
+ * formulário para encher a caixa de entrada de outra pessoa.
+ */
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model RefreshToken {

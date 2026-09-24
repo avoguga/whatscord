@@ -86,6 +86,37 @@ se desconectava sozinha no mesmo instante. A pista foi a mensagem "Download the
 React DevTools" no console do site publicado. Hoje o `vite build` roda com
 `NODE_ENV=production` só nele (`docker/web.Dockerfile`).
 
+## E-mail: "esqueci a senha"
+
+O código está pronto; falta só a credencial. Enquanto ela não existe, `/health`
+mostra `"email": false` e o formulário de "esqueci a senha" responde que o envio
+não está ligado — em vez de fingir que mandou.
+
+**Forma mais simples — senha de app do Gmail.** Na conta Google que vai enviar:
+ligue a verificação em duas etapas, gere uma senha em
+<https://myaccount.google.com/apppasswords> (16 letras) e ponha nas variáveis
+da `whatscord-api` no Coolify:
+
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USER=seuemail@gmail.com
+SMTP_PASS=abcdabcdabcdabcd
+MAIL_FROM=WhatsCord <seuemail@gmail.com>
+```
+
+**Alternativa — OAuth2**, se preferir um app no Google Cloud: no lugar de
+`SMTP_PASS`, use `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET` e `GMAIL_REFRESH_TOKEN`
+(mantendo `SMTP_HOST`, `SMTP_PORT` e `SMTP_USER`).
+
+Depois de redeployar a API, confira: `curl .../health` tem de mostrar
+`"email": true`. O link do e-mail aponta para `WEB_URL` (padrão: o site em
+`whatscord.167.88.39.225.sslip.io`).
+
+Limites: 3 pedidos por conta por hora e 10 por endereço de rede por hora — para
+ninguém usar o formulário para lotar a caixa de outra pessoa, nem queimar o
+Gmail remetente como spam. O link vale 30 minutos e uma vez só.
+
 ## MinIO: por que está parado
 
 O plano era MinIO para anexos. Ele entrou em loop de crash sem escrever log mesmo

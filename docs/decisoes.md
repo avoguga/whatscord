@@ -664,3 +664,24 @@ já vem no SDK instalado; falta só o contêiner.
   transmissão pública o dono precisa apagar e silenciar.
 - **Lista de quem assiste**: vai só o número. Publicar a audiência inteira para
   qualquer um que entrasse é mais do que ninguém pediu.
+
+## Esqueci a senha
+
+- **A resposta não conta quem tem conta.** `POST /auth/forgot` responde 204
+  exista ou não o e-mail, e a tela diz "se houver uma conta, mandamos". O envio
+  roda DEPOIS da resposta sair, para o tempo também não entregar: esperar o Gmail
+  faria um e-mail cadastrado demorar um segundo e um inexistente, milissegundos.
+- **No banco vai o hash do token**, como no `RefreshToken`. Um backup vazado não
+  redefine a senha de ninguém.
+- **Link de uso único mesmo com dois cliques simultâneos**: o `usedAt` é marcado
+  com `updateMany ... where usedAt is null` dentro da transação, e só quem marcou
+  segue.
+- **Redefinir e trocar derrubam todas as sessões** e devolvem uma nova para o
+  aparelho de quem trocou. Quem troca a senha às vezes está trocando por
+  desconfiar de alguém.
+- **O nome do perfil vai escapado no HTML do e-mail.** Sem isso, um nome como
+  `<a href=...>` viraria link dentro de uma mensagem com o nosso remetente.
+- **O token sai da barra de endereços assim que é lido** — não pode ficar no
+  histórico nem num print.
+- **Trocar a senha logado pede a senha atual**: um app deixado aberto não pode
+  virar a conta de quem estiver na frente dele.

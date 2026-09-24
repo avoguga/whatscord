@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import { env, callsEnabled } from "./env.js";
+import { emailConfigurado } from "./lib/email.js";
 import { prisma } from "./lib/prisma.js";
 import { driver, initStorage } from "./lib/storage.js";
 import { redisEnabled } from "./lib/redis.js";
@@ -70,7 +71,10 @@ async function main() {
     ok: true,
     storage: driver,
     calls: callsEnabled,
-    realtimeScaling: redisEnabled
+    realtimeScaling: redisEnabled,
+    // Se o "esqueci a senha" consegue mandar e-mail. É por aqui que se confere,
+    // depois de pôr as credenciais do Gmail, que o servidor as enxergou.
+    email: emailConfigurado
   }));
 
   await app.register(authRoutes);

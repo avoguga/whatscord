@@ -268,6 +268,8 @@ msgid "Appearance"
 msgstr "Appearance"
 
 #: src/ui/Auth.tsx
+#: src/ui/RedefinirSenha.tsx
+#: src/ui/Settings.tsx
 msgid "at least 8 characters"
 msgstr "at least 8 characters"
 
@@ -308,6 +310,11 @@ msgstr "Back"
 #: src/ui/Chat.tsx
 msgid "Back to conversations"
 msgstr "Back to conversations"
+
+#: src/ui/Auth.tsx
+#: src/ui/RedefinirSenha.tsx
+msgid "Back to sign in"
+msgstr "Back to sign in"
 
 #: src/lib/erros.ts
 msgid "Bad file reference."
@@ -379,6 +386,10 @@ msgstr "Categories"
 msgid "Change"
 msgstr "Change"
 
+#: src/ui/Settings.tsx
+msgid "Change password"
+msgstr "Change password"
+
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 msgid "Change the group picture"
@@ -427,6 +438,10 @@ msgstr "Chats"
 msgid "Check for updates"
 msgstr "Check for updates"
 
+#: src/ui/Auth.tsx
+msgid "Check your email."
+msgstr "Check your email."
+
 #: src/ui/Atualizacao.tsx
 msgid "Checking for updates…"
 msgstr "Checking for updates…"
@@ -434,6 +449,10 @@ msgstr "Checking for updates…"
 #: src/ui/TimbreDaConversa.tsx
 msgid "Chime"
 msgstr "Chime"
+
+#: src/ui/RedefinirSenha.tsx
+msgid "Choose a new password."
+msgstr "Choose a new password."
 
 #: src/ui/Atualizacao.tsx
 #: src/ui/Atualizacao.tsx
@@ -560,6 +579,10 @@ msgid "Crickets"
 msgstr "Crickets"
 
 #: src/ui/Settings.tsx
+msgid "Current password"
+msgstr "Current password"
+
+#: src/ui/Settings.tsx
 msgid "Dark"
 msgstr "Dark"
 
@@ -660,6 +683,7 @@ msgid "edited"
 msgstr "edited"
 
 #: src/ui/Auth.tsx
+#: src/ui/Auth.tsx
 msgid "Email"
 msgstr "Email"
 
@@ -756,6 +780,10 @@ msgstr "Folder settings"
 #: src/ui/Settings.tsx
 msgid "Follows the light or dark mode of your system."
 msgstr "Follows the light or dark mode of your system."
+
+#: src/ui/Auth.tsx
+msgid "Forgot your password?"
+msgstr "Forgot your password?"
 
 #: src/ui/ShareQuality.tsx
 #: src/ui/ShareQuality.tsx
@@ -874,6 +902,10 @@ msgstr "How to invite people"
 #: src/ui/ShareQuality.tsx
 msgid "If a game drops to your monitor's refresh rate while you share it, that is Windows composing the window — it happens at 30 or 60 alike. Running the game in exclusive full screen, or capping it in-game, avoids it."
 msgstr "If a game drops to your monitor's refresh rate while you share it, that is Windows composing the window — it happens at 30 or 60 alike. Running the game in exclusive full screen, or capping it in-game, avoids it."
+
+#: src/ui/Auth.tsx
+msgid "If there is an account with that email, a link to choose a new password is on its way. It works for 30 minutes. Look in the spam folder too."
+msgstr "If there is an account with that email, a link to choose a new password is on its way. It works for 30 minutes. Look in the spam folder too."
 
 #: src/ui/Inicializacao.tsx
 msgid "If you turned it off in Windows' Task Manager, turning it on here brings it back."
@@ -1193,6 +1225,11 @@ msgstr "New group"
 msgid "New invite code. The old one no longer works."
 msgstr "New invite code. The old one no longer works."
 
+#: src/ui/RedefinirSenha.tsx
+#: src/ui/Settings.tsx
+msgid "New password"
+msgstr "New password"
+
 #: src/ui/Modals.tsx
 msgid "New space"
 msgstr "New space"
@@ -1327,10 +1364,12 @@ msgid "Offline"
 msgstr "Offline"
 
 #: src/ui/Auth.tsx
+#: src/ui/Auth.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Modals.tsx
+#: src/ui/RedefinirSenha.tsx
 msgid "One moment…"
 msgstr "One moment…"
 
@@ -1434,8 +1473,21 @@ msgstr "Owner"
 
 #: src/ui/Auth.tsx
 #: src/ui/Auth.tsx
+#: src/ui/Settings.tsx
 msgid "Password"
 msgstr "Password"
+
+#: src/ui/Settings.tsx
+msgid "Password changed. Any other device you were signed in on has been signed out."
+msgstr "Password changed. Any other device you were signed in on has been signed out."
+
+#: src/ui/RedefinirSenha.tsx
+msgid "Password changed. You're in."
+msgstr "Password changed. You're in."
+
+#: src/lib/erros.ts
+msgid "Password reset by email isn't set up on this server yet. Ask whoever runs it."
+msgstr "Password reset by email isn't set up on this server yet. Ask whoever runs it."
 
 #: src/lib/erros.ts
 msgid "People join a channel by joining its space. Share the space invite code instead."
@@ -1655,6 +1707,10 @@ msgstr "Same as device"
 msgid "Save"
 msgstr "Save"
 
+#: src/ui/RedefinirSenha.tsx
+msgid "Save and sign in"
+msgstr "Save and sign in"
+
 #: src/ui/Settings.tsx
 msgid "Save changes"
 msgstr "Save changes"
@@ -1663,6 +1719,7 @@ msgstr "Save changes"
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
+#: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
 msgid "Saving…"
@@ -1726,6 +1783,10 @@ msgstr "Secret link"
 #: src/ui/Chat.tsx
 msgid "Send"
 msgstr "Send"
+
+#: src/ui/Auth.tsx
+msgid "Send the link"
+msgstr "Send the link"
 
 #: src/ui/Transmissao.tsx
 msgid "Send this to bring someone in:"
@@ -2002,6 +2063,7 @@ msgid "That could not be changed."
 msgstr "That could not be changed."
 
 #: src/ui/Settings.tsx
+#: src/ui/Settings.tsx
 #: src/ui/SpaceRail.tsx
 #: src/ui/SpaceRail.tsx
 #: src/ui/SpaceRail.tsx
@@ -2018,6 +2080,7 @@ msgid "That did not work."
 msgstr "That did not work."
 
 #: src/ui/Auth.tsx
+#: src/ui/RedefinirSenha.tsx
 msgid "That did not work. Try again."
 msgstr "That did not work. Try again."
 
@@ -2235,6 +2298,11 @@ msgstr "The ownership could not be transferred."
 msgid "The screen could not be shared."
 msgstr "The screen could not be shared."
 
+#: src/ui/RedefinirSenha.tsx
+#: src/ui/Settings.tsx
+msgid "The two passwords don't match."
+msgstr "The two passwords don't match."
+
 #: src/ui/Atualizacao.tsx
 msgid "The update could not be verified, so it was not installed. Try again later."
 msgstr "The update could not be verified, so it was not installed. Try again later."
@@ -2297,6 +2365,10 @@ msgstr "This is the start of the conversation"
 msgid "This is you."
 msgstr "This is you."
 
+#: src/lib/erros.ts
+msgid "This link is invalid or has expired. Ask for a new one."
+msgstr "This link is invalid or has expired. Ask for a new one."
+
 #: src/ui/CallChat.tsx
 #: src/ui/Chat.tsx
 msgid "This message was deleted"
@@ -2314,6 +2386,10 @@ msgstr "This space already has its {limite} sounds. Remove one to add another."
 #: src/ui/Sidebar.tsx
 msgid "This space has no channels yet."
 msgstr "This space has no channels yet."
+
+#: src/lib/erros.ts
+msgid "Too many tries. Wait a little and try again."
+msgstr "Too many tries. Wait a little and try again."
 
 #: src/ui/Invites.tsx
 msgid "Transfer ownership"
@@ -2342,6 +2418,15 @@ msgstr "Turn your camera on to switch between them."
 #: src/ui/Chat.tsx
 msgid "Type a message"
 msgstr "Type a message"
+
+#: src/ui/RedefinirSenha.tsx
+#: src/ui/Settings.tsx
+msgid "Type it again"
+msgstr "Type it again"
+
+#: src/ui/Auth.tsx
+msgid "Type the email of your account and we'll send you a link to choose a new password."
+msgstr "Type the email of your account and we'll send you a link to choose a new password."
 
 #: src/ui/Chat.tsx
 #: src/ui/Chat.tsx
@@ -2396,6 +2481,8 @@ msgid "Updates are checked automatically every few hours."
 msgstr "Updates are checked automatically every few hours."
 
 #: src/lib/erros.ts
+#: src/ui/RedefinirSenha.tsx
+#: src/ui/Settings.tsx
 msgid "Use at least 8 characters."
 msgstr "Use at least 8 characters."
 
@@ -2718,6 +2805,10 @@ msgstr "Your camera could not be turned on. Check the browser's permission."
 #: src/ui/DevicePicker.tsx
 msgid "Your cameras are visible, but the microphone still needs permission — until then it cannot be picked."
 msgstr "Your cameras are visible, but the microphone still needs permission — until then it cannot be picked."
+
+#: src/lib/erros.ts
+msgid "Your current password isn't right."
+msgstr "Your current password isn't right."
 
 #: src/ui/Call.tsx
 msgid "Your microphone could not be turned on. Check the browser's permission."
