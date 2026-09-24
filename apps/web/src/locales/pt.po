@@ -302,6 +302,7 @@ msgstr "Dispositivos de áudio e vídeo"
 msgid "away"
 msgstr "fora"
 
+#: src/ui/Invites.tsx
 #: src/ui/Settings.tsx
 msgid "Back"
 msgstr "Voltar"
@@ -367,6 +368,7 @@ msgstr "Opções de câmera"
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
 #: src/ui/Modals.tsx
 #: src/ui/SpaceRail.tsx
 msgid "Cancel"
@@ -422,6 +424,7 @@ msgid "Channel renamed to {limpo}."
 msgstr "O canal agora se chama {limpo}."
 
 #: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
 msgid "Channels"
 msgstr "Canais"
 
@@ -461,6 +464,8 @@ msgstr "Escolha uma senha nova."
 #: src/ui/FotoAmpliada.tsx
 #: src/ui/Inicializacao.tsx
 #: src/ui/Inicializacao.tsx
+#: src/ui/Invites.tsx
+#: src/ui/Invites.tsx
 #: src/ui/Membros.tsx
 #: src/ui/Membros.tsx
 #: src/ui/Membros.tsx
@@ -655,7 +660,6 @@ msgid "Don't have the desktop app yet? <0>Download it for Windows</0>"
 msgstr "Ainda não tem o aplicativo? <0>Baixe para Windows</0>"
 
 #: src/ui/Call.tsx
-#: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Soundboard.tsx
 #: src/ui/TimbreDaConversa.tsx
@@ -937,6 +941,10 @@ msgid "Installing… WhatsCord will restart."
 msgstr "Instalando… O WhatsCord vai reiniciar."
 
 #: src/ui/Invites.tsx
+msgid "Invite"
+msgstr "Convite"
+
+#: src/ui/Invites.tsx
 msgid "Invite code"
 msgstr "Código de convite"
 
@@ -945,8 +953,13 @@ msgid "Invite link"
 msgstr "Link de convite"
 
 #: src/ui/Sidebar.tsx
-msgid "Invite people and add channels"
-msgstr "Convidar pessoas e adicionar canais"
+#: src/ui/Sidebar.tsx
+msgid "Invite people"
+msgstr "Convidar pessoas"
+
+#: src/ui/Sidebar.tsx
+#~ msgid "Invite people and add channels"
+#~ msgstr "Convidar pessoas e adicionar canais"
 
 #: src/ui/Sidebar.tsx
 msgid "Invite people to this space"
@@ -1075,6 +1088,7 @@ msgstr "Tornar admin"
 msgid "Member"
 msgstr "Membro"
 
+#: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Membros.tsx
 msgid "Members"
@@ -1465,6 +1479,10 @@ msgstr "Ou mande só o código, para quem preferir digitá-lo em <0>Novo espaço
 #: src/ui/SpaceRail.tsx
 msgid "Organise spaces"
 msgstr "Organizar espaços"
+
+#: src/ui/Invites.tsx
+msgid "Overview"
+msgstr "Visão geral"
 
 #: src/ui/Invites.tsx
 #: src/ui/Membros.tsx
@@ -1929,6 +1947,12 @@ msgstr "Imagem do espaço removida."
 #: src/ui/Invites.tsx
 msgid "Space picture updated."
 msgstr "Imagem do espaço atualizada."
+
+#: src/ui/Invites.tsx
+#: src/ui/Sidebar.tsx
+#: src/ui/Sidebar.tsx
+msgid "Space settings"
+msgstr "Configurações do espaço"
 
 #: src/ui/DevicePicker.tsx
 msgid "Speak — the bar should move."

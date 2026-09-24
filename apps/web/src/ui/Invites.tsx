@@ -94,7 +94,18 @@ function rotuloDoPapel(papel: SpaceRole, i18n: I18n) {
 }
 
 /** A space's door: the invite code, who is already in, and a way to add channels. */
-export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () => void }) {
+/** As seções da janela do espaço. `convite` é por onde o botão de convidar entra. */
+export type SecaoDoEspaco = "geral" | "convite" | "membros" | "canais";
+
+export function SpaceModal({
+  spaceId,
+  onClose,
+  inicial = "geral"
+}: {
+  spaceId: string;
+  onClose: () => void;
+  inicial?: SecaoDoEspaco;
+}) {
   const { t, i18n } = useLingui();
   const spaces = useStore((s) => s.spaces);
   const me = useStore((s) => s.me);
@@ -106,6 +117,12 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
   const notify = useStore((s) => s.notify);
   const space = spaces.find((s) => s.id === spaceId);
   const [confirmarSaida, setConfirmarSaida] = useState(false);
+  /*
+   * `null` quer dizer "a lista" no celular, onde as duas colunas não cabem
+   * juntas — o mesmo contrato das configurações da conta. Quem entrou pelo botão
+   * de convidar já cai direto no convite: foi para isso que clicou.
+   */
+  const [secao, setSecao] = useState<SecaoDoEspaco | null>(inicial === "geral" ? null : inicial);
 
   const [nome, setNome] = useState(space?.name ?? "");
   const [enviandoIcone, setEnviandoIcone] = useState(false);
@@ -162,6 +179,19 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
    * concatenar o número obriga a tradução a escolher uma forma e errar a outra.
    */
   const quantasPessoas = plural(space.memberCount, { one: "# person", other: "# people" });
+
+  /*
+   * Todo mundo vê as quatro: membro comum também quer o link de convite, a
+   * lista de quem está aqui e os canais. O que muda com o papel é o que dá para
+   * MEXER dentro de cada uma, e isso cada seção já decide com `mando`.
+   */
+  const secoes: { id: SecaoDoEspaco; titulo: string }[] = [
+    { id: "geral", titulo: t`Overview` },
+    { id: "convite", titulo: t`Invite` },
+    { id: "membros", titulo: t`Members` },
+    { id: "canais", titulo: t`Channels` }
+  ];
+  const atual: SecaoDoEspaco = secao ?? "geral";
 
   async function mudarPapel(membro: SpaceMember, papel: SpaceRole) {
     setBusy(true);
@@ -368,503 +398,582 @@ export function SpaceModal({ spaceId, onClose }: { spaceId: string; onClose: () 
   }
 
   return (
-    <Scrim onClose={onClose}>
-      <header>{space.name}</header>
-      <div className="modal-body">
-        {error && <div className="form-error">{error}</div>}
-
-        <div className="settings-id">
-          {mando ? (
-            <button
-              className="avatar-edit"
-              onClick={() => iconeRef.current?.click()}
-              disabled={enviandoIcone}
-              title={t`Change the space picture`}
-              aria-label={t`Change the space picture`}
-            >
-              <Avatar name={space.name} url={space.iconUrl} size={64} />
-              <span className="avatar-edit-hint">{enviandoIcone ? t`Saving…` : t`Change`}</span>
+    <Scrim onClose={onClose} className="modal-wide">
+      <div className="settings-shell" data-view={secao ? "detalhe" : "lista"}>
+        <nav className="settings-nav" aria-label={t`Space settings`}>
+          <div className="settings-list-head">
+            <h3>{space.name}</h3>
+            <button className="settings-close" onClick={onClose} aria-label={t`Close`}>
+              <IconClose size={20} />
             </button>
-          ) : (
-            <Avatar name={space.name} url={space.iconUrl} size={64} />
-          )}
-          <input
-            ref={iconeRef}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void trocarIcone(f);
-            }}
-          />
+          </div>
           <div>
-            <strong>{space.name}</strong>
-            <span>{plural(space.memberCount, { one: "# person", other: "# people" })}</span>
-            {mando && space.iconUrl && (
+            <h4>{space.name}</h4>
+            {secoes.map((sc) => (
               <button
-                className="btn-link"
-                disabled={enviandoIcone}
-                onClick={() => void removerIcone()}
+                key={sc.id}
+                className={`settings-tab${sc.id === atual ? " on" : ""}`}
+                aria-current={sc.id === atual ? "page" : undefined}
+                onClick={() => {
+                  setSecao(sc.id);
+                  setConfirmar(null);
+                  setRenomeando(null);
+                  setError(null);
+                }}
               >
-                <Trans>Remove the picture</Trans>
+                <IconeDaSecao nome={sc.id} />
+                {sc.titulo}
               </button>
-            )}
+            ))}
           </div>
-        </div>
+        </nav>
 
-        {mando && (
-          <div className="field">
-            <label htmlFor="space-rename">
-              <Trans>Space name</Trans>
-            </label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                id="space-rename"
-                value={nome}
-                maxLength={60}
-                onChange={(e) => setNome(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && void salvarNome()}
-                style={CAMPO}
-              />
-              <button
-                className="btn-ghost"
-                disabled={busy || !nome.trim() || nome.trim() === space.name}
-                onClick={() => void salvarNome()}
-              >
-                <Trans>Save</Trans>
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div style={{ height: 1, background: "var(--divider)", margin: "20px 0" }} />
-
-        <p style={{ color: "var(--text-dim)", fontSize: 13.5, margin: "0 0 14px" }}>
-          <Trans>
-            Anyone with this link can join. Opening it signs them straight into the space — in the
-            desktop app if they have it installed, in the browser if they do not.
-          </Trans>
-        </p>
-
-        <CopyField value={inviteLink(space.inviteCode)} label={t`Invite link`} />
-
-        <p style={{ color: "var(--text-faint)", fontSize: 12.5, margin: "14px 0 8px" }}>
-          <Trans>
-            Or send just the code, for someone who would rather type it under{" "}
-            <b style={{ color: "var(--text-dim)" }}>New space → Have an invite code?</b>
-          </Trans>
-        </p>
-
-        <CopyField value={space.inviteCode} label={t`Invite code`} />
-
-        {/*
-          Trocar o código é destrutivo sem parecer: nada some da tela, mas todo
-          link que já foi mandado para alguém morre em silêncio. Por isso a
-          confirmação diz exatamente isso antes.
-        */}
-        {mando &&
-          (confirmar?.tipo === "convite" ? (
-            <div className="leave-confirm" style={{ marginTop: 12 }}>
-              <p>
-                <Trans>
-                  Create a new code? Every link and code you have already shared stops working
-                  right away, and anyone still holding one will be turned away. People who are
-                  already in the space stay in.
-                </Trans>
-              </p>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn-ghost" onClick={() => setConfirmar(null)}>
-                  <Trans>Cancel</Trans>
-                </button>
-                <button
-                  className="btn-outline danger"
-                  disabled={busy}
-                  onClick={() => void regenerarConvite()}
-                >
-                  {busy ? <Trans>One moment…</Trans> : <Trans>Yes, replace the code</Trans>}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              className="btn-link"
-              style={{ marginTop: 10 }}
-              onClick={() => setConfirmar({ tipo: "convite" })}
-            >
-              <Trans>Create a new invite code</Trans>
+        <section className="settings-panel">
+          <header className="settings-panel-head">
+            <button className="settings-back" onClick={() => setSecao(null)} aria-label={t`Back`}>
+              <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                <path fill="currentColor" d="M15.7 4.3 8 12l7.7 7.7 1.4-1.4L10.8 12l6.3-6.3z" />
+              </svg>
             </button>
-          ))}
+            <h3>{secoes.find((sc) => sc.id === atual)?.titulo}</h3>
+            <button className="settings-close" onClick={onClose} aria-label={t`Close`}>
+              <IconClose size={20} />
+            </button>
+          </header>
 
-        <div style={{ height: 1, background: "var(--divider)", margin: "20px 0" }} />
+          <div className="settings-panel-body">
+            {error && <div className="form-error">{error}</div>}
 
-        <p className="section-label" style={{ padding: 0, marginBottom: 8 }}>
-          <Trans>Members</Trans> · {members.length}
-        </p>
-
-        {mando && (
-          <p className="settings-note" style={{ marginBottom: 10 }}>
-            <Trans>
-              Removing someone takes them out of every channel here. What they wrote stays where
-              it is — messages are not deleted with the person.
-            </Trans>
-          </p>
-        )}
-
-        {members.map((m) => {
-          const ehEu = m.id === me?.id;
-          /*
-           * Ninguém mexe no dono, nem ele em si mesmo por aqui: rebaixar o
-           * próprio dono deixaria o espaço sem quem possa promover alguém de
-           * volta. A saída dele é transferir a posse, logo abaixo.
-           */
-          const podeMexer = mando && !ehEu && m.role !== "OWNER";
-          return (
-            <div key={m.id} className="member-row">
-              <div className="row" style={{ height: 56, padding: 0 }}>
-                <Avatar name={m.displayName} url={m.avatarUrl} size={38} />
-                <div className="row-body">
-                  <div className="row-name" style={{ fontSize: 15 }}>
-                    {m.displayName}
-                  </div>
-                  <div className="row-preview">@{m.username}</div>
-                </div>
-                <span className={`role-tag role-${m.role.toLowerCase()}`}>
-                  {rotuloDoPapel(m.role, i18n)}
-                </span>
-              </div>
-
-              {podeMexer && (
-                <div className="member-actions">
-                  {m.role === "MEMBER" ? (
+            {atual === "geral" && (
+              <>
+                <div className="settings-id">
+                  {mando ? (
                     <button
-                      className="btn-link"
-                      disabled={busy}
-                      onClick={() => void mudarPapel(m, "ADMIN")}
+                      className="avatar-edit"
+                      onClick={() => iconeRef.current?.click()}
+                      disabled={enviandoIcone}
+                      title={t`Change the space picture`}
+                      aria-label={t`Change the space picture`}
                     >
-                      <Trans>Make admin</Trans>
+                      <Avatar name={space.name} url={space.iconUrl} size={64} />
+                      <span className="avatar-edit-hint">{enviandoIcone ? t`Saving…` : t`Change`}</span>
                     </button>
+                  ) : (
+                    <Avatar name={space.name} url={space.iconUrl} size={64} />
+                  )}
+                  <input
+                    ref={iconeRef}
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) void trocarIcone(f);
+                    }}
+                  />
+                  <div>
+                    <strong>{space.name}</strong>
+                    <span>{plural(space.memberCount, { one: "# person", other: "# people" })}</span>
+                    {mando && space.iconUrl && (
+                      <button
+                        className="btn-link"
+                        disabled={enviandoIcone}
+                        onClick={() => void removerIcone()}
+                      >
+                        <Trans>Remove the picture</Trans>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {mando && (
+                  <div className="field">
+                    <label htmlFor="space-rename">
+                      <Trans>Space name</Trans>
+                    </label>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input
+                        id="space-rename"
+                        value={nome}
+                        maxLength={60}
+                        onChange={(e) => setNome(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && void salvarNome()}
+                        style={CAMPO}
+                      />
+                      <button
+                        className="btn-ghost"
+                        disabled={busy || !nome.trim() || nome.trim() === space.name}
+                        onClick={() => void salvarNome()}
+                      >
+                        <Trans>Save</Trans>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+
+                <div className="settings-rule" />
+                {/*
+                  Sair ficava impossível: dava para entrar num espaço e nunca mais sair
+                  dele, nem pela interface nem pela API. A confirmação em dois passos
+                  existe porque isto tira você de TODOS os canais de uma vez.
+                */}
+                {confirmarSaida ? (
+                  <div className="leave-confirm">
+                    <p>
+                      <Trans>
+                        Leaving takes you out of every channel in <b>{space.name}</b>. What you have
+                        written stays where it is, and you can come back with the invite code.
+                      </Trans>
+                    </p>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button className="btn-ghost" onClick={() => setConfirmarSaida(false)}>
+                        <Trans>Cancel</Trans>
+                      </button>
+                      <button
+                        className="btn-outline danger"
+                        disabled={busy}
+                        onClick={async () => {
+                          setBusy(true);
+                          try {
+                            const { spaceDeleted } = await leaveSpace(spaceId);
+                            notify(
+                              spaceDeleted
+                                ? t`You left ${space.name}. Nobody was left, so the space is gone.`
+                                : t`You left ${space.name}.`
+                            );
+                            onClose();
+                          } catch (err) {
+                            setError(err instanceof Error ? err.message : t`You could not leave that space.`);
+                            setBusy(false);
+                          }
+                        }}
+                      >
+                        {busy ? <Trans>Leaving…</Trans> : <Trans>Yes, leave</Trans>}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button className="btn-outline danger" onClick={() => setConfirmarSaida(true)}>
+                    <Trans>Leave this space</Trans>
+                  </button>
+                )}
+
+                {/*
+                  Apagar o espaço fica DEPOIS de sair, e só para o dono. A ordem é de
+                  propósito: quem quer só se ver livre do espaço encontra "sair"
+                  primeiro, que é o que quase todo mundo quer. Apagar é o fim de tudo
+                  para catorze pessoas, não uma saída pessoal.
+                */}
+                {souDono &&
+                  (confirmar?.tipo === "espaco" ? (
+                    <div className="leave-confirm" style={{ marginTop: 12 }}>
+                      <p>
+                        <Trans>
+                          Delete <b>{space.name}</b> for everyone in it — {quantasPessoas}? Every
+                          channel, every message, every picture and every file in this space goes with
+                          it. There is no way back, and no copy is kept.
+                        </Trans>
+                      </p>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button className="btn-ghost" onClick={() => setConfirmar(null)}>
+                          <Trans>Cancel</Trans>
+                        </button>
+                        <button
+                          className="btn-outline danger"
+                          disabled={busy}
+                          onClick={() => void apagarEspaco()}
+                        >
+                          {busy ? <Trans>Deleting…</Trans> : <Trans>Yes, delete the space</Trans>}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      className="btn-link danger"
+                      style={{ marginTop: 14 }}
+                      onClick={() => {
+                        setRenomeando(null);
+                        setConfirmar({ tipo: "espaco" });
+                      }}
+                    >
+                      <Trans>Delete this space</Trans>
+                    </button>
+                  ))}
+
+              </>
+            )}
+
+            {atual === "convite" && (
+              <>
+                <p style={{ color: "var(--text-dim)", fontSize: 13.5, margin: "0 0 14px" }}>
+                  <Trans>
+                    Anyone with this link can join. Opening it signs them straight into the space — in the
+                    desktop app if they have it installed, in the browser if they do not.
+                  </Trans>
+                </p>
+
+                <CopyField value={inviteLink(space.inviteCode)} label={t`Invite link`} />
+
+                <p style={{ color: "var(--text-faint)", fontSize: 12.5, margin: "14px 0 8px" }}>
+                  <Trans>
+                    Or send just the code, for someone who would rather type it under{" "}
+                    <b style={{ color: "var(--text-dim)" }}>New space → Have an invite code?</b>
+                  </Trans>
+                </p>
+
+                <CopyField value={space.inviteCode} label={t`Invite code`} />
+
+                {/*
+                  Trocar o código é destrutivo sem parecer: nada some da tela, mas todo
+                  link que já foi mandado para alguém morre em silêncio. Por isso a
+                  confirmação diz exatamente isso antes.
+                */}
+                {mando &&
+                  (confirmar?.tipo === "convite" ? (
+                    <div className="leave-confirm" style={{ marginTop: 12 }}>
+                      <p>
+                        <Trans>
+                          Create a new code? Every link and code you have already shared stops working
+                          right away, and anyone still holding one will be turned away. People who are
+                          already in the space stay in.
+                        </Trans>
+                      </p>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button className="btn-ghost" onClick={() => setConfirmar(null)}>
+                          <Trans>Cancel</Trans>
+                        </button>
+                        <button
+                          className="btn-outline danger"
+                          disabled={busy}
+                          onClick={() => void regenerarConvite()}
+                        >
+                          {busy ? <Trans>One moment…</Trans> : <Trans>Yes, replace the code</Trans>}
+                        </button>
+                      </div>
+                    </div>
                   ) : (
                     <button
                       className="btn-link"
-                      disabled={busy}
-                      onClick={() => void mudarPapel(m, "MEMBER")}
+                      style={{ marginTop: 10 }}
+                      onClick={() => setConfirmar({ tipo: "convite" })}
                     >
-                      <Trans>Remove admin</Trans>
+                      <Trans>Create a new invite code</Trans>
                     </button>
-                  )}
-                  {souDono && (
-                    <button
-                      className="btn-link"
-                      disabled={busy}
-                      onClick={() => setConfirmar({ tipo: "posse", membro: m })}
-                    >
-                      <Trans>Transfer ownership</Trans>
-                    </button>
-                  )}
-                  <button
-                    className="btn-link danger"
-                    disabled={busy}
-                    onClick={() => setConfirmar({ tipo: "remover", membro: m })}
-                  >
-                    <Trans>Remove</Trans>
-                  </button>
-                </div>
-              )}
+                  ))}
 
-              {confirmar?.tipo === "remover" && confirmar.membro.id === m.id && (
-                <div className="leave-confirm">
-                  <p>
+
+              </>
+            )}
+
+            {atual === "membros" && (
+              <>
+                <p className="section-label" style={{ padding: 0, marginBottom: 8 }}>
+                  <Trans>Members</Trans> · {members.length}
+                </p>
+
+                {mando && (
+                  <p className="settings-note" style={{ marginBottom: 10 }}>
                     <Trans>
-                      Remove <b>{m.displayName}</b> from this space? They lose every channel here
-                      and can only come back with an invite code. Everything they wrote stays in
-                      the conversations.
+                      Removing someone takes them out of every channel here. What they wrote stays where
+                      it is — messages are not deleted with the person.
                     </Trans>
                   </p>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button className="btn-ghost" onClick={() => setConfirmar(null)}>
-                      <Trans>Cancel</Trans>
-                    </button>
-                    <button
-                      className="btn-outline danger"
-                      disabled={busy}
-                      onClick={() => void remover(m)}
-                    >
-                      {busy ? <Trans>Removing…</Trans> : <Trans>Yes, remove them</Trans>}
-                    </button>
-                  </div>
-                </div>
-              )}
+                )}
 
-              {confirmar?.tipo === "posse" && confirmar.membro.id === m.id && (
-                <div className="leave-confirm">
-                  <p>
-                    <Trans>
-                      Hand this space to <b>{m.displayName}</b>? They become the owner and you
-                      become an admin. Only they can hand it back.
-                    </Trans>
+                {members.map((m) => {
+                  const ehEu = m.id === me?.id;
+                  /*
+                   * Ninguém mexe no dono, nem ele em si mesmo por aqui: rebaixar o
+                   * próprio dono deixaria o espaço sem quem possa promover alguém de
+                   * volta. A saída dele é transferir a posse, logo abaixo.
+                   */
+                  const podeMexer = mando && !ehEu && m.role !== "OWNER";
+                  return (
+                    <div key={m.id} className="member-row">
+                      <div className="row" style={{ height: 56, padding: 0 }}>
+                        <Avatar name={m.displayName} url={m.avatarUrl} size={38} />
+                        <div className="row-body">
+                          <div className="row-name" style={{ fontSize: 15 }}>
+                            {m.displayName}
+                          </div>
+                          <div className="row-preview">@{m.username}</div>
+                        </div>
+                        <span className={`role-tag role-${m.role.toLowerCase()}`}>
+                          {rotuloDoPapel(m.role, i18n)}
+                        </span>
+                      </div>
+
+                      {podeMexer && (
+                        <div className="member-actions">
+                          {m.role === "MEMBER" ? (
+                            <button
+                              className="btn-link"
+                              disabled={busy}
+                              onClick={() => void mudarPapel(m, "ADMIN")}
+                            >
+                              <Trans>Make admin</Trans>
+                            </button>
+                          ) : (
+                            <button
+                              className="btn-link"
+                              disabled={busy}
+                              onClick={() => void mudarPapel(m, "MEMBER")}
+                            >
+                              <Trans>Remove admin</Trans>
+                            </button>
+                          )}
+                          {souDono && (
+                            <button
+                              className="btn-link"
+                              disabled={busy}
+                              onClick={() => setConfirmar({ tipo: "posse", membro: m })}
+                            >
+                              <Trans>Transfer ownership</Trans>
+                            </button>
+                          )}
+                          <button
+                            className="btn-link danger"
+                            disabled={busy}
+                            onClick={() => setConfirmar({ tipo: "remover", membro: m })}
+                          >
+                            <Trans>Remove</Trans>
+                          </button>
+                        </div>
+                      )}
+
+                      {confirmar?.tipo === "remover" && confirmar.membro.id === m.id && (
+                        <div className="leave-confirm">
+                          <p>
+                            <Trans>
+                              Remove <b>{m.displayName}</b> from this space? They lose every channel here
+                              and can only come back with an invite code. Everything they wrote stays in
+                              the conversations.
+                            </Trans>
+                          </p>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button className="btn-ghost" onClick={() => setConfirmar(null)}>
+                              <Trans>Cancel</Trans>
+                            </button>
+                            <button
+                              className="btn-outline danger"
+                              disabled={busy}
+                              onClick={() => void remover(m)}
+                            >
+                              {busy ? <Trans>Removing…</Trans> : <Trans>Yes, remove them</Trans>}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {confirmar?.tipo === "posse" && confirmar.membro.id === m.id && (
+                        <div className="leave-confirm">
+                          <p>
+                            <Trans>
+                              Hand this space to <b>{m.displayName}</b>? They become the owner and you
+                              become an admin. Only they can hand it back.
+                            </Trans>
+                          </p>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button className="btn-ghost" onClick={() => setConfirmar(null)}>
+                              <Trans>Cancel</Trans>
+                            </button>
+                            <button
+                              className="btn-outline danger"
+                              disabled={busy}
+                              onClick={() => void transferirPosse(m)}
+                            >
+                              {busy ? <Trans>One moment…</Trans> : <Trans>Yes, transfer it</Trans>}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {!mando && (
+                  <p className="settings-note" style={{ marginTop: 10 }}>
+                    <Trans>Only an admin or the owner can change who is here.</Trans>
                   </p>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button className="btn-ghost" onClick={() => setConfirmar(null)}>
-                      <Trans>Cancel</Trans>
-                    </button>
-                    <button
-                      className="btn-outline danger"
-                      disabled={busy}
-                      onClick={() => void transferirPosse(m)}
-                    >
-                      {busy ? <Trans>One moment…</Trans> : <Trans>Yes, transfer it</Trans>}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                )}
 
-        {!mando && (
-          <p className="settings-note" style={{ marginTop: 10 }}>
-            <Trans>Only an admin or the owner can change who is here.</Trans>
-          </p>
-        )}
 
-        <div style={{ height: 1, background: "var(--divider)", margin: "20px 0" }} />
+              </>
+            )}
 
-        <p className="section-label" style={{ padding: 0, marginBottom: 8 }}>
-          <Trans>Channels</Trans> · {space.channels.length}
-        </p>
+            {atual === "canais" && (
+              <>
+                <p className="section-label" style={{ padding: 0, marginBottom: 8 }}>
+                  <Trans>Channels</Trans> · {space.channels.length}
+                </p>
 
-        {space.channels.map((c) => {
-          const nomeDoCanal = c.name ?? t`Channel`;
-          const editando = renomeando?.id === c.id;
-          return (
-            <div key={c.id} className="member-row">
-              {editando ? (
-                <div style={{ display: "flex", gap: 8, padding: "8px 0" }}>
-                  <input
-                    autoFocus
-                    value={renomeando.nome}
-                    maxLength={60}
-                    onChange={(e) => setRenomeando({ id: c.id, nome: e.target.value })}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void salvarCanal(c.id);
-                      if (e.key === "Escape") setRenomeando(null);
-                    }}
-                    style={CAMPO}
-                  />
-                  <button
-                    className="btn-ghost"
-                    disabled={busy || !renomeando.nome.trim()}
-                    onClick={() => void salvarCanal(c.id)}
-                  >
-                    <Trans>Save</Trans>
-                  </button>
-                  <button className="btn-ghost" onClick={() => setRenomeando(null)}>
-                    <Trans>Cancel</Trans>
-                  </button>
-                </div>
-              ) : (
-                <div className="row" style={{ height: 46, padding: 0, gap: 10 }}>
-                  {/*
-                    O mesmo sinal que a barra lateral usa para separar os dois
-                    tipos. Aqui ele importa mais do que lá: a lista está fora de
-                    contexto, e sem ele um canal de voz e um de texto com nomes
-                    parecidos viram a mesma linha na hora de apagar.
-                  */}
-                  <span style={{ color: "var(--text-faint)", width: 14, textAlign: "center" }}>
-                    {c.kind === "VOICE" ? "♪" : "#"}
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }} className="row-name">
-                    {nomeDoCanal}
-                  </div>
-                  {mando && (
-                    <div className="member-actions" style={{ margin: 0 }}>
+                {space.channels.map((c) => {
+                  const nomeDoCanal = c.name ?? t`Channel`;
+                  const editando = renomeando?.id === c.id;
+                  return (
+                    <div key={c.id} className="member-row">
+                      {editando ? (
+                        <div style={{ display: "flex", gap: 8, padding: "8px 0" }}>
+                          <input
+                            autoFocus
+                            value={renomeando.nome}
+                            maxLength={60}
+                            onChange={(e) => setRenomeando({ id: c.id, nome: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") void salvarCanal(c.id);
+                              if (e.key === "Escape") setRenomeando(null);
+                            }}
+                            style={CAMPO}
+                          />
+                          <button
+                            className="btn-ghost"
+                            disabled={busy || !renomeando.nome.trim()}
+                            onClick={() => void salvarCanal(c.id)}
+                          >
+                            <Trans>Save</Trans>
+                          </button>
+                          <button className="btn-ghost" onClick={() => setRenomeando(null)}>
+                            <Trans>Cancel</Trans>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="row" style={{ height: 46, padding: 0, gap: 10 }}>
+                          {/*
+                            O mesmo sinal que a barra lateral usa para separar os dois
+                            tipos. Aqui ele importa mais do que lá: a lista está fora de
+                            contexto, e sem ele um canal de voz e um de texto com nomes
+                            parecidos viram a mesma linha na hora de apagar.
+                          */}
+                          <span style={{ color: "var(--text-faint)", width: 14, textAlign: "center" }}>
+                            {c.kind === "VOICE" ? "♪" : "#"}
+                          </span>
+                          <div style={{ flex: 1, minWidth: 0 }} className="row-name">
+                            {nomeDoCanal}
+                          </div>
+                          {mando && (
+                            <div className="member-actions" style={{ margin: 0 }}>
+                              <button
+                                className="btn-link"
+                                disabled={busy}
+                                onClick={() => {
+                                  setConfirmar(null);
+                                  setRenomeando({ id: c.id, nome: nomeDoCanal });
+                                }}
+                              >
+                                <Trans>Rename</Trans>
+                              </button>
+                              <button
+                                className="btn-link danger"
+                                disabled={busy}
+                                onClick={() => {
+                                  setRenomeando(null);
+                                  setConfirmar({ tipo: "canal", canalId: c.id });
+                                }}
+                              >
+                                <Trans>Delete</Trans>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/*
+                        O aviso diz o que some, e não "tem certeza?". Apagar um canal
+                        leva junto tudo o que foi escrito nele, para todo mundo — é a
+                        regra oposta à de expulsar alguém, onde as mensagens ficam.
+                      */}
+                      {confirmar?.tipo === "canal" && confirmar.canalId === c.id && (
+                        <div className="leave-confirm">
+                          <p>
+                            <Trans>
+                              Delete <b>{nomeDoCanal}</b>? Everything written there goes with it —
+                              messages, pictures and files — for everyone in the space. There is no way
+                              back.
+                            </Trans>
+                          </p>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button className="btn-ghost" onClick={() => setConfirmar(null)}>
+                              <Trans>Cancel</Trans>
+                            </button>
+                            <button
+                              className="btn-outline danger"
+                              disabled={busy}
+                              onClick={() => void apagarCanal(c.id, nomeDoCanal)}
+                            >
+                              {busy ? <Trans>Deleting…</Trans> : <Trans>Yes, delete it</Trans>}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+
+                {/* Criar canal é coisa de quem administra; a API recusa os outros. */}
+                {mando && (
+                  <>
+                    <div className="settings-rule" />
+                    <p className="section-label" style={{ padding: 0, marginBottom: 8 }}>
+                      <Trans>New channel</Trans>
+                    </p>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
                       <button
-                        className="btn-link"
-                        disabled={busy}
-                        onClick={() => {
-                          setConfirmar(null);
-                          setRenomeando({ id: c.id, nome: nomeDoCanal });
-                        }}
+                        className="chip"
+                        aria-pressed={channelKind === "TEXT"}
+                        onClick={() => setChannelKind("TEXT")}
                       >
-                        <Trans>Rename</Trans>
+                        <Trans>Text</Trans>
                       </button>
                       <button
-                        className="btn-link danger"
-                        disabled={busy}
-                        onClick={() => {
-                          setRenomeando(null);
-                          setConfirmar({ tipo: "canal", canalId: c.id });
-                        }}
+                        className="chip"
+                        aria-pressed={channelKind === "VOICE"}
+                        onClick={() => setChannelKind("VOICE")}
                       >
-                        <Trans>Delete</Trans>
+                        <Trans>Voice</Trans>
                       </button>
                     </div>
-                  )}
-                </div>
-              )}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input
+                        value={channelName}
+                        onChange={(e) => setChannelName(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && addChannel()}
+                        placeholder={channelKind === "TEXT" ? t`announcements` : t`Lounge`}
+                        style={CAMPO}
+                      />
+                      <button className="btn-ghost" disabled={busy || !channelName.trim()} onClick={addChannel}>
+                        <Trans>Add</Trans>
+                      </button>
+                    </div>
 
-              {/*
-                O aviso diz o que some, e não "tem certeza?". Apagar um canal
-                leva junto tudo o que foi escrito nele, para todo mundo — é a
-                regra oposta à de expulsar alguém, onde as mensagens ficam.
-              */}
-              {confirmar?.tipo === "canal" && confirmar.canalId === c.id && (
-                <div className="leave-confirm">
-                  <p>
-                    <Trans>
-                      Delete <b>{nomeDoCanal}</b>? Everything written there goes with it —
-                      messages, pictures and files — for everyone in the space. There is no way
-                      back.
-                    </Trans>
-                  </p>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button className="btn-ghost" onClick={() => setConfirmar(null)}>
-                      <Trans>Cancel</Trans>
-                    </button>
-                    <button
-                      className="btn-outline danger"
-                      disabled={busy}
-                      onClick={() => void apagarCanal(c.id, nomeDoCanal)}
-                    >
-                      {busy ? <Trans>Deleting…</Trans> : <Trans>Yes, delete it</Trans>}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        <div style={{ height: 1, background: "var(--divider)", margin: "20px 0" }} />
-
-        <p className="section-label" style={{ padding: 0, marginBottom: 8 }}>
-          <Trans>New channel</Trans>
-        </p>
-        <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-          <button
-            className="chip"
-            aria-pressed={channelKind === "TEXT"}
-            onClick={() => setChannelKind("TEXT")}
-          >
-            <Trans>Text</Trans>
-          </button>
-          <button
-            className="chip"
-            aria-pressed={channelKind === "VOICE"}
-            onClick={() => setChannelKind("VOICE")}
-          >
-            <Trans>Voice</Trans>
-          </button>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            value={channelName}
-            onChange={(e) => setChannelName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addChannel()}
-            placeholder={channelKind === "TEXT" ? t`announcements` : t`Lounge`}
-            style={CAMPO}
-          />
-          <button className="btn-ghost" disabled={busy || !channelName.trim()} onClick={addChannel}>
-            <Trans>Add</Trans>
-          </button>
-        </div>
-        <div style={{ height: 1, background: "var(--divider)", margin: "20px 0" }} />
-
-        {/*
-          Sair ficava impossível: dava para entrar num espaço e nunca mais sair
-          dele, nem pela interface nem pela API. A confirmação em dois passos
-          existe porque isto tira você de TODOS os canais de uma vez.
-        */}
-        {confirmarSaida ? (
-          <div className="leave-confirm">
-            <p>
-              <Trans>
-                Leaving takes you out of every channel in <b>{space.name}</b>. What you have
-                written stays where it is, and you can come back with the invite code.
-              </Trans>
-            </p>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn-ghost" onClick={() => setConfirmarSaida(false)}>
-                Cancel
-              </button>
-              <button
-                className="btn-outline danger"
-                disabled={busy}
-                onClick={async () => {
-                  setBusy(true);
-                  try {
-                    const { spaceDeleted } = await leaveSpace(spaceId);
-                    notify(
-                      spaceDeleted
-                        ? t`You left ${space.name}. Nobody was left, so the space is gone.`
-                        : t`You left ${space.name}.`
-                    );
-                    onClose();
-                  } catch (err) {
-                    setError(err instanceof Error ? err.message : t`You could not leave that space.`);
-                    setBusy(false);
-                  }
-                }}
-              >
-                {busy ? <Trans>Leaving…</Trans> : <Trans>Yes, leave</Trans>}
-              </button>
-            </div>
+                  </>
+                )}
+              </>
+            )}
           </div>
-        ) : (
-          <button className="btn-outline danger" onClick={() => setConfirmarSaida(true)}>
-            <Trans>Leave this space</Trans>
-          </button>
-        )}
-
-        {/*
-          Apagar o espaço fica DEPOIS de sair, e só para o dono. A ordem é de
-          propósito: quem quer só se ver livre do espaço encontra "sair"
-          primeiro, que é o que quase todo mundo quer. Apagar é o fim de tudo
-          para catorze pessoas, não uma saída pessoal.
-        */}
-        {souDono &&
-          (confirmar?.tipo === "espaco" ? (
-            <div className="leave-confirm" style={{ marginTop: 12 }}>
-              <p>
-                <Trans>
-                  Delete <b>{space.name}</b> for everyone in it — {quantasPessoas}? Every
-                  channel, every message, every picture and every file in this space goes with
-                  it. There is no way back, and no copy is kept.
-                </Trans>
-              </p>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn-ghost" onClick={() => setConfirmar(null)}>
-                  <Trans>Cancel</Trans>
-                </button>
-                <button
-                  className="btn-outline danger"
-                  disabled={busy}
-                  onClick={() => void apagarEspaco()}
-                >
-                  {busy ? <Trans>Deleting…</Trans> : <Trans>Yes, delete the space</Trans>}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              className="btn-link danger"
-              style={{ marginTop: 14 }}
-              onClick={() => {
-                setRenomeando(null);
-                setConfirmar({ tipo: "espaco" });
-              }}
-            >
-              <Trans>Delete this space</Trans>
-            </button>
-          ))}
+        </section>
       </div>
-      <footer>
-        <button className="btn-ghost" onClick={onClose}>
-          <Trans>Done</Trans>
-        </button>
-      </footer>
     </Scrim>
+  );
+}
+
+/** Um desenho por seção, no mesmo traço das configurações da conta. */
+function IconeDaSecao({ nome }: { nome: SecaoDoEspaco }) {
+  const caminhos: Record<SecaoDoEspaco, string> = {
+    geral:
+      "M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.7 7.7 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.7 7.7 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.7 7.7 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.7 7.7 0 0 0 1.7-1l2.5 1 2-3.5L19.4 13ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z",
+    convite:
+      "M10 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-3.3 0-7 1.7-7 4.5V20h14v-1.5c0-2.8-3.7-4.5-7-4.5Zm9-5V6h-2v3h-3v2h3v3h2v-3h3V9h-3Z",
+    membros:
+      "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM9 13c-3 0-7 1.5-7 4.5V20h14v-2.5C16 14.5 12 13 9 13Zm7 0c-.4 0-.8 0-1.2.1 1.3.9 2.2 2.2 2.2 4.4V20h5v-2.5c0-3-4-4.5-6-4.5Z",
+    canais:
+      "M10 3 9.3 8H5v2h4l-.6 4H4v2h4.1L7.4 21h2l.7-5h4l-.7 5h2l.7-5H20v-2h-3.9l.6-4H21V8h-4l.7-5h-2l-.7 5h-4L11 3h-1Zm.3 7h4l-.6 4h-4l.6-4Z"
+  };
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path fill="currentColor" d={caminhos[nome]} />
+    </svg>
   );
 }
 

@@ -41,7 +41,15 @@ export function Sidebar() {
   const transmissoes = useStore((s) => s.transmissoes);
 
   const [modal, setModal] = useState<
-    "chat" | "space" | "group" | "spaceInfo" | "addPeople" | "groupInfo" | "settings" | null
+    | "chat"
+    | "space"
+    | "group"
+    | "spaceInfo"
+    | "spaceInvite"
+    | "addPeople"
+    | "groupInfo"
+    | "settings"
+    | null
   >(null);
   const [newMenuOpen, setNewMenuOpen] = useState(false);
   const activeRoom = rooms.find((r) => r.id === activeRoomId);
@@ -197,13 +205,29 @@ export function Sidebar() {
           <h1>{activeSpaceId ? (activeSpace?.name ?? t`Space`) : t`Chats`}</h1>
           <div className="header-actions" style={{ position: "relative" }}>
             {activeSpaceId ? (
-              <button
-                className="icon-btn accent"
-                onClick={() => setModal("spaceInfo")}
-                title={t`Invite people and add channels`}
-              >
-                <IconUserPlus />
-              </button>
+              <>
+                {/*
+                  Duas portas, cada uma com o desenho do que faz. Antes só havia
+                  o "convidar", e era por ele que se chegava ao nome, aos canais e
+                  ao apagar — quem procurava as configurações não achava.
+                */}
+                <button
+                  className="icon-btn"
+                  onClick={() => setModal("spaceInfo")}
+                  title={t`Space settings`}
+                  aria-label={t`Space settings`}
+                >
+                  <IconSettings />
+                </button>
+                <button
+                  className="icon-btn accent"
+                  onClick={() => setModal("spaceInvite")}
+                  title={t`Invite people`}
+                  aria-label={t`Invite people`}
+                >
+                  <IconUserPlus />
+                </button>
+              </>
             ) : (
               <button
                 className="icon-btn accent"
@@ -231,7 +255,7 @@ export function Sidebar() {
         </header>
 
         {activeSpaceId && (
-          <button className="invite-strip" onClick={() => setModal("spaceInfo")}>
+          <button className="invite-strip" onClick={() => setModal("spaceInvite")}>
             <IconUserPlus size={19} />
             <span>
               <b>
@@ -297,7 +321,7 @@ export function Sidebar() {
               onNewChat={() => setModal("chat")}
               onNewGroup={() => setModal("group")}
               onNewSpace={() => setModal("space")}
-              onInvite={() => setModal("spaceInfo")}
+              onInvite={() => setModal("spaceInvite")}
             />
           )}
 
@@ -326,8 +350,12 @@ export function Sidebar() {
       {modal === "space" && <NewSpaceModal onClose={() => setModal(null)} />}
       {modal === "group" && <NewGroupModal onClose={() => setModal(null)} />}
       {modal === "settings" && <SettingsModal onClose={() => setModal(null)} />}
-      {modal === "spaceInfo" && activeSpaceId && (
-        <SpaceModal spaceId={activeSpaceId} onClose={() => setModal(null)} />
+      {(modal === "spaceInfo" || modal === "spaceInvite") && activeSpaceId && (
+        <SpaceModal
+          spaceId={activeSpaceId}
+          inicial={modal === "spaceInvite" ? "convite" : "geral"}
+          onClose={() => setModal(null)}
+        />
       )}
       {modal === "addPeople" && activeRoomId && (
         <AddPeopleModal roomId={activeRoomId} onClose={() => setModal(null)} />
