@@ -6,12 +6,13 @@ import { assinarAtualizacao, estadoDaAtualizacao, temAtualizacaoPendente } from 
 import { initials, listStamp } from "../lib/format";
 import {
   IconAoVivo, IconChats, IconSearch, IconNewChat, IconMute, IconChecks,
-  IconVoiceRoom, IconPhone, IconSettings, IconUserPlus, IconGroup, IconSpaces, IconHash
+  IconVoiceRoom, IconPhone, IconSettings, IconUserPlus, IconGroup, IconSpaces, IconHash, IconVideo
 } from "./icons";
 import { NewChatModal, NewSpaceModal } from "./Modals";
 import { SpaceModal, NewGroupModal, AddPeopleModal, GroupModal } from "./Invites";
 import { SettingsModal } from "./Settings";
 import { SpaceRail } from "./SpaceRail";
+import { NovaReuniao } from "./NovaReuniao";
 import { Avatar } from "./Avatar";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { msg } from "@lingui/core/macro";
@@ -49,6 +50,7 @@ export function Sidebar() {
     | "addPeople"
     | "groupInfo"
     | "settings"
+    | "reuniao"
     | null
   >(null);
   const [newMenuOpen, setNewMenuOpen] = useState(false);
@@ -240,14 +242,18 @@ export function Sidebar() {
 
             {newMenuOpen && !activeSpaceId && (
               <div className="pop-menu">
+                {/* Os três primeiros estavam em inglês cru, fora do catálogo. */}
                 <button onClick={() => { setNewMenuOpen(false); setModal("chat"); }}>
-                  <IconNewChat size={18} /> New chat
+                  <IconNewChat size={18} /> <Trans>New chat</Trans>
                 </button>
                 <button onClick={() => { setNewMenuOpen(false); setModal("group"); }}>
-                  <IconGroup size={18} /> New group
+                  <IconGroup size={18} /> <Trans>New group</Trans>
                 </button>
                 <button onClick={() => { setNewMenuOpen(false); setModal("space"); }}>
-                  <IconSpaces size={18} /> New space
+                  <IconSpaces size={18} /> <Trans>New space</Trans>
+                </button>
+                <button onClick={() => { setNewMenuOpen(false); setModal("reuniao"); }}>
+                  <IconVideo size={18} /> <Trans>Meeting link</Trans>
                 </button>
               </div>
             )}
@@ -348,6 +354,7 @@ export function Sidebar() {
 
       {modal === "chat" && <NewChatModal onClose={() => setModal(null)} />}
       {modal === "space" && <NewSpaceModal onClose={() => setModal(null)} />}
+      {modal === "reuniao" && <NovaReuniao onClose={() => setModal(null)} />}
       {modal === "group" && <NewGroupModal onClose={() => setModal(null)} />}
       {modal === "settings" && <SettingsModal onClose={() => setModal(null)} />}
       {(modal === "spaceInfo" || modal === "spaceInvite") && activeSpaceId && (

@@ -2958,6 +2958,148 @@ function grantsDoToken(jwt) {
  * não conta quem tem conta, um link inválido é recusado, e trocar a senha
  * derruba as sessões antigas.
  */
+/* ================================================================== */
+/* 21. Reunião por link — com conta e sem conta                         */
+/* ================================================================== */
+
+function corpoDoToken(jwt) {
+  try {
+    const parte = jwt.split(".")[1];
+    return JSON.parse(Buffer.from(parte.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * O único lugar da API em que alguém SEM CONTA faz alguma coisa. O que se
+ * confere aqui é a fronteira: o que o convidado consegue (entrar com um nome),
+ * o que não consegue (encerrar, remover, se passar por conta), e que o token
+ * dele diz ao resto da sala que ele é convidado.
+ */
+async function secReuniao() {
+  console.log("\n=== 21. Reunião por link ===");
+  const { A, B } = state;
+  const r = {};
+
+  await t("criar exige conta", async () => {
+    const sem = await POST("/meetings", { body: {} });
+    check("sem conta é 401", sem.status === 401, "401", short(sem));
+    const com = await POST("/meetings", { token: A.token, body: {} });
+    r.code = com.json?.reuniao?.code;
+    check(
+      "com conta: 201, código abc-defg-hij e link com ?call=",
+      com.status === 201 && /^[a-z]{3}-[a-z]{4}-[a-z]{3}$/.test(r.code ?? "") && String(com.json?.link).includes(`?call=${r.code}`),
+      "201 com código e link",
+      short(com)
+    );
+  });
+
+  await t("espiar a reunião não exige conta", async () => {
+    const info = await GET(`/meetings/${r.code}`);
+    check(
+      "200 sem conta, com quem criou e se está aberta",
+      info.status === 200 && info.json?.reuniao?.ativa === true && info.json?.reuniao?.host?.id === A.id,
+      "200 ativa, host A",
+      short(info)
+    );
+    const inventada = await GET("/meetings/zzz-zzzz-zzz");
+    check(
+      "código que não existe é 404 meetings.missing",
+      inventada.status === 404 && inventada.json?.code === "meetings.missing",
+      "404 meetings.missing",
+      short(inventada)
+    );
+    const torta = await GET("/meetings/..%2f..%2fetc");
+    check("lixo no lugar do código também é 404", torta.status === 404, "404", short(torta));
+  });
+
+  await t("entrar sem conta", async () => {
+    const semNome = await POST(`/meetings/${r.code}/join`, { body: {} });
+    check(
+      "sem nome é 400 meetings.needs_name",
+      semNome.status === 400 && semNome.json?.code === "meetings.needs_name",
+      "400 meetings.needs_name",
+      short(semNome)
+    );
+    const soEspaco = await POST(`/meetings/${r.code}/join`, { body: { nome: "     " } });
+    check("nome só de espaço também", soEspaco.status === 400, "400", short(soEspaco));
+
+    const e = await POST(`/meetings/${r.code}/join`, { body: { nome: "  Maria\u202E  " } });
+    check("com nome, entra", e.status === 200, "200", short(e));
+    check("o nome volta limpo", e.json?.nome === "Maria", "Maria", String(e.json?.nome));
+    check("é marcado como convidado", e.json?.convidado === true && e.json?.souAnfitriao === false, "convidado", short(e));
+    check("a identidade é g_…", String(e.json?.identidade).startsWith("g_"), "g_…", String(e.json?.identidade));
+
+    const tk = corpoDoToken(e.json?.token ?? "");
+    check("o token leva o nome limpo", tk?.name === "Maria", "Maria", String(tk?.name));
+    /*
+     * É o token, e não a tela, que diz à sala que a pessoa é convidado. Se isto
+     * faltasse, um convidado chamado "Gustavo" passaria pelo Gustavo de verdade.
+     */
+    check(
+      "e diz à sala que é convidado",
+      JSON.parse(tk?.metadata ?? "{}").convidado === true,
+      "metadata.convidado true",
+      String(tk?.metadata)
+    );
+    check(
+      "a sala é a da reunião",
+      String(tk?.video?.room).startsWith("meet_"),
+      "meet_…",
+      String(tk?.video?.room)
+    );
+    check("o convidado publica câmera e microfone", tk?.video?.canPublish === true, "canPublish true", JSON.stringify(tk?.video));
+  });
+
+  await t("entrar com conta", async () => {
+    const e = await POST(`/meetings/${r.code}/join`, { token: B.token, body: { nome: "Outro Nome" } });
+    check("200", e.status === 200, "200", short(e));
+    check("entra com a identidade da conta, não como convidado", e.json?.identidade === B.id && e.json?.convidado === false, B.id, short(e));
+    check("o nome é o do perfil, e não o digitado", e.json?.nome === B.user.displayName, B.user.displayName, String(e.json?.nome));
+
+    const dono = await POST(`/meetings/${r.code}/join`, { token: A.token, body: {} });
+    check("quem criou entra como anfitrião", dono.json?.souAnfitriao === true, "souAnfitriao true", short(dono));
+
+    const torto = await POST(`/meetings/${r.code}/join`, { token: "token-invalido", body: { nome: "X" } });
+    check(
+      "sessão inválida é 401 — não vira convidado em silêncio",
+      torto.status === 401 && torto.json?.code === "auth.expired",
+      "401 auth.expired",
+      short(torto)
+    );
+  });
+
+  await t("só o anfitrião remove e encerra", async () => {
+    const tiraB = await POST(`/meetings/${r.code}/remove`, { token: B.token, body: { identidade: A.id } });
+    check(
+      "B não remove ninguém: 403 meetings.not_host",
+      tiraB.status === 403 && tiraB.json?.code === "meetings.not_host",
+      "403 meetings.not_host",
+      short(tiraB)
+    );
+    const semConta = await POST(`/meetings/${r.code}/end`, { body: {} });
+    check("encerrar sem conta é 401", semConta.status === 401, "401", short(semConta));
+    const encerraB = await POST(`/meetings/${r.code}/end`, { token: B.token });
+    check("B não encerra: 403", encerraB.status === 403, "403", short(encerraB));
+
+    const tiraA = await POST(`/meetings/${r.code}/remove`, { token: A.token, body: { identidade: B.id } });
+    check("o anfitrião remove: 204", tiraA.status === 204, "204", short(tiraA));
+
+    const fim = await POST(`/meetings/${r.code}/end`, { token: A.token });
+    check("o anfitrião encerra: 204", fim.status === 204, "204", short(fim));
+    const info = await GET(`/meetings/${r.code}`);
+    check("a reunião aparece como encerrada", info.json?.reuniao?.ativa === false, "ativa false", short(info));
+    const tarde = await POST(`/meetings/${r.code}/join`, { body: { nome: "Atrasado" } });
+    check(
+      "quem chega depois recebe 410 meetings.ended",
+      tarde.status === 410 && tarde.json?.code === "meetings.ended",
+      "410 meetings.ended",
+      short(tarde)
+    );
+  });
+}
+
 async function secSenha() {
   console.log("\n=== 20. Senha ===");
   const P = await makeUser("Senha");
@@ -3894,7 +4036,8 @@ async function main() {
     ["sons", secSons, ["A", "B", "C"]],
     ["configespaco", secConfigDoEspaco, ["A", "B", "C"]],
     ["transmissoes", secTransmissoes, ["A", "B", "C", "space"]],
-    ["senha", secSenha, []]
+    ["senha", secSenha, []],
+    ["reuniao", secReuniao, ["A", "B"]]
   ];
 
   for (const [name, section, needs] of sections) {

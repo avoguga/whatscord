@@ -4,6 +4,7 @@ import { saveTheme, storedTheme, type Theme } from "./lib/theme";
 import { preferenciaSalva, salvarIdioma, type PreferenciaIdioma } from "./lib/i18n";
 import { playCue, timbreDaSala } from "./lib/sounds";
 import { painelDeMembrosAberto, salvarPainelDeMembros } from "./lib/membros";
+import { codigoDeReuniaoEm } from "./lib/linkDeReuniao";
 import {
   assistir,
   transmissoesAoVivo,
@@ -221,6 +222,15 @@ type State = {
    * voz direto, sem abrir o canal antes.
    */
   call: { roomId: string; video: boolean } | null;
+  /*
+   * A reunião por link aberta, se houver. Fica FORA de `blankSession` de
+   * propósito: quem chegou pelo link como convidado e resolveu entrar com a
+   * conta passa pelo login, e o login limpa a sessão — a reunião não pode ir
+   * junto, senão a pessoa entra na conta e perde o lugar para onde estava indo.
+   */
+  reuniao: string | null;
+  /** O convidado escolheu "entrar com minha conta": mostrar o login antes. */
+  reuniaoQuerConta: boolean;
 
   /*
    * Qual superfície está à vista. A navegação deste app é estado, não URL — o
@@ -280,6 +290,9 @@ type State = {
   setSearch: (s: string) => void;
   setReplyTo: (m: Message | null) => void;
   setActiveSpace: (id: string | null) => void;
+  abrirReuniao: (code: string) => void;
+  fecharReuniao: () => void;
+  pedirContaParaReuniao: (v: boolean) => void;
   setSuperficie: (s: Superficie) => void;
   refreshTransmissoes: () => Promise<void>;
   abrirTransmissao: (id: string, codigo?: string | null) => Promise<void>;
@@ -365,6 +378,10 @@ export const useStore = create<State>((set, get) => ({
   theme: storedTheme(),
   locale: preferenciaSalva(),
   call: null,
+  // Lido no carregamento do módulo, antes de qualquer efeito: outro efeito limpa
+  // a barra de endereços ao procurar convite de espaço.
+  reuniao: typeof window !== "undefined" ? codigoDeReuniaoEm(window.location.search) : null,
+  reuniaoQuerConta: false,
   ...blankSession,
 
   async bootstrap() {
@@ -874,6 +891,27 @@ export const useStore = create<State>((set, get) => ({
   },
 
   setActiveSpace: (activeSpaceId) => set({ activeSpaceId }),
+
+  abrirReuniao(code) {
+    set({ reuniao: code, reuniaoQuerConta: false });
+  },
+
+  fecharReuniao() {
+    set({ reuniao: null, reuniaoQuerConta: false });
+    // Sair da reunião tira o link da barra: um F5 depois de sair não pode jogar
+    // a pessoa de volta na tela de espera.
+    try {
+      if (new URLSearchParams(window.location.search).has("call")) {
+        window.history.replaceState(null, "", "/");
+      }
+    } catch {
+      /* sem history, fica o endereço — inofensivo */
+    }
+  },
+
+  pedirContaParaReuniao(v) {
+    set({ reuniaoQuerConta: v });
+  },
 
   setTheme(t) {
     saveTheme(t);

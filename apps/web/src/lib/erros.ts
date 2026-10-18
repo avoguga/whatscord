@@ -124,6 +124,15 @@ const MENSAGENS: Record<string, MessageDescriptor> = {
   // ter NOME, senão a tradução recebe um número sem saber qual é.
   "streams.full": msg({ message: "This broadcast is full right now — it holds {teto} people." }),
 
+  "meetings.missing": msg`This meeting link doesn't exist. Check it was copied whole.`,
+  "meetings.ended": msg`This meeting has ended.`,
+  "meetings.needs_name": msg`Type your name to join.`,
+  // Forma de objeto: o número precisa ter nome para a tradução saber onde ele cai.
+  "meetings.full": msg({ message: "This meeting is full right now — it holds {teto} people." }),
+  "meetings.not_host": msg`Only the person who created the meeting can do that.`,
+  "meetings.too_many": msg`You have created too many meetings. Try again later.`,
+  "meetings.pick_who": msg`Say who to remove.`,
+
   "users.missing": msg`That account does not exist.`,
 
   /*

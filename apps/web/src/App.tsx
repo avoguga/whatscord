@@ -31,6 +31,9 @@ import { RedefinirSenha } from "./ui/RedefinirSenha";
  * mensagem — e no celular isso e a diferenca entre abrir rapido e nao abrir.
  */
 const CallSheet = lazy(() => import("./ui/Call").then((m) => ({ default: m.CallSheet })));
+// A reunião por link também arrasta o livekit-client, e é aberta por quem nem
+// tem conta: carregar só quando alguém abre um link.
+const TelaDaReuniao = lazy(() => import("./ui/Reuniao").then((m) => ({ default: m.TelaDaReuniao })));
 
 export default function App() {
   const { t } = useLingui();
@@ -40,6 +43,9 @@ export default function App() {
   const bootstrap = useStore((s) => s.bootstrap);
   const activeRoomId = useStore((s) => s.activeRoomId);
   const superficie = useStore((s) => s.superficie);
+  const reuniao = useStore((s) => s.reuniao);
+  const reuniaoQuerConta = useStore((s) => s.reuniaoQuerConta);
+  const pedirConta = useStore((s) => s.pedirContaParaReuniao);
   const abrirTransmissao = useStore((s) => s.abrirTransmissao);
 
   const joinSpaceByCode = useStore((s) => s.joinSpaceByCode);
@@ -211,6 +217,39 @@ export default function App() {
    */
 
   // Quem clicou no link do e-mail veio para isto, com ou sem sessão.
+  /*
+   * Reunião por link vem antes de tudo — inclusive do login. Quem abriu o link
+   * sem conta tem de cair na tela de espera, e não na de entrar. Só mostra o
+   * login se a própria pessoa pediu ("entrar com minha conta"), com um caminho
+   * de volta para entrar sem conta.
+   */
+  if (reuniao && reuniaoQuerConta && !me && !booting) {
+    return (
+      <>
+        <button className="reuniao-voltar" onClick={() => pedirConta(false)}>
+          ← <Trans>Back to the meeting</Trans>
+        </button>
+        <Auth />
+        <AvisosDoApp />
+      </>
+    );
+  }
+  if (reuniao) {
+    return (
+      <Suspense
+        fallback={
+          <div className="auth">
+            <p className="sub">
+              <Trans>Opening the meeting…</Trans>
+            </p>
+          </div>
+        }
+      >
+        <TelaDaReuniao />
+      </Suspense>
+    );
+  }
+
   if (tokenDeSenha) {
     return <RedefinirSenha token={tokenDeSenha} onFim={() => setTokenDeSenha(null)} />;
   }

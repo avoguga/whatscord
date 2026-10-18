@@ -16,6 +16,8 @@ msgstr ""
 #: src/ui/Call.tsx
 #: src/ui/Call.tsx
 #: src/ui/Membros.tsx
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
 msgid "(you)"
 msgstr "(you)"
 
@@ -34,6 +36,11 @@ msgstr "{0, plural, one {# connected} other {# connected}}"
 msgid "{0, plural, one {# member} other {# members}}"
 msgstr "{0, plural, one {# member} other {# members}}"
 
+#. placeholder {0}: info.pessoas
+#: src/ui/Reuniao.tsx
+msgid "{0, plural, one {# person is already here.} other {# people are already here.}}"
+msgstr "{0, plural, one {# person is already here.} other {# people are already here.}}"
+
 #. placeholder {0}: typing.length
 #: src/ui/Chat.tsx
 msgid "{0, plural, one {# person is typing…} other {# people are typing…}}"
@@ -44,11 +51,13 @@ msgstr "{0, plural, one {# person is typing…} other {# people are typing…}}"
 msgid "{0, plural, one {# person was added.} other {# people were added.}}"
 msgstr "{0, plural, one {# person was added.} other {# people were added.}}"
 
+#. placeholder {0}: pessoas.length
 #. placeholder {0}: room.memberCount
 #. placeholder {0}: space.memberCount
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
+#: src/ui/Reuniao.tsx
 msgid "{0, plural, one {# person} other {# people}}"
 msgstr "{0, plural, one {# person} other {# people}}"
 
@@ -58,6 +67,13 @@ msgstr "{0, plural, one {# person} other {# people}}"
 #: src/ui/Transmissao.tsx
 msgid "{0, plural, one {# watching} other {# watching}}"
 msgstr "{0, plural, one {# watching} other {# watching}}"
+
+#. placeholder {0}: entrada.reuniao.host.displayName
+#. placeholder {0}: info.host.displayName
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
+msgid "{0}'s meeting"
+msgstr "{0}'s meeting"
 
 #: src/ui/Invites.tsx
 msgid "{comoSeChamava} was deleted."
@@ -317,6 +333,10 @@ msgstr "Back to conversations"
 msgid "Back to sign in"
 msgstr "Back to sign in"
 
+#: src/App.tsx
+msgid "Back to the meeting"
+msgstr "Back to the meeting"
+
 #: src/lib/erros.ts
 msgid "Bad file reference."
 msgstr "Bad file reference."
@@ -352,6 +372,10 @@ msgstr "Calls are not set up on this server."
 msgid "Camera"
 msgstr "Camera"
 
+#: src/ui/Reuniao.tsx
+msgid "Camera is off"
+msgstr "Camera is off"
+
 #: src/ui/Call.tsx
 #: src/ui/Call.tsx
 msgid "Camera options"
@@ -370,6 +394,7 @@ msgstr "Camera options"
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Modals.tsx
+#: src/ui/Reuniao.tsx
 #: src/ui/SpaceRail.tsx
 msgid "Cancel"
 msgstr "Cancel"
@@ -430,6 +455,9 @@ msgstr "Channels"
 
 #: src/ui/Call.tsx
 #: src/ui/CallChat.tsx
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
 msgid "Chat"
 msgstr "Chat"
 
@@ -470,6 +498,9 @@ msgstr "Choose a new password."
 #: src/ui/Membros.tsx
 #: src/ui/Membros.tsx
 #: src/ui/Modals.tsx
+#: src/ui/NovaReuniao.tsx
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
 msgid "Close"
@@ -496,6 +527,7 @@ msgid "Colour"
 msgstr "Colour"
 
 #: src/ui/Call.tsx
+#: src/ui/Reuniao.tsx
 #: src/ui/Transmissao.tsx
 msgid "Connecting…"
 msgstr "Connecting…"
@@ -517,6 +549,9 @@ msgstr "Conversation muted."
 msgid "Conversations"
 msgstr "Conversations"
 
+#: src/ui/NovaReuniao.tsx
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
 #: src/ui/Transmissao.tsx
 msgid "Copied"
 msgstr "Copied"
@@ -526,11 +561,18 @@ msgid "Copied."
 msgstr "Copied."
 
 #: src/ui/Invites.tsx
+#: src/ui/NovaReuniao.tsx
 #: src/ui/Transmissao.tsx
 msgid "Copy"
 msgstr "Copy"
 
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
+msgid "Copy link"
+msgstr "Copy link"
+
 #: src/ui/Call.tsx
+#: src/ui/Reuniao.tsx
 msgid "Could not connect"
 msgstr "Could not connect"
 
@@ -545,6 +587,10 @@ msgstr "Create"
 #: src/ui/Sidebar.tsx
 msgid "Create a group"
 msgstr "Create a group"
+
+#: src/ui/NovaReuniao.tsx
+msgid "Create a meeting link"
+msgstr "Create a meeting link"
 
 #: src/ui/Invites.tsx
 msgid "Create a new code? Every link and code you have already shared stops working right away, and anyone still holding one will be turned away. People who are already in the space stay in."
@@ -578,6 +624,15 @@ msgstr "Create space"
 #: src/ui/Invites.tsx
 msgid "Create with {0}"
 msgstr "Create with {0}"
+
+#. placeholder {0}: info.host.displayName
+#: src/ui/Reuniao.tsx
+msgid "Created by {0}"
+msgstr "Created by {0}"
+
+#: src/ui/NovaReuniao.tsx
+msgid "Creating…"
+msgstr "Creating…"
 
 #: src/ui/Soundboard.tsx
 msgid "Crickets"
@@ -700,6 +755,14 @@ msgstr "Email or username"
 msgid "End broadcast"
 msgstr "End broadcast"
 
+#: src/ui/Reuniao.tsx
+msgid "End for everyone"
+msgstr "End for everyone"
+
+#: src/ui/Reuniao.tsx
+msgid "End for everyone?"
+msgstr "End for everyone?"
+
 #: src/lib/erros.ts
 msgid "Enter a valid email address."
 msgstr "Enter a valid email address."
@@ -803,6 +866,10 @@ msgstr "Front camera"
 msgid "Full screen"
 msgstr "Full screen"
 
+#: src/ui/NovaReuniao.tsx
+msgid "Get a link you can send to anyone, like a video meeting. People without an account can join just by typing their name."
+msgstr "Get a link you can send to anyone, like a video meeting. People without an account can join just by typing their name."
+
 #: src/lib/erros.ts
 msgid "Give the broadcast a title."
 msgstr "Give the broadcast a title."
@@ -822,6 +889,11 @@ msgstr "Give the sound a short name and pick an emoji for it."
 #: src/lib/erros.ts
 msgid "Give the space a name."
 msgstr "Give the space a name."
+
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
+msgid "Go back"
+msgstr "Go back"
 
 #: src/ui/Home.tsx
 #: src/ui/Home.tsx
@@ -871,6 +943,12 @@ msgstr "Group picture removed."
 msgid "Group picture updated."
 msgstr "Group picture updated."
 
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
+msgid "guest"
+msgstr "guest"
+
 #. placeholder {0}: m.displayName
 #: src/ui/Invites.tsx
 msgid "Hand this space to <0>{0}</0>? They become the owner and you become an admin. Only they can hand it back."
@@ -898,6 +976,11 @@ msgstr "High"
 #: src/ui/Call.tsx
 msgid "Hold on while the connection is set up."
 msgstr "Hold on while the connection is set up."
+
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
+msgid "host"
+msgstr "host"
 
 #: src/ui/Chat.tsx
 msgid "How to invite people"
@@ -986,6 +1069,15 @@ msgstr "It will be installed when your call ends — never during one."
 msgid "It will install on its own when you're not using the app. Or restart now."
 msgstr "It will install on its own when you're not using the app. Or restart now."
 
+#: src/ui/NovaReuniao.tsx
+msgid "Join"
+msgstr "Join"
+
+#: src/ui/NovaReuniao.tsx
+#: src/ui/Reuniao.tsx
+msgid "Join now"
+msgstr "Join now"
+
 #: src/ui/Modals.tsx
 msgid "Join that space"
 msgstr "Join that space"
@@ -1000,6 +1092,15 @@ msgstr "Join the call"
 msgid "Join them in {0}"
 msgstr "Join them in {0}"
 
+#: src/ui/Reuniao.tsx
+msgid "Join without an account"
+msgstr "Join without an account"
+
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
+msgid "Joining…"
+msgstr "Joining…"
+
 #: src/ui/Settings.tsx
 #: src/ui/Settings.tsx
 msgid "Language"
@@ -1013,6 +1114,8 @@ msgstr "Later"
 #: src/ui/Call.tsx
 #: src/ui/Call.tsx
 #: src/ui/Call.tsx
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
 #: src/ui/Transmissao.tsx
 msgid "Leave"
 msgstr "Leave"
@@ -1084,6 +1187,15 @@ msgstr "lowercase, no spaces"
 msgid "Make admin"
 msgstr "Make admin"
 
+#: src/ui/Reuniao.tsx
+msgid "Meeting"
+msgstr "Meeting"
+
+#: src/ui/NovaReuniao.tsx
+#: src/ui/Sidebar.tsx
+msgid "Meeting link"
+msgstr "Meeting link"
+
 #: src/ui/Invites.tsx
 msgid "Member"
 msgstr "Member"
@@ -1110,6 +1222,10 @@ msgstr "Message someone"
 msgid "Message this voice room"
 msgstr "Message this voice room"
 
+#: src/ui/Reuniao.tsx
+msgid "Messages are seen only by people in the meeting, and they go away when it ends."
+msgstr "Messages are seen only by people in the meeting, and they go away when it ends."
+
 #: src/ui/Chat.tsx
 msgid "Messages travel over an encrypted connection. Calls run through your own LiveKit server."
 msgstr "Messages travel over an encrypted connection. Calls run through your own LiveKit server."
@@ -1121,6 +1237,7 @@ msgstr "Microphone"
 
 #: src/ui/Call.tsx
 #: src/ui/Call.tsx
+#: src/ui/Reuniao.tsx
 msgid "Microphone off"
 msgstr "Microphone off"
 
@@ -1186,6 +1303,7 @@ msgid "Moving {nome} was cancelled."
 msgstr "Moving {nome} was cancelled."
 
 #: src/ui/Call.tsx
+#: src/ui/Reuniao.tsx
 #: src/ui/Transmissao.tsx
 msgid "Mute"
 msgstr "Mute"
@@ -1219,6 +1337,7 @@ msgid "New channel"
 msgstr "New channel"
 
 #: src/ui/Modals.tsx
+#: src/ui/Sidebar.tsx
 msgid "New chat"
 msgstr "New chat"
 
@@ -1232,6 +1351,7 @@ msgid "New folder with this space"
 msgstr "New folder with this space"
 
 #: src/ui/Invites.tsx
+#: src/ui/Sidebar.tsx
 msgid "New group"
 msgstr "New group"
 
@@ -1245,6 +1365,7 @@ msgid "New password"
 msgstr "New password"
 
 #: src/ui/Modals.tsx
+#: src/ui/Sidebar.tsx
 msgid "New space"
 msgstr "New space"
 
@@ -1321,6 +1442,10 @@ msgstr "Nobody here right now"
 msgid "Nobody is broadcasting right now."
 msgstr "Nobody is broadcasting right now."
 
+#: src/ui/Reuniao.tsx
+msgid "Nobody is here yet."
+msgstr "Nobody is here yet."
+
 #: src/ui/DevicePicker.tsx
 msgid "Noise suppression"
 msgstr "Noise suppression"
@@ -1384,6 +1509,7 @@ msgstr "Offline"
 #: src/ui/Invites.tsx
 #: src/ui/Modals.tsx
 #: src/ui/RedefinirSenha.tsx
+#: src/ui/Reuniao.tsx
 msgid "One moment…"
 msgstr "One moment…"
 
@@ -1433,6 +1559,10 @@ msgid "Only the person broadcasting can do that."
 msgstr "Only the person broadcasting can do that."
 
 #: src/lib/erros.ts
+msgid "Only the person who created the meeting can do that."
+msgstr "Only the person who created the meeting can do that."
+
+#: src/lib/erros.ts
 msgid "Only the space owner can do that."
 msgstr "Only the space owner can do that."
 
@@ -1465,12 +1595,25 @@ msgid "Opening the call…"
 msgstr "Opening the call…"
 
 #: src/App.tsx
+#: src/ui/Reuniao.tsx
+msgid "Opening the meeting…"
+msgstr "Opening the meeting…"
+
+#: src/App.tsx
 msgid "Opening WhatsCord…"
 msgstr "Opening WhatsCord…"
 
 #: src/ui/Settings.tsx
 msgid "Optional"
 msgstr "Optional"
+
+#: src/ui/Reuniao.tsx
+msgid "or"
+msgstr "or"
+
+#: src/ui/NovaReuniao.tsx
+msgid "or join one"
+msgstr "or join one"
 
 #: src/ui/Invites.tsx
 msgid "Or send just the code, for someone who would rather type it under <0>New space → Have an invite code?</0>"
@@ -1506,6 +1649,16 @@ msgstr "Password changed. You're in."
 #: src/lib/erros.ts
 msgid "Password reset by email isn't set up on this server yet. Ask whoever runs it."
 msgstr "Password reset by email isn't set up on this server yet. Ask whoever runs it."
+
+#: src/ui/NovaReuniao.tsx
+msgid "Paste a link or code (abc-defg-hij)"
+msgstr "Paste a link or code (abc-defg-hij)"
+
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
+msgid "People"
+msgstr "People"
 
 #: src/lib/erros.ts
 msgid "People join a channel by joining its space. Share the space invite code instead."
@@ -1612,6 +1765,10 @@ msgstr "React with {e}"
 msgid "Reactions"
 msgstr "Reactions"
 
+#: src/ui/Reuniao.tsx
+msgid "Ready to join?"
+msgstr "Ready to join?"
+
 #: src/ui/Call.tsx
 msgid "Rear camera"
 msgstr "Rear camera"
@@ -1624,6 +1781,10 @@ msgstr "Reconnecting…"
 msgid "Red"
 msgstr "Red"
 
+#: src/ui/Reuniao.tsx
+msgid "Rejoin"
+msgstr "Rejoin"
+
 #: src/ui/Atualizacao.tsx
 #: src/ui/Atualizacao.tsx
 msgid "Remind me in an hour"
@@ -1632,6 +1793,7 @@ msgstr "Remind me in an hour"
 #: src/ui/Chat.tsx
 #: src/ui/Invites.tsx
 #: src/ui/Invites.tsx
+#: src/ui/Reuniao.tsx
 msgid "Remove"
 msgstr "Remove"
 
@@ -1751,7 +1913,12 @@ msgstr "Say whether to mute or unmute."
 msgid "Say who can watch this."
 msgstr "Say who can watch this."
 
+#: src/lib/erros.ts
+msgid "Say who to remove."
+msgstr "Say who to remove."
+
 #: src/ui/Call.tsx
+#: src/ui/Reuniao.tsx
 msgid "screen"
 msgstr "screen"
 
@@ -1799,12 +1966,21 @@ msgstr "Secret link"
 
 #: src/ui/CallChat.tsx
 #: src/ui/Chat.tsx
+#: src/ui/Reuniao.tsx
 msgid "Send"
 msgstr "Send"
+
+#: src/ui/Reuniao.tsx
+msgid "Send a message"
+msgstr "Send a message"
 
 #: src/ui/Auth.tsx
 msgid "Send the link"
 msgstr "Send the link"
+
+#: src/ui/Reuniao.tsx
+msgid "Send the link to whoever you want to call — they can join without an account."
+msgstr "Send the link to whoever you want to call — they can join without an account."
 
 #: src/ui/Transmissao.tsx
 msgid "Send this to bring someone in:"
@@ -1819,6 +1995,7 @@ msgid "Share a different screen"
 msgstr "Share a different screen"
 
 #: src/ui/Call.tsx
+#: src/ui/Reuniao.tsx
 msgid "Share screen"
 msgstr "Share screen"
 
@@ -1862,6 +2039,10 @@ msgstr "Sign in again."
 #: src/lib/erros.ts
 msgid "Sign in to continue."
 msgstr "Sign in to continue."
+
+#: src/ui/Reuniao.tsx
+msgid "Sign in to join"
+msgstr "Sign in to join"
 
 #: src/ui/Auth.tsx
 msgid "Sign in to pick up where you left off."
@@ -1985,6 +2166,7 @@ msgid "Start something new"
 msgstr "Start something new"
 
 #: src/ui/Call.tsx
+#: src/ui/Reuniao.tsx
 msgid "Start video"
 msgstr "Start video"
 
@@ -1993,6 +2175,7 @@ msgid "Starting…"
 msgstr "Starting…"
 
 #: src/ui/Call.tsx
+#: src/ui/Reuniao.tsx
 msgid "Stop sharing"
 msgstr "Stop sharing"
 
@@ -2001,6 +2184,7 @@ msgid "Stop test"
 msgstr "Stop test"
 
 #: src/ui/Call.tsx
+#: src/ui/Reuniao.tsx
 msgid "Stop video"
 msgstr "Stop video"
 
@@ -2105,8 +2289,16 @@ msgstr "That did not work."
 
 #: src/ui/Auth.tsx
 #: src/ui/RedefinirSenha.tsx
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
 msgid "That did not work. Try again."
 msgstr "That did not work. Try again."
+
+#: src/ui/NovaReuniao.tsx
+msgid "That doesn't look like a meeting link or code."
+msgstr "That doesn't look like a meeting link or code."
 
 #: src/lib/erros.ts
 msgid "That edit is not valid."
@@ -2166,6 +2358,10 @@ msgstr "That invite is not valid."
 #: src/lib/erros.ts
 msgid "That is not a valid image."
 msgstr "That is not a valid image."
+
+#: src/ui/Reuniao.tsx
+msgid "That meeting could not be opened."
+msgstr "That meeting could not be opened."
 
 #: src/lib/erros.ts
 msgid "That message is gone."
@@ -2266,6 +2462,10 @@ msgstr "The broadcast could not be started."
 msgid "The browser blocked your microphone or camera. Allow it in the address bar, then try again."
 msgstr "The browser blocked your microphone or camera. Allow it in the address bar, then try again."
 
+#: src/ui/Reuniao.tsx
+msgid "The browser didn't allow the camera or microphone. You can still join."
+msgstr "The browser didn't allow the camera or microphone. You can still join."
+
 #: src/ui/QuickDeviceMenu.tsx
 msgid "The browser has not given access yet, so the devices have no names."
 msgstr "The browser has not given access yet, so the devices have no names."
@@ -2273,6 +2473,10 @@ msgstr "The browser has not given access yet, so the devices have no names."
 #: src/ui/DevicePicker.tsx
 msgid "The browser hides your microphones and cameras until it has been given access once."
 msgstr "The browser hides your microphones and cameras until it has been given access once."
+
+#: src/ui/Reuniao.tsx
+msgid "The browser paused the sound. Click here to hear everyone."
+msgstr "The browser paused the sound. Click here to hear everyone."
 
 #: src/ui/DevicePicker.tsx
 msgid "The browser's own filter. Light on the CPU."
@@ -2282,6 +2486,10 @@ msgstr "The browser's own filter. Light on the CPU."
 msgid "The call could not connect. Check that the server is reachable."
 msgstr "The call could not connect. Check that the server is reachable."
 
+#: src/ui/Reuniao.tsx
+msgid "The camera could not be turned on."
+msgstr "The camera could not be turned on."
+
 #: src/lib/api.ts
 msgid "The connection dropped during the upload."
 msgstr "The connection dropped during the upload."
@@ -2290,13 +2498,31 @@ msgstr "The connection dropped during the upload."
 msgid "The device you picked is not there any more. Choose another under Devices."
 msgstr "The device you picked is not there any more. Choose another under Devices."
 
+#: src/ui/NovaReuniao.tsx
+#: src/ui/Reuniao.tsx
 #: src/ui/Transmissao.tsx
 msgid "The link could not be copied."
 msgstr "The link could not be copied."
 
+#: src/ui/NovaReuniao.tsx
+msgid "The meeting could not be created."
+msgstr "The meeting could not be created."
+
+#: src/ui/Reuniao.tsx
+msgid "The meeting could not be joined."
+msgstr "The meeting could not be joined."
+
+#: src/ui/Reuniao.tsx
+msgid "The meeting has ended."
+msgstr "The meeting has ended."
+
 #: src/lib/erros.ts
 msgid "The message cannot be empty."
 msgstr "The message cannot be empty."
+
+#: src/ui/Reuniao.tsx
+msgid "The microphone could not be turned on. You can still listen."
+msgstr "The microphone could not be turned on. You can still listen."
 
 #: src/ui/Call.tsx
 msgid "The new setting applies the next time you start sharing."
@@ -2393,6 +2619,19 @@ msgstr "This is you."
 msgid "This link is invalid or has expired. Ask for a new one."
 msgstr "This link is invalid or has expired. Ask for a new one."
 
+#: src/lib/erros.ts
+#: src/ui/Reuniao.tsx
+msgid "This meeting has ended."
+msgstr "This meeting has ended."
+
+#: src/lib/erros.ts
+msgid "This meeting is full right now — it holds {teto} people."
+msgstr "This meeting is full right now — it holds {teto} people."
+
+#: src/lib/erros.ts
+msgid "This meeting link doesn't exist. Check it was copied whole."
+msgstr "This meeting link doesn't exist. Check it was copied whole."
+
 #: src/ui/CallChat.tsx
 #: src/ui/Chat.tsx
 msgid "This message was deleted"
@@ -2431,6 +2670,26 @@ msgstr "Try again"
 msgid "Turn off"
 msgstr "Turn off"
 
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
+msgid "Turn off camera"
+msgstr "Turn off camera"
+
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
+msgid "Turn off microphone"
+msgstr "Turn off microphone"
+
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
+msgid "Turn on camera"
+msgstr "Turn on camera"
+
+#: src/ui/Reuniao.tsx
+#: src/ui/Reuniao.tsx
+msgid "Turn on microphone"
+msgstr "Turn on microphone"
+
 #: src/ui/Call.tsx
 msgid "Turn your camera on first — there is no picture to switch while it is off."
 msgstr "Turn your camera on first — there is no picture to switch while it is off."
@@ -2452,12 +2711,18 @@ msgstr "Type it again"
 msgid "Type the email of your account and we'll send you a link to choose a new password."
 msgstr "Type the email of your account and we'll send you a link to choose a new password."
 
+#: src/lib/erros.ts
+#: src/ui/Reuniao.tsx
+msgid "Type your name to join."
+msgstr "Type your name to join."
+
 #: src/ui/Chat.tsx
 #: src/ui/Chat.tsx
 msgid "typing…"
 msgstr "typing…"
 
 #: src/ui/Call.tsx
+#: src/ui/Reuniao.tsx
 msgid "Unmute"
 msgstr "Unmute"
 
@@ -2600,6 +2865,10 @@ msgstr "Volume of this screen share"
 msgid "Waiting for the picture…"
 msgstr "Waiting for the picture…"
 
+#: src/ui/Reuniao.tsx
+msgid "We couldn't open this meeting"
+msgstr "We couldn't open this meeting"
+
 #: src/ui/Call.tsx
 msgid "Weak connection"
 msgstr "Weak connection"
@@ -2679,6 +2948,10 @@ msgstr "Windows did not allow this change. A company policy on this computer may
 msgid "Windows startup"
 msgstr "Windows startup"
 
+#: src/ui/Reuniao.tsx
+msgid "Without an account you show up as a guest. Nothing is saved after you leave."
+msgstr "Without an account you show up as a guest. Nothing is saved after you leave."
+
 #: src/ui/Chat.tsx
 msgid "Write something first"
 msgstr "Write something first"
@@ -2708,6 +2981,10 @@ msgstr "Yes, delete the folder"
 msgid "Yes, delete the space"
 msgstr "Yes, delete the space"
 
+#: src/ui/Reuniao.tsx
+msgid "Yes, end it"
+msgstr "Yes, end it"
+
 #: src/ui/Invites.tsx
 msgid "Yes, leave"
 msgstr "Yes, leave"
@@ -2725,6 +3002,7 @@ msgid "Yes, transfer it"
 msgstr "Yes, transfer it"
 
 #: src/ui/Call.tsx
+#: src/ui/Reuniao.tsx
 msgid "You"
 msgstr "You"
 
@@ -2796,6 +3074,10 @@ msgstr "You could not leave that space."
 msgid "You have been invited to a space."
 msgstr "You have been invited to a space."
 
+#: src/lib/erros.ts
+msgid "You have created too many meetings. Try again later."
+msgstr "You have created too many meetings. Try again later."
+
 #. placeholder {0}: space.name
 #: src/ui/Invites.tsx
 msgid "You left {0}."
@@ -2806,6 +3088,10 @@ msgstr "You left {0}."
 msgid "You left {0}. Nobody was left, so the space is gone."
 msgstr "You left {0}. Nobody was left, so the space is gone."
 
+#: src/ui/Reuniao.tsx
+msgid "You lost connection to the meeting."
+msgstr "You lost connection to the meeting."
+
 #: src/ui/Auth.tsx
 msgid "You were invited to a space. Create your account and you will be taken straight in."
 msgstr "You were invited to a space. Create your account and you will be taken straight in."
@@ -2813,6 +3099,19 @@ msgstr "You were invited to a space. Create your account and you will be taken s
 #: src/ui/Auth.tsx
 msgid "You were invited to a space. Sign in and you will be taken straight in."
 msgstr "You were invited to a space. Sign in and you will be taken straight in."
+
+#: src/ui/Reuniao.tsx
+msgid "You were removed from the meeting."
+msgstr "You were removed from the meeting."
+
+#. placeholder {0}: me.displayName
+#: src/ui/Reuniao.tsx
+msgid "You're joining as {0}."
+msgstr "You're joining as {0}."
+
+#: src/ui/Reuniao.tsx
+msgid "You're the only one here."
+msgstr "You're the only one here."
 
 #: src/ui/Atualizacao.tsx
 msgid "You're up to date."
@@ -2834,6 +3133,10 @@ msgstr "Your cameras are visible, but the microphone still needs permission — 
 msgid "Your current password isn't right."
 msgstr "Your current password isn't right."
 
+#: src/ui/NovaReuniao.tsx
+msgid "Your meeting is ready. Send this link to whoever you want to call — people without an account can join just by typing their name."
+msgstr "Your meeting is ready. Send this link to whoever you want to call — people without an account can join just by typing their name."
+
 #: src/ui/Call.tsx
 msgid "Your microphone could not be turned on. Check the browser's permission."
 msgstr "Your microphone could not be turned on. Check the browser's permission."
@@ -2843,6 +3146,7 @@ msgid "Your microphones are visible, but the camera still needs permission — u
 msgstr "Your microphones are visible, but the camera still needs permission — until then it cannot be picked."
 
 #: src/ui/Auth.tsx
+#: src/ui/Reuniao.tsx
 msgid "Your name"
 msgstr "Your name"
 

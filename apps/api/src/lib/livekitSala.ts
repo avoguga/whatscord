@@ -2,6 +2,7 @@ import { RoomServiceClient } from "livekit-server-sdk";
 import { env, callsEnabled } from "../env.js";
 import { deveExpulsar, entradaEmMs } from "./expulsao.js";
 import { salaDaTransmissao } from "./transmissao.js";
+import { salaDaReuniao } from "./reuniao.js";
 
 /**
  * Falar com o LiveKit como servidor, e não como mais um participante.
@@ -86,6 +87,73 @@ export async function encerrarTransmissao(streamId: string): Promise<boolean> {
     return true;
   } catch {
     // Sala que não existe é o caso comum: ninguém chegou a entrar no ar.
+    return false;
+  }
+}
+
+/* ---------------------------------------------------------------- reuniões */
+
+/**
+ * Quantas pessoas estão numa reunião agora, segundo o próprio LiveKit.
+ *
+ * Aqui a contagem vem do LiveKit e não da nossa presença, ao contrário das
+ * transmissões: convidados sem conta não têm socket conosco — o LiveKit é o
+ * único lugar que sabe que eles estão lá. Sala que não existe é zero.
+ */
+export async function pessoasNaReuniao(meetingId: string): Promise<number> {
+  const svc = servico();
+  if (!svc) return 0;
+  try {
+    return (await svc.listParticipants(salaDaReuniao(meetingId))).length;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Cria a sala com o teto de gente JÁ dentro dela.
+ *
+ * Sem isto a sala nasceria sozinha, na primeira entrada, sem limite nenhum — e
+ * o nosso teto valeria só para quem passa pela API, não para um token pego no
+ * meio do caminho. Chamar de novo numa sala existente não muda nada, então é
+ * seguro chamar a cada entrada.
+ */
+export async function prepararReuniao(meetingId: string, teto: number): Promise<void> {
+  const svc = servico();
+  if (!svc) return;
+  try {
+    await svc.createRoom({
+      name: salaDaReuniao(meetingId),
+      maxParticipants: teto,
+      // Cinco minutos vazia e a sala some. A REUNIÃO continua valendo pelo
+      // link; a sala renasce na próxima entrada.
+      emptyTimeout: 300
+    });
+  } catch {
+    /* LiveKit fora do ar: a entrada falha mais adiante, com mensagem clara. */
+  }
+}
+
+/** Tira uma pessoa da reunião. Só o anfitrião chega aqui. Nunca lança. */
+export async function removerDaReuniao(meetingId: string, identidade: string): Promise<boolean> {
+  const svc = servico();
+  if (!svc) return false;
+  try {
+    await svc.removeParticipant(salaDaReuniao(meetingId), identidade);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Encerra para todos: derruba a sala inteira. Nunca lança. */
+export async function encerrarReuniao(meetingId: string): Promise<boolean> {
+  const svc = servico();
+  if (!svc) return false;
+  try {
+    await svc.deleteRoom(salaDaReuniao(meetingId));
+    return true;
+  } catch {
     return false;
   }
 }

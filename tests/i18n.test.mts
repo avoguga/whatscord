@@ -410,6 +410,7 @@ const fontesDaApi = [
   "routes/spaces.ts",
   "routes/sounds.ts",
   "routes/streams.ts",
+  "routes/meetings.ts",
   "routes/users.ts",
   "lib/rooms.ts",
   "lib/falha.ts",
