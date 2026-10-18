@@ -1,6 +1,6 @@
 [package]
 name = "whatscord-desktop"
-version = "0.2.10"
+version = "0.2.11"
 description = "WhatsCord desktop shell"
 authors = ["WhatsCord"]
 edition = "2021"

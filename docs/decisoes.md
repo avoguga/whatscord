@@ -685,3 +685,36 @@ já vem no SDK instalado; falta só o contêiner.
   histórico nem num print.
 - **Trocar a senha logado pede a senha atual**: um app deixado aberto não pode
   virar a conta de quem estiver na frente dele.
+
+## Reunião por link
+
+O único lugar da API em que alguém **sem conta** faz alguma coisa. Por isso a
+fronteira foi desenhada à parte (`routes/meetings.ts`, `lib/reuniao.ts`):
+
+- **Convidado não vai para o banco.** É uma identidade `g_…` dentro do token do
+  LiveKit e some quando sai. Guardá-lo seria inventar uma conta que ninguém
+  criou. Só quem CRIA a reunião tem linha (`Meeting`).
+- **O token diz à sala quem é convidado** (`metadata.convidado`), e a tela põe a
+  etiqueta. Sem isso, um convidado que digitasse "Gustavo Henrique" passaria pelo
+  Gustavo de verdade.
+- **O nome de quem manda mensagem no bate-papo vem do participante, não da
+  mensagem.** Quem escreve controla o texto; quem a pessoa é, o servidor disse.
+- **O bate-papo passa pelo canal de dados do LiveKit**, porque o das conversas
+  exige conta. Não fica guardado em lugar nenhum.
+- **Teto de 12 pessoas dentro da sala do LiveKit** (`createRoom maxParticipants`),
+  não só na API — senão valeria só para quem passa por ela. Numa reunião todos
+  publicam vídeo, então o teto é bem menor que o das transmissões.
+  `MEETING_MAX_PARTICIPANTS` ajusta.
+- **Sessão inválida responde 401** em vez de cair em silêncio no modo convidado:
+  o app renova e tenta de novo, e ninguém entra como convidado sem querer.
+- **A contagem de quem está vem do LiveKit**, e não da nossa presença: convidado
+  não tem socket conosco.
+- **Link vence em 30 dias**; teto de tentativas por endereço na rota pública.
+- **A reunião fica FORA de `blankSession`** no store: quem escolhe "entrar com
+  minha conta" passa pelo login, e o login limpa a sessão — a reunião não pode ir
+  junto.
+
+Não feito, de propósito, nesta versão: **sala de espera com "pedir para
+entrar"**. Hoje o link é a chave — quem tem entra, e o anfitrião remove quem não
+deveria estar. É o próximo passo natural se os links começarem a circular fora do
+grupo.

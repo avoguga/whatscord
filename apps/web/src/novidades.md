@@ -12,6 +12,12 @@ Formato: um `## <versão>` por versão, a mais nova em cima, e um item por linha
 começando com `- `. Texto simples, sem HTML — é mostrado como texto. Escreva para
 quem usa o app, não para quem programa: o que a pessoa nota de diferente.
 
+## 0.2.11
+
+- Reunião por link, como no Google Meet: no botão "+", em Reunião por link, você cria um link e manda para quem quiser. A pessoa entra com a conta ou sem conta, só digitando o nome.
+- Antes de entrar, dá para se ver na câmera e escolher se chega com microfone e câmera ligados.
+- Na reunião há bate-papo e lista de pessoas. Quem criou pode remover alguém e encerrar para todos. Quem entra sem conta aparece marcado como convidado.
+
 ## 0.2.10
 
 - As configurações do espaço ganharam uma engrenagem própria no topo, ao lado do botão de convidar, e abrem numa janela maior, com Visão geral, Convite, Membros e Canais separados.
