@@ -325,17 +325,18 @@ type Fim = "encerrada" | "removido" | "caiu" | "saiu";
 
 type Mensagem = { id: string; nome: string; texto: string; minha: boolean; convidado: boolean };
 
-/** O que o token disse sobre a pessoa: foto e se é convidado. */
-function lerMetadata(p: Participant): { avatarUrl: string | null; convidado: boolean } {
+/** O que o token disse sobre a pessoa: foto, se é convidado e se é o anfitrião. */
+function lerMetadata(p: Participant): { avatarUrl: string | null; convidado: boolean; anfitriao: boolean } {
   try {
     const m = JSON.parse(p.metadata || "{}");
     return {
       avatarUrl: typeof m.avatarUrl === "string" ? m.avatarUrl : null,
-      convidado: m.convidado === true || p.identity.startsWith("g_")
+      convidado: m.convidado === true || p.identity.startsWith("g_"),
+      anfitriao: m.anfitriao === true
     };
   } catch {
     // Metadata ilegível: a identidade decide. É ela que o servidor controla.
-    return { avatarUrl: null, convidado: p.identity.startsWith("g_") };
+    return { avatarUrl: null, convidado: p.identity.startsWith("g_"), anfitriao: false };
   }
 }
 
@@ -682,7 +683,7 @@ function NaReuniao({
                     <span className="reuniao-pessoa-nome">
                       {p.name || p.identity}
                       {eu && ` ${t`(you)`}`}
-                      {p.identity === anfitriaoId && <em className="etiqueta">{t`host`}</em>}
+                      {(p.identity === anfitriaoId || meta.anfitriao) && <em className="etiqueta">{t`host`}</em>}
                       {meta.convidado && <em className="etiqueta convidado">{t`guest`}</em>}
                     </span>
                     {!p.isMicrophoneEnabled && <IconMicOff size={15} />}
@@ -807,7 +808,7 @@ function BotaoDaBarra({
   );
 }
 
-function Quadro({ p, tela, anfitriaoId }: { p: Participant; tela?: boolean; anfitriaoId: string }) {
+function Quadro({ p, tela, anfitriaoId }: { p: Participant; tela?: boolean; anfitriaoId: string | null }) {
   const { t } = useLingui();
   const ref = useRef<HTMLVideoElement>(null);
   const pub = p.getTrackPublication(tela ? Track.Source.ScreenShare : Track.Source.Camera);
@@ -840,7 +841,7 @@ function Quadro({ p, tela, anfitriaoId }: { p: Participant; tela?: boolean; anfi
         {nome}
         {p.isLocal && !tela ? ` ${t`(you)`}` : ""}
         {tela ? ` — ${t`screen`}` : ""}
-        {!tela && p.identity === anfitriaoId && <em className="etiqueta">{t`host`}</em>}
+        {!tela && (p.identity === anfitriaoId || meta.anfitriao) && <em className="etiqueta">{t`host`}</em>}
         {/*
           A etiqueta de convidado é o que impede alguém sem conta de entrar como
           "Gustavo Henrique" e passar pelo Gustavo Henrique de verdade.

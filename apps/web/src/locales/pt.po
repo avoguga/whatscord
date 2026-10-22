@@ -1359,6 +1359,12 @@ msgstr "Novo grupo"
 msgid "New invite code. The old one no longer works."
 msgstr "Código de convite novo. O antigo deixou de funcionar."
 
+#: src/ui/Home.tsx
+#: src/ui/Sidebar.tsx
+#: src/ui/Sidebar.tsx
+msgid "New meeting"
+msgstr "Nova reunião"
+
 #: src/ui/RedefinirSenha.tsx
 #: src/ui/Settings.tsx
 msgid "New password"
@@ -1368,6 +1374,10 @@ msgstr "Senha nova"
 #: src/ui/Sidebar.tsx
 msgid "New space"
 msgstr "Novo espaço"
+
+#: src/ui/Auth.tsx
+msgid "No account needed. You can also join one with a code."
+msgstr "Não precisa de conta. Também dá para entrar numa com o código."
 
 #: src/ui/Auth.tsx
 msgid "No account yet? "
@@ -1607,6 +1617,7 @@ msgstr "Abrindo o WhatsCord…"
 msgid "Optional"
 msgstr "Opcional"
 
+#: src/ui/Auth.tsx
 #: src/ui/Reuniao.tsx
 msgid "or"
 msgstr "ou"
@@ -2161,6 +2172,10 @@ msgstr "Iniciar uma chamada de vídeo"
 msgid "Start a voice call"
 msgstr "Iniciar uma chamada de voz"
 
+#: src/ui/Auth.tsx
+msgid "Start an instant meeting"
+msgstr "Criar reunião instantânea"
+
 #: src/ui/Sidebar.tsx
 msgid "Start something new"
 msgstr "Começar algo novo"
@@ -2712,6 +2727,7 @@ msgid "Type the email of your account and we'll send you a link to choose a new 
 msgstr "Digite o e-mail da sua conta e mandamos um link para você escolher uma senha nova."
 
 #: src/lib/erros.ts
+#: src/ui/NovaReuniao.tsx
 #: src/ui/Reuniao.tsx
 msgid "Type your name to join."
 msgstr "Digite seu nome para entrar."
@@ -3146,6 +3162,7 @@ msgid "Your microphones are visible, but the camera still needs permission — u
 msgstr "Seus microfones estão visíveis, mas a câmera ainda precisa de permissão — até lá não dá para escolhê-la."
 
 #: src/ui/Auth.tsx
+#: src/ui/NovaReuniao.tsx
 #: src/ui/Reuniao.tsx
 msgid "Your name"
 msgstr "Seu nome"

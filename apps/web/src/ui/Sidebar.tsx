@@ -206,6 +206,19 @@ export function Sidebar() {
         <header className="list-header">
           <h1>{activeSpaceId ? (activeSpace?.name ?? t`Space`) : t`Chats`}</h1>
           <div className="header-actions" style={{ position: "relative" }}>
+            {/*
+              A reunião por link tem porta própria, sempre à vista. Escondida só
+              no menu de "nova conversa", ninguém achava — e dentro de um espaço
+              ela nem existia.
+            */}
+            <button
+              className="icon-btn"
+              onClick={() => { setNewMenuOpen(false); setModal("reuniao"); }}
+              title={t`New meeting`}
+              aria-label={t`New meeting`}
+            >
+              <IconVideo />
+            </button>
             {activeSpaceId ? (
               <>
                 {/*

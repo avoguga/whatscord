@@ -4,7 +4,8 @@ import { plural } from "@lingui/core/macro";
 import { useStore } from "../store";
 import { Avatar } from "./Avatar";
 import { Scrim } from "./Scrim";
-import { IconAoVivo, IconClose } from "./icons";
+import { IconAoVivo, IconClose, IconVideo } from "./icons";
+import { NovaReuniao } from "./NovaReuniao";
 import {
   criarTransmissao,
   entrarNoAr,
@@ -37,6 +38,7 @@ export function Home() {
   const abrir = useStore((s) => s.abrirTransmissao);
   const notify = useStore((s) => s.notify);
   const [criando, setCriando] = useState(false);
+  const [reuniao, setReuniao] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   /*
@@ -96,11 +98,18 @@ export function Home() {
             )}
           </span>
         </div>
-        <button className="btn-ghost" onClick={() => setCriando(true)}>
-          <IconAoVivo size={17} />
-          <Trans>Go live</Trans>
-        </button>
+        <div className="home-acoes">
+          <button className="btn-primary" onClick={() => setReuniao(true)}>
+            <IconVideo size={17} />
+            <Trans>New meeting</Trans>
+          </button>
+          <button className="btn-ghost" onClick={() => setCriando(true)}>
+            <IconAoVivo size={17} />
+            <Trans>Go live</Trans>
+          </button>
+        </div>
       </header>
+      {reuniao && <NovaReuniao onClose={() => setReuniao(false)} />}
 
       {erro && <div className="form-error">{erro}</div>}
 

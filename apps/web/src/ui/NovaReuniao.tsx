@@ -4,7 +4,7 @@ import { useStore } from "../store";
 import { Scrim } from "./Scrim";
 import { IconCheck, IconCopy } from "./icons";
 import { criarReuniao } from "../lib/reuniao";
-import { codigoColado } from "../lib/linkDeReuniao";
+import { codigoColado, lembrarNome, nomeLembrado } from "../lib/linkDeReuniao";
 
 /**
  * "Reunião por link": criar uma, ou entrar numa com um código.
@@ -12,10 +12,15 @@ import { codigoColado } from "../lib/linkDeReuniao";
  * O link NÃO é criado ao abrir esta janela. Quem abriu pode só querer colar o
  * código que recebeu — criar uma reunião que ninguém vai usar a cada clique
  * encheria o banco de salas vazias. Por isso criar é um botão.
+ *
+ * Abre também da tela de login, sem conta: aí a pessoa diz o nome antes de
+ * criar, e é esse nome que a tela de espera mostra como de quem criou.
  */
 export function NovaReuniao({ onClose }: { onClose: () => void }) {
   const { t } = useLingui();
   const abrir = useStore((s) => s.abrirReuniao);
+  const me = useStore((s) => s.me);
+  const [nome, setNome] = useState(() => nomeLembrado());
   const [criando, setCriando] = useState(false);
   const [criada, setCriada] = useState<{ code: string; link: string } | null>(null);
   const [copiado, setCopiado] = useState(false);
@@ -23,10 +28,16 @@ export function NovaReuniao({ onClose }: { onClose: () => void }) {
   const [erro, setErro] = useState<string | null>(null);
 
   async function criar() {
+    const limpo = nome.trim();
+    if (!me && !limpo) {
+      setErro(t`Type your name to join.`);
+      return;
+    }
     setCriando(true);
     setErro(null);
     try {
-      const r = await criarReuniao();
+      const r = await criarReuniao(me ? undefined : limpo);
+      if (!me) lembrarNome(limpo);
       setCriada({ code: r.reuniao.code, link: r.link });
     } catch (e) {
       setErro(e instanceof Error ? e.message : t`The meeting could not be created.`);
@@ -98,7 +109,26 @@ export function NovaReuniao({ onClose }: { onClose: () => void }) {
                 can join just by typing their name.
               </Trans>
             </p>
-            <button className="btn-primary" disabled={criando} onClick={() => void criar()}>
+            {!me && (
+              <div className="field">
+                <label htmlFor="nome-anfitriao">
+                  <Trans>Your name</Trans>
+                </label>
+                <input
+                  id="nome-anfitriao"
+                  value={nome}
+                  maxLength={40}
+                  autoFocus
+                  onChange={(e) => setNome(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && void criar()}
+                />
+              </div>
+            )}
+            <button
+              className="btn-primary"
+              disabled={criando || (!me && !nome.trim())}
+              onClick={() => void criar()}
+            >
               {criando ? <Trans>Creating…</Trans> : <Trans>Create a meeting link</Trans>}
             </button>
           </>

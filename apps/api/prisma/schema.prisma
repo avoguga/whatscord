@@ -79,12 +79,12 @@ model User {
   rooms         RoomMember[]
   messages      Message[]
   reactions     Reaction[]
-  ownedSpaces   Space[]        @relation("SpaceOwner")
+  ownedSpaces   Space[]         @relation("SpaceOwner")
   spaceFolders  SpaceFolder[]
-  sounds        Sound[]        @relation("SoundOwner")
-  soundsCreated Sound[]        @relation("SoundAuthor")
-  streams       Stream[]       @relation("StreamOwner")
-  meetings      Meeting[]      @relation("MeetingOwner")
+  sounds        Sound[]         @relation("SoundOwner")
+  soundsCreated Sound[]         @relation("SoundAuthor")
+  streams       Stream[]        @relation("StreamOwner")
+  meetings      Meeting[]       @relation("MeetingOwner")
 
   @@index([username])
 }
@@ -128,12 +128,10 @@ model Sound {
 
 /**
  * Um pedido de "esqueci a senha".
- *
  * Guarda o HASH do token, nunca o token: o token viaja só no e-mail. Quem ler
  * esta tabela — um backup vazado, um acesso indevido ao banco — não consegue
  * redefinir a senha de ninguém com o que achar aqui. É o mesmo cuidado que
  * `RefreshToken` já toma.
- *
  * `usedAt` e não apagar a linha: o pedido usado continua servindo para contar
  * quantos a pessoa fez na última hora, que é o que segura alguém de usar o
  * formulário para encher a caixa de entrada de outra pessoa.
@@ -368,28 +366,30 @@ model Reaction {
 
 /**
  * Uma reunião por link, no jeito do Google Meet.
- *
  * Quem cria precisa de conta; quem ENTRA não precisa. Por isso não existe
  * tabela de participantes: um convidado sem conta não tem linha em lugar nenhum
  * — ele é só um nome dentro do token do LiveKit, e some quando sai. Guardar
  * convidados no banco seria inventar contas que ninguém criou.
- *
  * `code` é o que vai no link (abc-defg-hij). É ele, e não o `id`, que circula:
  * quem tem o link entra, e é por isso que só o anfitrião pode remover gente e
  * encerrar — o link aberto precisa de alguém com a chave da porta.
  */
 model Meeting {
-  id        String    @id @default(cuid())
-  code      String    @unique
-  title     String?
-  ownerId   String
-  createdAt DateTime  @default(now())
+  id          String    @id @default(cuid())
+  code        String    @unique
+  title       String?
+  // Nulo quando quem criou não tinha conta (reunião instantânea). Aí quem manda
+  // é quem tem a chave cujo hash está em `hostKeyHash`.
+  ownerId     String?
+  hostName    String?
+  hostKeyHash String?
+  createdAt   DateTime  @default(now())
   // Um link não pode valer para sempre: um link vazado de seis meses atrás
   // continuaria abrindo uma sala com o nome de quem a criou.
-  expiresAt DateTime
-  endedAt   DateTime?
+  expiresAt   DateTime
+  endedAt     DateTime?
 
-  owner User @relation("MeetingOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  owner User? @relation("MeetingOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([ownerId, createdAt])
 }

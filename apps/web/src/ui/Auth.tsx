@@ -3,12 +3,18 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { useStore } from "../store";
 import { peekPendingInvite } from "../lib/deeplink";
 import { pedirLinkDeSenha } from "../lib/senha";
+import { NovaReuniao } from "./NovaReuniao";
+import { IconVideo } from "./icons";
 
 export function Auth() {
   const { t, i18n } = useLingui();
   const [mode, setMode] = useState<"in" | "up" | "esqueci">("in");
   /** Já pediu o link: a tela troca o formulário pela confirmação. */
   const [linkPedido, setLinkPedido] = useState(false);
+  const [reuniaoAberta, setReuniaoAberta] = useState(false);
+  // Quem chegou por um link de reunião e pediu para entrar com a conta já tem
+  // uma reunião: oferecer outra aqui só confundiria.
+  const veioDeReuniao = useStore((s) => s.reuniao !== null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -215,7 +221,29 @@ export function Auth() {
             {mode === "in" ? <Trans>Create one</Trans> : <Trans>Sign in</Trans>}
           </button>
         </p>
+
+        {/*
+          Como no Meet: dá para fazer uma chamada sem conta nenhuma. Fica aqui,
+          na primeira tela, porque é quem NÃO tem conta que mais precisa achar.
+        */}
+        {!veioDeReuniao && (
+          <>
+            <div className="espera-ou auth-ou">
+              <span>
+                <Trans>or</Trans>
+              </span>
+            </div>
+            <button type="button" className="btn-ghost auth-reuniao" onClick={() => setReuniaoAberta(true)}>
+              <IconVideo size={18} />
+              <Trans>Start an instant meeting</Trans>
+            </button>
+            <p className="auth-reuniao-nota">
+              <Trans>No account needed. You can also join one with a code.</Trans>
+            </p>
+          </>
+        )}
       </form>
+      {reuniaoAberta && <NovaReuniao onClose={() => setReuniaoAberta(false)} />}
     </div>
   );
 }

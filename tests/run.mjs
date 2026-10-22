@@ -2982,9 +2982,7 @@ async function secReuniao() {
   const { A, B } = state;
   const r = {};
 
-  await t("criar exige conta", async () => {
-    const sem = await POST("/meetings", { body: {} });
-    check("sem conta é 401", sem.status === 401, "401", short(sem));
+  await t("criar com conta", async () => {
     const com = await POST("/meetings", { token: A.token, body: {} });
     r.code = com.json?.reuniao?.code;
     check(
@@ -2993,6 +2991,64 @@ async function secReuniao() {
       "201 com código e link",
       short(com)
     );
+  });
+
+  /*
+   * A reunião instantânea da tela de login: sem conta, com um nome. Quem cria
+   * recebe uma chave, e é a chave — não o nome — que faz dele o anfitrião.
+   */
+  await t("criar sem conta (reunião instantânea)", async () => {
+    const semNome = await POST("/meetings", { body: {} });
+    check(
+      "sem conta e sem nome é 400 meetings.needs_name",
+      semNome.status === 400 && semNome.json?.code === "meetings.needs_name",
+      "400 meetings.needs_name",
+      short(semNome)
+    );
+    const c = await POST("/meetings", { body: { nome: "  Ana Anfitriã " } });
+    const inst = c.json?.reuniao?.code;
+    const chave = c.json?.chave;
+    check(
+      "com nome: 201, código e chave de anfitrião",
+      c.status === 201 && /^[a-z]{3}-[a-z]{4}-[a-z]{3}$/.test(inst ?? "") && typeof chave === "string" && chave.length >= 20,
+      "201 com chave",
+      short(c)
+    );
+    check(
+      "quem criou aparece pelo nome, sem id de conta",
+      c.json?.reuniao?.host?.displayName === "Ana Anfitriã" && c.json?.reuniao?.host?.id === null,
+      "Ana Anfitriã, id null",
+      JSON.stringify(c.json?.reuniao?.host)
+    );
+    const info = await GET(`/meetings/${inst}`);
+    check("a espera mostra o nome de quem criou", info.json?.reuniao?.host?.displayName === "Ana Anfitriã", "Ana Anfitriã", short(info));
+
+    const comChave = await POST(`/meetings/${inst}/join`, { body: { nome: "Ana Anfitriã", chave } });
+    check("com a chave, entra como anfitriã", comChave.json?.souAnfitriao === true, "souAnfitriao true", short(comChave));
+    check(
+      "e o token diz à sala que ela é a anfitriã",
+      JSON.parse(corpoDoToken(comChave.json?.token ?? "")?.metadata ?? "{}").anfitriao === true,
+      "metadata.anfitriao true",
+      short(comChave)
+    );
+    const semChave = await POST(`/meetings/${inst}/join`, { body: { nome: "Ana Anfitriã" } });
+    check(
+      "o mesmo nome sem a chave é só convidado",
+      semChave.status === 200 && semChave.json?.souAnfitriao === false,
+      "souAnfitriao false",
+      short(semChave)
+    );
+    const chaveErrada = await POST(`/meetings/${inst}/join`, { body: { nome: "X", chave: "chute" } });
+    check("chave errada também", chaveErrada.json?.souAnfitriao === false, "souAnfitriao false", short(chaveErrada));
+
+    const outro = await POST(`/meetings/${inst}/end`, { token: B.token, body: {} });
+    check("uma conta qualquer não encerra: 403", outro.status === 403, "403", short(outro));
+    const errada = await POST(`/meetings/${inst}/end`, { body: { chave: "chute" } });
+    check("chave errada não encerra: 403", errada.status === 403, "403", short(errada));
+    const tira = await POST(`/meetings/${inst}/remove`, { body: { chave, identidade: "g_qualquer" } });
+    check("com a chave, remove: 204", tira.status === 204, "204", short(tira));
+    const fim = await POST(`/meetings/${inst}/end`, { body: { chave } });
+    check("com a chave, encerra: 204", fim.status === 204, "204", short(fim));
   });
 
   await t("espiar a reunião não exige conta", async () => {
