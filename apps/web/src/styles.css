@@ -2585,7 +2585,7 @@ input, textarea { font: inherit; color: inherit; }
 .auth-ou { margin: 18px 0 12px; }
 .auth-reuniao {
   width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 11px 14px;
+  padding: 11px 14px; border: 1px solid var(--accent);
 }
 .auth-reuniao-nota { margin: 8px 0 0; text-align: center; font-size: 12.5px; color: var(--text-dim); }
 .home-acoes { display: flex; gap: var(--gap-1); flex-wrap: wrap; justify-content: flex-end; }
@@ -2738,8 +2738,11 @@ input, textarea { font: inherit; color: inherit; }
   display: flex; flex-direction: column; align-items: center; gap: var(--gap-2);
   text-align: center; padding: var(--gap-4);
 }
+/* O palco é escuro nos dois temas: o texto segue o vídeo, não o tema. */
+.reuniao-sozinho { color: var(--media-texto); }
 .reuniao-sozinho p { margin: 0; font-size: 15px; }
-.reuniao-sozinho .dim { color: var(--text-dim); font-size: 13.5px; max-width: 46ch; }
+.reuniao-sozinho .dim { color: var(--media-texto); opacity: 0.72; font-size: 13.5px; max-width: 46ch; }
+.reuniao-sozinho button { color: var(--media-texto); border-color: currentColor; }
 
 .reuniao-contador {
   position: absolute; top: -4px; right: -4px;
